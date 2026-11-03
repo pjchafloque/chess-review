@@ -605,7 +605,7 @@ const engine = {
         } else if (line.startsWith("bestmove")) {
           clearTimeout(timer); this.handler = null;
           const b = line.split(/\s+/)[1];
-          res({ score: last.score, best: b && b !== "(none)" ? b : (last.pv ? last.pv[0] : null) });
+          res({ score: last.score, best: b && b !== "(none)" ? b : (last.pv ? last.pv[0] : null), pv: last.pv || [] });
         }
       };
       this.send("position fen " + fen);
@@ -1069,7 +1069,7 @@ function showView(v) {
 window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
 
 /* ---------- blunder trainer ---------- */
-const T = { list: [], idx: 0, fen: "", sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false };
+const T = { list: [], idx: 0, fen: "", sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, line: [], step: 0, token: 0 };
 const tprog = { get() { return store.get("tprog", {}); }, set(id, v) { const p = this.get(); p[id] = v; store.set("tprog", p); } };
 $("tMistakes").checked = store.get("tMistakes", false);
 $("tSkip").checked = store.get("tSkip", true);
@@ -1088,7 +1088,8 @@ function buildPuzzles() {
       const r = classify(g, ev, i); if (!r) continue;
       if (!(r.cls === "blunder" || (withMistakes && r.cls === "mistake"))) continue;
       const mv = g.moves[i];
-      out.push({ id: g.id + ":" + i, g, i, fen: g.fens[i], best: ev[i].best, played: mv.from + mv.to + (mv.promotion || ""), playedSan: mv.san, loss: r.loss, cls: r.cls, before: ev[i] });
+      out.push({ id: g.id + ":" + i, g, i, fen: g.fens[i], best: ev[i].best, pv: a.pv && a.pv[i] ? a.pv[i] : null,
+        played: mv.from + mv.to + (mv.promotion || ""), playedSan: mv.san, loss: r.loss, cls: r.cls, before: ev[i] });
     }
   }
   const solvedAll = out.filter(p => prog[p.id] === "solved").length;
@@ -1098,20 +1099,66 @@ function buildPuzzles() {
   }
   return { list, total: out.length, solvedAll };
 }
+
+// Puzzles ask for at most 4 of your own moves (7 plies including the opponent's replies).
+// How much of Stockfish's line the puzzle asks for: up to mate, or up to the move that
+// actually wins material (checked after the opponent's reply, so a piece that gets taken
+// straight back doesn't count). Quiet improvements stay one-move puzzles.
+const PIECE_VAL = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+function uciMove(c, u) { return c.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] || undefined }); }
+function trimLine(fen, pv) {
+  if (!pv || !pv.length) return [];
+  const c = new Chess(fen), me = c.turn();
+  const mat = () => { let s = 0; for (const row of c.board()) for (const x of row) if (x) s += (x.color === me ? 1 : -1) * PIECE_VAL[x.type]; return s; };
+  const start = mat(); let bestGain = 0, bestLen = 1;
+  for (let k = 0; k < pv.length && k < 7; k++) {
+    if (!uciMove(c, pv[k])) break;
+    if (c.in_checkmate()) return k % 2 === 0 ? pv.slice(0, k + 1) : pv.slice(0, 1);
+    if (k % 2 === 1 || k === pv.length - 1) {
+      const gain = mat() - start; const len = k % 2 === 1 ? k : k + 1;
+      if (gain > bestGain) { bestGain = gain; bestLen = len; }
+    }
+  }
+  return pv.slice(0, bestGain >= 2 ? bestLen : 1);
+}
+function lineSan(fen, line) {
+  const c = new Chess(fen); const parts = [];
+  line.forEach((u, k) => {
+    const n = c.fen().split(" ")[5], white = c.turn() === "w";
+    const m = uciMove(c, u); if (!m) return;
+    if (white) parts.push(n + ". " + m.san); else parts.push(k === 0 ? n + "… " + m.san : m.san);
+  });
+  return parts.join(" ");
+}
+
 let tMeta = { total: 0, solvedAll: 0 };
 function trainerRefresh(keepId) {
   const curId = keepId || (T.list[T.idx] && T.list[T.idx].id);
   const b = buildPuzzles(); T.list = b.list; tMeta = b;
   const at = curId ? T.list.findIndex(p => p.id === curId) : -1;
-  if (at >= 0) { T.idx = at; renderTrainer(); } else loadPuzzle(0);
+  if (at >= 0) { T.list[at].line = T.line; renderTrainer(); } else loadPuzzle(0);
 }
 function loadPuzzle(idx) {
   T.idx = T.list.length ? (idx + T.list.length) % T.list.length : 0;
-  const p = T.list[T.idx];
-  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false });
+  const p = T.list[T.idx]; const token = ++T.token;
+  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [] });
+  if (p) {
+    if (p.pv) T.line = trimLine(p.fen, p.pv);
+    else if (engine.ready) {
+      // Reviewed in this browser only: ask Stockfish for the full line now.
+      T.status = "loading";
+      engine.analyse(p.fen, Math.max(14, S.depth)).then(r => {
+        if (token !== T.token) return;
+        T.line = trimLine(p.fen, r.pv && r.pv.length ? r.pv : [p.best]); if (!T.line.length) T.line = [p.best];
+        T.status = "solving"; renderTrainer();
+      });
+    }
+    if (!T.line.length && T.status !== "loading") T.line = [p.best];
+  }
   renderTrainer();
 }
 function sideName(c) { return c === "w" ? "White" : "Black"; }
+function myMoves() { return Math.ceil(T.line.length / 2); }
 function renderTrainer() {
   const p = T.list[T.idx];
   const flip = p ? p.g.me === "b" : false;
@@ -1132,11 +1179,15 @@ function renderTrainer() {
   }
   const g = p.g, opp = g.me === "w" ? g.black : g.white;
   const moveNo = g.fens[p.i].split(" ")[5] | 0;
-  let fb = "";
-  if (T.msg) fb = '<div class="feedback ' + T.msg.kind + '">' + T.msg.html + '</div>';
-  const ask = T.status === "solving" ? sideName(g.me) + " to move. Find the best move." : T.status === "solved" ? "Solved" : "Solution";
+  let ask;
+  if (T.status === "loading") ask = "Setting up the puzzle…";
+  else if (T.status === "solving") ask = sideName(g.me) + " to move. " + (myMoves() > 1 ? "Find the winning sequence." : "Find the best move.");
+  else ask = T.status === "solved" ? "Solved" : "Solution";
+  let sub = "";
+  if (T.status === "solving" && myMoves() > 1) sub = '<div class="ctx">This one takes ' + myMoves() + ' moves. Your opponent’s replies are played for you.' + (T.step ? ' Move ' + (T.step / 2 + 1) + ' of ' + myMoves() + '.' : '') + '</div>';
+  const fb = T.msg ? '<div class="feedback ' + T.msg.kind + '">' + T.msg.html + '</div>' : "";
   box.innerHTML = '<div class="eyebrow">Puzzle ' + (T.idx + 1) + ' of ' + T.list.length + (prog[p.id] === "solved" && T.status === "solving" ? ' · solved before' : '') + '</div>' +
-    '<p class="ask">' + esc(ask) + '</p>' +
+    '<p class="ask">' + esc(ask) + '</p>' + sub +
     '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '. In the game you played a ' + (p.cls === "blunder" ? "blunder" : "mistake") + ' here.</div>' + fb;
 }
 function sanOf(fen, uci) { return uciToSan(fen, uci); }
@@ -1147,6 +1198,14 @@ function costText(p) {
 }
 function finish(kind, html) { T.msg = { kind, html }; renderTrainer(); }
 function gameLink(p) { return ' <button type="button" class="tlink" data-open="' + p.id + '">See it in the game</button>'; }
+function lineText(p) { return T.line.length > 1 ? 'The full line: <b>' + esc(lineSan(p.fen, T.line)) + '</b>. ' : ''; }
+
+function solvedNow(p, lead) {
+  T.status = "solved";
+  if (!T.revealed) tprog.set(p.id, "solved");
+  $("tboard").classList.add("flash-good"); setTimeout(() => $("tboard").classList.remove("flash-good"), 700);
+  finish("good", lead + ' ' + lineText(p) + 'In the game you played <b>' + esc(p.playedSan) + '</b>, ' + costText(p) + '.' + gameLink(p));
+}
 
 async function tryMove(from, to) {
   const p = T.list[T.idx]; if (!p || T.status !== "solving" || T.checking) return;
@@ -1154,29 +1213,36 @@ async function tryMove(from, to) {
   T.sel = null; T.targets = [];
   if (!m) { renderTrainer(); return; }
   const uci = m.from + m.to + (m.promotion || "");
-  const bestSan = sanOf(p.fen, p.best);
+  const startFen = T.fen, token = T.token;
   const showMove = () => { T.fen = c.fen(); T.last = { from: m.from, to: m.to }; };
-  const accept = (extra) => {
-    showMove(); T.status = "solved";
-    if (!T.revealed) tprog.set(p.id, "solved");
-    $("tboard").classList.add("flash-good"); setTimeout(() => $("tboard").classList.remove("flash-good"), 700);
-    finish("good", (extra || '<b>' + esc(m.san) + '</b> is right.') + ' In the game you played <b>' + esc(p.playedSan) + '</b>, ' + costText(p) + '.' + gameLink(p));
-  };
   const reject = (html) => {
     T.tries++; showMove(); renderTrainer();
     $("tboard").classList.add("flash-bad");
-    setTimeout(() => { $("tboard").classList.remove("flash-bad"); T.fen = p.fen; T.last = null; finish("bad", html + ' Try again.'); }, 650);
+    setTimeout(() => { if (token !== T.token) return; $("tboard").classList.remove("flash-bad"); T.fen = startFen; T.last = null; finish("bad", html + ' Try again.'); }, 650);
   };
-  if (uci === p.best) return accept();
-  if (uci === p.played) return reject('<b>' + esc(m.san) + '</b> is the move you played in the game. It\'s the one ' + costText(p).replace("which ", "that ") + '.');
+  // The expected move, or any mate: next step of the line.
+  if (uci === T.line[T.step] || c.in_checkmate()) {
+    showMove(); T.hint = null; T.step++;
+    if (c.in_checkmate() || T.step >= T.line.length) return solvedNow(p, c.in_checkmate() ? '<b>' + esc(m.san) + '</b> is checkmate.' : '<b>' + esc(m.san) + '</b> is right.');
+    const reply = T.line[T.step];
+    T.status = "replying"; finish("good", '<b>' + esc(m.san) + '</b> is right. Keep going.');
+    setTimeout(() => {
+      if (token !== T.token) return;
+      const r = uciMove(c, reply); T.step++;
+      T.fen = c.fen(); T.last = r ? { from: r.from, to: r.to } : null; T.status = "solving";
+      finish("good", '<b>' + esc(m.san) + '</b> is right. Your opponent answered <b>' + esc(r ? r.san : reply) + '</b>. Keep going.');
+    }, 550);
+    return;
+  }
+  if (T.step === 0 && uci === p.played) return reject('<b>' + esc(m.san) + '</b> is the move you played in the game. It’s the one ' + costText(p).replace("which ", "that ") + '.');
   if (engine.ready) {
     T.checking = true; showMove(); finish("info", 'Checking <b>' + esc(m.san) + '</b> with Stockfish…');
     const r = toEval(c.fen(), await engine.analyse(c.fen(), Math.max(12, S.depth)));
-    T.checking = false;
+    T.checking = false; if (token !== T.token) return;
     const s = p.g.me === "w" ? 1 : -1;
     const lost = s * p.before.num - s * r.num;
-    if (lost < 0.5) return accept('<b>' + esc(m.san) + '</b> works too. Stockfish’s top choice was <b>' + esc(bestSan) + '</b>.');
-    T.fen = p.fen; T.last = null;
+    if (lost < 0.5) { showMove(); return solvedNow(p, '<b>' + esc(m.san) + '</b> works too. Stockfish preferred <b>' + esc(sanOf(startFen, T.line[T.step])) + '</b>.'); }
+    T.fen = startFen; T.last = null;
     return reject('<b>' + esc(m.san) + '</b> isn’t it. It gives away about ' + Math.min(10, lost).toFixed(1) + ' pawns.');
   }
   reject('<b>' + esc(m.san) + '</b> isn’t the move Stockfish found.');
@@ -1199,17 +1265,26 @@ $("tprompt").addEventListener("click", e => {
 });
 $("tHint").onclick = () => {
   const p = T.list[T.idx]; if (!p || T.status !== "solving") return;
-  T.hint = p.best.slice(0, 2);
-  const pc = new Chess(p.fen).get(T.hint);
+  const u = T.line[T.step]; if (!u) return;
+  T.hint = u.slice(0, 2);
+  const pc = new Chess(T.fen).get(T.hint);
   const names = { k: "king", q: "queen", r: "rook", b: "bishop", n: "knight", p: "pawn" };
   finish("info", 'Hint: move your ' + (pc ? names[pc.type] : "piece") + ' on <b>' + T.hint + '</b>.');
 };
 $("tShow").onclick = () => {
-  const p = T.list[T.idx]; if (!p || T.status === "solved") return;
-  T.revealed = true; T.status = "shown"; T.fen = p.fen; T.last = null; T.sel = null; T.targets = []; T.hint = null;
-  T.arrow = { from: p.best.slice(0, 2), to: p.best.slice(2, 4) };
+  const p = T.list[T.idx]; if (!p || T.status === "solved" || T.status === "shown" || T.status === "loading") return;
+  T.revealed = true; T.status = "shown"; T.sel = null; T.targets = []; T.hint = null;
   if (tprog.get()[p.id] !== "solved") tprog.set(p.id, "missed");
-  finish("info", 'The move was <b>' + esc(sanOf(p.fen, p.best)) + '</b>. In the game you played <b>' + esc(p.playedSan) + '</b>, ' + costText(p) + '.' + gameLink(p));
+  // Play the rest of the line on the board, one move at a time.
+  const token = T.token; const c = new Chess(T.fen); const rest = T.line.slice(T.step);
+  const text = 'The answer: <b>' + esc(lineSan(p.fen, T.line)) + '</b>. In the game you played <b>' + esc(p.playedSan) + '</b>, ' + costText(p) + '.' + gameLink(p);
+  if (rest.length === 1) { T.arrow = { from: rest[0].slice(0, 2), to: rest[0].slice(2, 4) }; finish("info", text); return; }
+  finish("info", text);
+  rest.forEach((u, k) => setTimeout(() => {
+    if (token !== T.token) return;
+    const r = uciMove(c, u); if (!r) return;
+    T.fen = c.fen(); T.last = { from: r.from, to: r.to }; renderTrainer();
+  }, 700 * (k + 1)));
 };
 $("tNext").onclick = () => {
   const idx = T.idx;
@@ -1259,8 +1334,11 @@ function mergeSite(site) {
   for (const id in site.an) {
     const a = site.an[id]; if (!a || !a.e) continue;
     const cur = S.analyses[id];
-    if (cur && cur.evals && cur.evals.every(Boolean) && cur.depth >= a.d) continue;
-    S.analyses[id] = { depth: a.d, evals: a.e.map(expandEval) }; reviewed++;
+    if (cur && cur.evals && cur.evals.every(Boolean) && cur.depth >= a.d) {
+      if (a.p && JSON.stringify(cur.pv || null) !== JSON.stringify(a.p)) { cur.pv = a.p; reviewed++; }
+      continue;
+    }
+    S.analyses[id] = { depth: a.d, evals: a.e.map(expandEval), pv: a.p || null }; reviewed++;
   }
   if (added || reviewed) { big.set("games", S.raw); big.set("analyses", S.analyses); }
   return added + reviewed;

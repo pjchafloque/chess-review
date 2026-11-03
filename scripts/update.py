@@ -23,6 +23,8 @@ import chess.pgn
 USER = os.environ.get("CHESS_USER", "chaflox").strip().lower()
 DEPTH = int(os.environ.get("DEPTH", "14"))
 MAX_MINUTES = float(os.environ.get("MAX_MINUTES", "40"))
+PUZZLE_DEPTH = int(os.environ.get("PUZZLE_DEPTH", "18"))
+PUZZLE_VERSION = 1
 DATA = "data"
 GAMES_FILE = os.path.join(DATA, "games.json")
 ANALYSIS_FILE = os.path.join(DATA, "analysis.json")
@@ -148,6 +150,43 @@ def review(pgn: str, engine) -> list:
     return evals
 
 
+def num(e):
+    """Pawns from White's side, capped at +/-10, mate counts as 10 (same as the page)."""
+    if e[0] == "c":
+        return max(-10.0, min(10.0, e[1] / 100))
+    if e[0] == "m":
+        return 10.0 if e[1] > 0 else -10.0
+    if e[0] == "x":
+        return 10.0 * e[1]
+    return 0.0
+
+
+def puzzle_lines(pgn: str, evals: list, engine) -> dict:
+    """For each of the user's mistakes and blunders, store Stockfish's main line from the
+    position before it, searched deeper. The page decides how much of it the puzzle uses."""
+    game = chess.pgn.read_game(io.StringIO(pgn))
+    white = game.headers.get("White", "").lower()
+    black = game.headers.get("Black", "").lower()
+    me = chess.WHITE if white == USER else chess.BLACK if black == USER else None
+    if me is None:
+        return {}
+    board = game.board()
+    out = {}
+    for i, move in enumerate(game.mainline_moves()):
+        if board.turn == me and i + 1 < len(evals):
+            s = 1 if me == chess.WHITE else -1
+            before, after = s * num(evals[i]), s * num(evals[i + 1])
+            decided = (before >= 4 and after >= 4) or (before <= -4 and after <= -4)
+            best = evals[i][2] if len(evals[i]) > 2 else None
+            if before - after >= 1 and not decided and best and best != move.uci():
+                info = engine.analyse(board, chess.engine.Limit(depth=PUZZLE_DEPTH))
+                pv = [m.uci() for m in (info.get("pv") or [])[:12]]
+                if pv:
+                    out[str(i)] = pv
+        board.push(move)
+    return out
+
+
 def main():
     store = load(GAMES_FILE, {"user": USER, "games": []})
     analysis = load(ANALYSIS_FILE, {})
@@ -158,18 +197,42 @@ def main():
     save(GAMES_FILE, store)
 
     todo = [g for g in store["games"] if g["id"] not in analysis]
-    print(f"{len(todo)} games waiting for review")
-    if not todo:
+    by_id = {g["id"]: g for g in store["games"]}
+    need_lines = [gid for gid, a in analysis.items() if a.get("e") and a.get("pz") != PUZZLE_VERSION and gid in by_id]
+    print(f"{len(todo)} games waiting for review, {len(need_lines)} reviewed games need puzzle lines")
+    if not todo and not need_lines:
         return
     engine = chess.engine.SimpleEngine.popen_uci(engine_path())
     engine.configure({"Threads": os.cpu_count() or 2, "Hash": 256})
-    done = 0
+    done = lines = 0
+
+    def add_lines(gid):
+        a = analysis[gid]
+        try:
+            a["p"] = puzzle_lines(by_id[gid]["pgn"], a["e"], engine)
+        except Exception as e:
+            print("No puzzle lines for", gid, e)
+            a["p"] = {}
+        a["pz"] = PUZZLE_VERSION
+
+    def out_of_time():
+        return time.time() - START > MAX_MINUTES * 60
+
     try:
+        # Games reviewed before puzzle lines existed come first; they are quick.
+        for gid in need_lines:
+            if out_of_time():
+                break
+            add_lines(gid)
+            lines += 1
+            if lines % 20 == 0:
+                save(ANALYSIS_FILE, analysis)
         for g in todo:
-            if time.time() - START > MAX_MINUTES * 60:
+            if out_of_time():
                 break
             try:
                 analysis[g["id"]] = {"d": DEPTH, "e": review(g["pgn"], engine)}
+                add_lines(g["id"])
             except Exception as e:
                 print("Skipped", g["id"], e)
                 analysis[g["id"]] = {"d": DEPTH, "e": None}
@@ -179,7 +242,7 @@ def main():
     finally:
         engine.quit()
         save(ANALYSIS_FILE, analysis)
-    print(f"Reviewed {done} games this run; {len(todo) - done} left")
+    print(f"Added puzzle lines to {lines} games; reviewed {done} new games; {len(todo) - done} left")
 
 
 if __name__ == "__main__":
