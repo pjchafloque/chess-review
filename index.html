@@ -172,6 +172,8 @@ button { cursor: pointer; }
 .feedback.info { background: var(--surface-2); }
 .feedback b { font-family: var(--f-mono); font-weight: 600; }
 .feedback a, .tlink { color: var(--accent); cursor: pointer; text-decoration: underline; background: none; border: 0; padding: 0; font-size: inherit; }
+.why { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); line-height: 1.5; }
+.why-h { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
 .tactions { display: flex; gap: 8px; flex-wrap: wrap; }
 .tstats { padding: 12px 16px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 .tstats b { display: block; font-family: var(--f-display); font-size: 24px; color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -1088,7 +1090,7 @@ function buildPuzzles() {
       const r = classify(g, ev, i); if (!r) continue;
       if (!(r.cls === "blunder" || (withMistakes && r.cls === "mistake"))) continue;
       const mv = g.moves[i];
-      out.push({ id: g.id + ":" + i, g, i, fen: g.fens[i], best: ev[i].best, pv: a.pv && a.pv[i] ? a.pv[i] : null,
+      out.push({ id: g.id + ":" + i, g, i, fen: g.fens[i], best: ev[i].best, pv: a.pv && a.pv[i] ? a.pv[i] : null, ref: a.ref && a.ref[i] ? a.ref[i] : null,
         played: mv.from + mv.to + (mv.promotion || ""), playedSan: mv.san, loss: r.loss, cls: r.cls, before: ev[i] });
     }
   }
@@ -1131,6 +1133,87 @@ function lineSan(fen, line) {
   return parts.join(" ");
 }
 
+/* Plain-language "why" for a line of moves. */
+const PNAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
+function nounList(types, owner) {
+  const counts = {}; types.forEach(t => counts[t] = (counts[t] || 0) + 1);
+  const words = ["", "", "two", "three", "four", "five"];
+  const parts = Object.keys(counts).sort((a, b) => PIECE_VAL[b] - PIECE_VAL[a]).map(t => {
+    const n = counts[t]; const name = PNAME[t] + (n > 1 ? "s" : "");
+    if (n > 1) return (owner ? owner + " " : "") + (words[n] || n) + " " + name;
+    return (owner ? owner + " " : (t === "q" || t === "r" || t === "k" ? "the " : "a ")) + name;
+  });
+  return parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
+}
+// Describe what the side to move achieves with this line. owner: how to name the other side's pieces.
+// priorLoss: piece the side to move just lost (the game move's capture), so a recapture isn't called a win.
+function describeLine(fen, pv, owner, priorLoss) {
+  const seq = trimLine(fen, pv); if (!seq.length) return null;
+  const c = new Chess(fen), side = c.turn(); const ms = [];
+  for (const u of seq) { const m = uciMove(c, u); if (!m) break; ms.push(m); }
+  const mate = c.in_checkmate();
+  // count the opponent's immediate answer too, so a piece taken straight back is not counted as won
+  const extra = pv[seq.length] ? (() => { const m = uciMove(c, pv[seq.length]); return m ? [m] : []; })() : [];
+  const all = ms.concat(mate ? [] : extra);
+  const gained = all.filter(m => m.color === side && m.captured).map(m => m.captured);
+  const lost = all.filter(m => m.color !== side && m.captured).map(m => m.captured);
+  if (priorLoss) lost.push(priorLoss);
+  const g = gained.slice(), l = lost.slice();
+  for (let i = g.length - 1; i >= 0; i--) { const j = l.indexOf(g[i]); if (j >= 0) { g.splice(i, 1); l.splice(j, 1); } }
+  const gv = g.reduce((s, t) => s + PIECE_VAL[t], 0), lv = l.reduce((s, t) => s + PIECE_VAL[t], 0);
+  let fork = null;
+  for (let k = 0; k + 2 < ms.length; k += 2) {
+    const a = ms[k], b = ms[k + 2];
+    if (b.from === a.to && b.captured && PIECE_VAL[b.captured] >= 3) {
+      fork = a.san.includes("+") ? a.san + " is a fork: it checks the king and attacks " + nounList([b.captured], owner) + " at the same time"
+        : a.san + " attacks two pieces at once";
+      break;
+    }
+  }
+  let what = null;
+  if (mate) what = "mate";
+  else if (gv - lv >= 1) {
+    if (g.length === 1 && g[0] === "r" && l.length === 1 && (l[0] === "n" || l[0] === "b")) what = "win the exchange (a rook for a " + PNAME[l[0]] + ")";
+    else what = "win " + nounList(g, owner) + (l.length ? " for " + nounList(l, null) : "");
+  }
+  return { mate, what, fork, first: ms[0] ? ms[0].san : "", line: lineSan(fen, seq), plies: ms.length, checks: ms.some(m => m.color === side && m.san.includes("+")) };
+}
+function signedEval(n) { return (n > 0 ? "+" : n < 0 ? "\u2212" : "") + Math.abs(n).toFixed(1); }
+async function refutationFor(p) {
+  if (p.ref) return p.ref;
+  const after = p.g.fens[p.i + 1];
+  if (engine.ready) { const r = await engine.analyse(after, Math.max(14, S.depth)); p.ref = r.pv && r.pv.length ? r.pv : null; if (p.ref) return p.ref; }
+  const a = S.analyses[p.g.id], e = a && a.evals[p.i + 1];
+  return e && e.best ? [e.best] : [];
+}
+async function explain(p) {
+  const opp = sideName(p.g.me === "w" ? "b" : "w");
+  const s = p.g.me === "w" ? 1 : -1;
+  const ev = S.analyses[p.g.id].evals;
+  const before = s * ev[p.i].num, after = s * ev[p.i + 1].num;
+  const sol = describeLine(p.fen, T.line, "their");
+  const ref = await refutationFor(p);
+  const playedCap = (() => { try { const m = uciMove(new Chess(p.fen), p.played); return m && m.captured; } catch (e) { return null; } })();
+  const bad = ref && ref.length ? describeLine(p.g.fens[p.i + 1], ref, "your", playedCap) : null;
+  const solActive = sol && (sol.mate || sol.what);
+  const badReal = bad && (bad.mate || bad.what);
+  const standing = before >= 1 ? "keeps your advantage" : before > -1 ? "keeps the game level" : "is your best defense";
+  let solText = "";
+  if (sol) {
+    if (sol.mate) solText = sol.plies === 1 ? "<b>" + esc(sol.first) + "</b> is checkmate on the spot." : "<b>" + esc(sol.first) + "</b> starts a forced checkmate: <b>" + esc(sol.line) + "</b>.";
+    else if (sol.what) solText = "<b>" + esc(sol.first) + "</b> lets you " + sol.what + (sol.plies > 1 ? ": <b>" + esc(sol.line) + "</b>" : "") + ".";
+    else solText = "<b>" + esc(sol.first) + "</b> " + (badReal ? "stops that and " : "") + standing + " (" + signedEval(before) + ")" + (sol.plies > 1 ? ". The idea: <b>" + esc(sol.line) + "</b>" : "") + ".";
+    if (sol.fork) solText += " " + esc(sol.fork) + ".";
+  }
+  let game = "In the game you played <b>" + esc(p.playedSan) + "</b>";
+  if (bad && bad.mate) game += ", which let " + opp + " force checkmate with <b>" + esc(bad.line) + "</b>.";
+  else if (bad && bad.what) game += ", which let " + opp + " " + bad.what + " with <b>" + esc(bad.line) + "</b>." + (bad.fork ? " " + esc(bad.fork) + "." : "");
+  else if (solActive) game += ". It didn\u2019t lose anything right away, but it missed this chance, and the position went from " + signedEval(before) + " to " + signedEval(after) + ".";
+  else game += ". " + opp + "\u2019s best answer was <b>" + esc(bad ? bad.first : sanOf(p.g.fens[p.i + 1], ref && ref[0])) + "</b>, and the position went from " + signedEval(before) + " to " + signedEval(after) + ".";
+  // Lead with whichever half carries the point: the threat you allowed, or the chance you missed.
+  return solActive || !badReal ? solText + " " + game : game + " " + solText;
+}
+
 let tMeta = { total: 0, solvedAll: 0 };
 function trainerRefresh(keepId) {
   const curId = keepId || (T.list[T.idx] && T.list[T.idx].id);
@@ -1154,6 +1237,7 @@ function loadPuzzle(idx) {
       });
     }
     if (!T.line.length && T.status !== "loading") T.line = [p.best];
+    if (!p.ref && engine.ready) refutationFor(p).catch(() => {});
   }
   renderTrainer();
 }
@@ -1198,13 +1282,20 @@ function costText(p) {
 }
 function finish(kind, html) { T.msg = { kind, html }; renderTrainer(); }
 function gameLink(p) { return ' <button type="button" class="tlink" data-open="' + p.id + '">See it in the game</button>'; }
-function lineText(p) { return T.line.length > 1 ? 'The full line: <b>' + esc(lineSan(p.fen, T.line)) + '</b>. ' : ''; }
 
+function withWhy(p, kind, lead) {
+  const token = T.token;
+  finish(kind, lead + '<div class="why">Working out why\u2026</div>');
+  explain(p).then(why => {
+    if (token !== T.token) return;
+    finish(kind, lead + '<div class="why"><span class="why-h">Why</span>' + why + gameLink(p) + '</div>');
+  }).catch(() => { if (token === T.token) finish(kind, lead + gameLink(p)); });
+}
 function solvedNow(p, lead) {
   T.status = "solved";
   if (!T.revealed) tprog.set(p.id, "solved");
   $("tboard").classList.add("flash-good"); setTimeout(() => $("tboard").classList.remove("flash-good"), 700);
-  finish("good", lead + ' ' + lineText(p) + 'In the game you played <b>' + esc(p.playedSan) + '</b>, ' + costText(p) + '.' + gameLink(p));
+  withWhy(p, "good", lead);
 }
 
 async function tryMove(from, to) {
@@ -1277,9 +1368,10 @@ $("tShow").onclick = () => {
   if (tprog.get()[p.id] !== "solved") tprog.set(p.id, "missed");
   // Play the rest of the line on the board, one move at a time.
   const token = T.token; const c = new Chess(T.fen); const rest = T.line.slice(T.step);
-  const text = 'The answer: <b>' + esc(lineSan(p.fen, T.line)) + '</b>. In the game you played <b>' + esc(p.playedSan) + '</b>, ' + costText(p) + '.' + gameLink(p);
-  if (rest.length === 1) { T.arrow = { from: rest[0].slice(0, 2), to: rest[0].slice(2, 4) }; finish("info", text); return; }
-  finish("info", text);
+  const lead = 'The answer: <b>' + esc(lineSan(p.fen, T.line)) + '</b>.';
+  if (rest.length === 1) T.arrow = { from: rest[0].slice(0, 2), to: rest[0].slice(2, 4) };
+  withWhy(p, "info", lead);
+  if (rest.length === 1) return;
   rest.forEach((u, k) => setTimeout(() => {
     if (token !== T.token) return;
     const r = uciMove(c, u); if (!r) return;
@@ -1335,10 +1427,10 @@ function mergeSite(site) {
     const a = site.an[id]; if (!a || !a.e) continue;
     const cur = S.analyses[id];
     if (cur && cur.evals && cur.evals.every(Boolean) && cur.depth >= a.d) {
-      if (a.p && JSON.stringify(cur.pv || null) !== JSON.stringify(a.p)) { cur.pv = a.p; reviewed++; }
+      if ((a.p && JSON.stringify(cur.pv || null) !== JSON.stringify(a.p)) || (a.r && JSON.stringify(cur.ref || null) !== JSON.stringify(a.r))) { cur.pv = a.p || cur.pv; cur.ref = a.r || cur.ref; reviewed++; }
       continue;
     }
-    S.analyses[id] = { depth: a.d, evals: a.e.map(expandEval), pv: a.p || null }; reviewed++;
+    S.analyses[id] = { depth: a.d, evals: a.e.map(expandEval), pv: a.p || null, ref: a.r || null }; reviewed++;
   }
   if (added || reviewed) { big.set("games", S.raw); big.set("analyses", S.analyses); }
   return added + reviewed;

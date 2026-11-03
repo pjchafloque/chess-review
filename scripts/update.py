@@ -25,7 +25,7 @@ USER = os.environ.get("CHESS_USER", "chaflox").strip().lower()
 DEPTH = int(os.environ.get("DEPTH", "14"))
 MAX_MINUTES = float(os.environ.get("MAX_MINUTES", "40"))
 PUZZLE_DEPTH = int(os.environ.get("PUZZLE_DEPTH", "18"))
-PUZZLE_VERSION = 1
+PUZZLE_VERSION = 2
 DATA = "data"
 GAMES_FILE = os.path.join(DATA, "games.json")
 ANALYSIS_FILE = os.path.join(DATA, "analysis.json")
@@ -162,17 +162,18 @@ def num(e):
     return 0.0
 
 
-def puzzle_lines(pgn: str, evals: list, engine) -> dict:
+def puzzle_lines(pgn: str, evals: list, engine) -> tuple:
     """For each of the user's mistakes and blunders, store Stockfish's main line from the
-    position before it, searched deeper. The page decides how much of it the puzzle uses."""
+    position before it (the puzzle) and from the position after the game move (what the
+    opponent could do about it), both searched deeper. The page decides how much to use."""
     game = chess.pgn.read_game(io.StringIO(pgn))
     white = game.headers.get("White", "").lower()
     black = game.headers.get("Black", "").lower()
     me = chess.WHITE if white == USER else chess.BLACK if black == USER else None
     if me is None:
-        return {}
+        return {}, {}
     board = game.board()
-    out = {}
+    out, refs = {}, {}
     for i, move in enumerate(game.mainline_moves()):
         if board.turn == me and i + 1 < len(evals):
             s = 1 if me == chess.WHITE else -1
@@ -184,8 +185,15 @@ def puzzle_lines(pgn: str, evals: list, engine) -> dict:
                 pv = [m.uci() for m in (info.get("pv") or [])[:12]]
                 if pv:
                     out[str(i)] = pv
+                board.push(move)
+                if not board.is_game_over():
+                    info = engine.analyse(board, chess.engine.Limit(depth=PUZZLE_DEPTH))
+                    ref = [m.uci() for m in (info.get("pv") or [])[:10]]
+                    if ref:
+                        refs[str(i)] = ref
+                board.pop()
         board.push(move)
-    return out
+    return out, refs
 
 
 def run_reviews(store, analysis, shard=0, shards=1):
@@ -206,10 +214,10 @@ def run_reviews(store, analysis, shard=0, shards=1):
     def add_lines(gid):
         a = analysis[gid]
         try:
-            a["p"] = puzzle_lines(by_id[gid]["pgn"], a["e"], engine)
+            a["p"], a["r"] = puzzle_lines(by_id[gid]["pgn"], a["e"], engine)
         except Exception as e:
             print("No puzzle lines for", gid, e)
-            a["p"] = {}
+            a["p"], a["r"] = {}, {}
         a["pz"] = PUZZLE_VERSION
 
     done = 0
