@@ -146,6 +146,39 @@ button { cursor: pointer; }
 .coord.f { right: 3%; bottom: 1%; } .coord.r { left: 4%; top: 2%; }
 .badge { position: absolute; top: -2.2cqw; right: -2.2cqw; width: 5.2cqw; height: 5.2cqw; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-mono); font-weight: 600; font-size: 2.4cqw; color: #fff; z-index: 3; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
 .sq.edge-r .badge { right: 1%; } .sq.edge-t .badge { top: 1%; }
+.sq.sel::before { content: ""; position: absolute; inset: 0; background: rgba(44, 106, 85, .45); }
+.sq.hint::before { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 4px var(--c-book); }
+.sq.tgt::after { content: ""; position: absolute; width: 28%; height: 28%; border-radius: 50%; background: rgba(20, 40, 30, .28); pointer-events: none; z-index: 2; }
+.sq.tgt.cap::after { width: 86%; height: 86%; background: transparent; box-shadow: inset 0 0 0 5px rgba(20, 40, 30, .28); }
+.board.play .sq { cursor: pointer; }
+.board.flash-bad { box-shadow: 0 0 0 3px var(--c-blunder); }
+.board.flash-good { box-shadow: 0 0 0 3px var(--c-best); }
+
+.tabs { display: flex; gap: 4px; margin-top: 10px; }
+.tabs a { text-decoration: none; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 14px; font-weight: 500; }
+.tabs a[aria-current="page"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.trainer { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 900px) { .trainer { grid-template-columns: minmax(0, 1fr); } }
+.tboardwrap { padding: 12px; }
+.tside { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.tcard { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.tcard .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 600; }
+.tcard .ask { font-family: var(--f-display); font-size: 24px; font-weight: 600; line-height: 1.15; margin: 0; text-wrap: balance; }
+.tcard .ctx { font-size: 13.5px; color: var(--muted); }
+.feedback { border-radius: 8px; padding: 10px 12px; font-size: 14px; border: 1px solid var(--line); }
+.feedback.good { border-color: var(--c-best); background: color-mix(in srgb, var(--c-best) 12%, transparent); }
+.feedback.bad { border-color: var(--c-blunder); background: color-mix(in srgb, var(--c-blunder) 10%, transparent); }
+.feedback.info { background: var(--surface-2); }
+.feedback b { font-family: var(--f-mono); font-weight: 600; }
+.feedback a, .tlink { color: var(--accent); cursor: pointer; text-decoration: underline; background: none; border: 0; padding: 0; font-size: inherit; }
+.tactions { display: flex; gap: 8px; flex-wrap: wrap; }
+.tstats { padding: 12px 16px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.tstats b { display: block; font-family: var(--f-display); font-size: 24px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tsettings { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.tsettings label { display: flex; align-items: center; gap: 8px; }
+.tsettings select { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 3px 6px; }
+
 .arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 
 .controls { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
@@ -200,7 +233,8 @@ button { cursor: pointer; }
 <div class="app">
   <header class="top">
     <div class="brand">
-      <h1>Game Review</h1>
+      <h1 id="viewTitle">Game Review</h1>
+      <nav class="tabs" aria-label="Sections"><a href="#review" data-view="review" aria-current="page">Game review</a><a href="#trainer" data-view="trainer">Blunder trainer</a></nav>
       <label class="who" for="username">Reviewing games for <input id="username" value="Chaflox" spellcheck="false" autocomplete="off"></label>
     </div>
     <div class="engine" id="engine" data-state="loading">
@@ -215,7 +249,7 @@ button { cursor: pointer; }
     </div>
   </header>
 
-  <main class="layout">
+  <main class="layout" id="viewReview">
     <aside class="library">
       <section class="panel import" aria-labelledby="imp-h">
         <h2 id="imp-h">Add games from chess.com</h2>
@@ -297,6 +331,28 @@ button { cursor: pointer; }
       </div>
     </section>
   </main>
+
+  <section class="trainer" id="viewTrainer" hidden aria-label="Blunder trainer">
+    <div class="panel tboardwrap"><div class="board play" id="tboard"></div></div>
+    <div class="tside">
+      <div class="panel tcard" id="tprompt"></div>
+      <div class="tactions">
+        <button class="btn" id="tHint" type="button">Hint</button>
+        <button class="btn" id="tShow" type="button">Show solution</button>
+        <button class="btn" id="tPrev" type="button">Previous</button>
+        <button class="btn primary" id="tNext" type="button">Next puzzle</button>
+      </div>
+      <div class="panel tstats" id="tstats"></div>
+      <div class="panel tsettings">
+        <div class="section-label">Puzzles</div>
+        <label for="tMistakes"><input type="checkbox" id="tMistakes"> Include mistakes, not just blunders</label>
+        <label for="tSkip"><input type="checkbox" id="tSkip" checked> Skip puzzles I've already solved</label>
+        <label for="tFormat">Format <select id="tFormat"><option value="all">All formats</option><option value="bullet">Bullet</option><option value="blitz">Blitz</option><option value="rapid">Rapid</option><option value="daily">Daily</option></select></label>
+        <label for="tOrder">Order <select id="tOrder"><option value="new">Newest games first</option><option value="random">Shuffled</option></select></label>
+        <button class="btn small" id="tReset" type="button" style="align-self:flex-start">Reset my puzzle progress</button>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
@@ -529,11 +585,15 @@ const engine = {
     if (!this.impl) { try { this.impl = await tryMainThread(SF_URLS[0], l => this.onLine(l)); } catch (e) {} }
     if (!this.impl) throw new Error("no engine");
     this.send("setoption name Hash value 32");
-    await this.isReady();
+    await this.rawReady();
     this.ready = true;
   },
-  isReady() { return new Promise(res => { this.handler = l => { if (l.startsWith("readyok")) { this.handler = null; res(); } }; this.send("isready"); }); },
-  analyse(fen, depth) {
+  lock: Promise.resolve(),
+  queued(fn) { const p = this.lock.then(fn); this.lock = p.catch(() => {}); return p; },
+  isReady() { return this.queued(() => this.rawReady()); },
+  rawReady() { return new Promise(res => { this.handler = l => { if (l.startsWith("readyok")) { this.handler = null; res(); } }; this.send("isready"); }); },
+  analyse(fen, depth) { return this.queued(() => this.rawAnalyse(fen, depth)); },
+  rawAnalyse(fen, depth) {
     return new Promise(res => {
       let last = {}; let timer = setTimeout(() => this.send("stop"), 45000);
       this.handler = line => {
@@ -671,6 +731,7 @@ async function pump() {
     big.set("analyses", S.analyses);
   }
   renderList(); if (S.sel && S.sel.id === id) { renderProgress(); renderAnalysis(); }
+  if (view === "trainer") trainerRefresh();
   pump();
 }
 
@@ -849,34 +910,39 @@ function renderGraph(g, ev) {
   svg.innerHTML = s;
 }
 
-function renderBoard(fen, last, arrow, badge) {
+function renderBoard(fen, last, arrow, badge, o) {
+  o = o || {}; const el = o.el || "board";
   const rows = fen.split(" ")[0].split("/");
   const grid = []; // grid[rank 0..7 from 8 down][file 0..7]
   for (const r of rows) { const line = []; for (const ch of r) { if (/\d/.test(ch)) for (let k = 0; k < +ch; k++) line.push(null); else line.push(ch); } grid.push(line); }
   const GL = { k: "king", q: "queen", r: "rook", b: "bishop", n: "knight", p: "pawn" };
-  const files = "abcdefgh"; const flip = !!S.flip;
+  const files = "abcdefgh"; const flip = o.flip != null ? !!o.flip : !!S.flip;
+  const targets = new Set(o.targets || []);
   let html = "";
   for (let vr = 0; vr < 8; vr++) for (let vf = 0; vf < 8; vf++) {
     const r = flip ? 7 - vr : vr, f = flip ? 7 - vf : vf;
     const sq = files[f] + (8 - r); const light = (r + f) % 2 === 0; const p = grid[r][f];
     let cls = "sq " + (light ? "l" : "d");
     if (last && (sq === last.from || sq === last.to)) cls += " hl";
+    if (o.sel === sq) cls += " sel"; if (o.hint === sq) cls += " hint";
+    if (targets.has(sq)) cls += p ? " tgt cap" : " tgt";
     if (vf === 7) cls += " edge-r"; if (vr === 0) cls += " edge-t";
     let inner = "";
     if (vr === 7) inner += '<span class="coord f">' + files[f] + '</span>';
     if (vf === 0) inner += '<span class="coord r">' + (8 - r) + '</span>';
     if (p) inner += '<span class="pc ' + (p === p.toUpperCase() ? "w" : "b") + p.toLowerCase() + '" role="img" aria-label="' + (p === p.toUpperCase() ? "white " : "black ") + GL[p.toLowerCase()] + '"></span>';
     if (badge && badge.sq === sq) { const c = CLS[badge.cls]; inner += '<span class="badge" style="background:' + c.color + (badge.cls === "inacc" ? ';color:#1c1c1c' : "") + '">' + c.sym + '</span>'; }
-    html += '<div class="' + cls + '">' + inner + '</div>';
+    html += '<div class="' + cls + '" data-sq="' + sq + '">' + inner + '</div>';
   }
   if (arrow) {
     const c = s => { const f = files.indexOf(s[0]), r = 8 - +s[1]; const vf = flip ? 7 - f : f, vr = flip ? 7 - r : r; return [vf + .5, vr + .5]; };
     const [x1, y1] = c(arrow.from), [x2, y2] = c(arrow.to);
     const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1; const ex = x2 - dx / len * .32, ey = y2 - dy / len * .32;
-    html += '<svg class="arrows" viewBox="0 0 8 8"><defs><marker id="ah" viewBox="0 0 10 10" refX="3" refY="5" markerWidth="3" markerHeight="3" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#1d9a68"/></marker></defs>' +
-      '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + ex + '" y2="' + ey + '" stroke="#1d9a68" stroke-opacity=".85" stroke-width=".17" stroke-linecap="round" marker-end="url(#ah)"/></svg>';
+    const mid = "ah-" + el;
+    html += '<svg class="arrows" viewBox="0 0 8 8"><defs><marker id="' + mid + '" viewBox="0 0 10 10" refX="3" refY="5" markerWidth="3" markerHeight="3" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#1d9a68"/></marker></defs>' +
+      '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + ex + '" y2="' + ey + '" stroke="#1d9a68" stroke-opacity=".85" stroke-width=".17" stroke-linecap="round" marker-end="url(#' + mid + ')"/></svg>';
   }
-  $("board").innerHTML = html;
+  $(el).innerHTML = html;
 }
 
 function go(ply) {
@@ -991,6 +1057,175 @@ document.addEventListener("keydown", e => {
   else if (e.key === "ArrowRight") { go(S.ply + 1); e.preventDefault(); }
   else if (e.key === "Home") go(0); else if (e.key === "End") go(1e9);
 });
+/* ---------- views ---------- */
+let view = "review";
+function showView(v) {
+  view = v === "trainer" ? "trainer" : "review";
+  $("viewReview").hidden = view !== "review"; $("viewTrainer").hidden = view !== "trainer";
+  $("viewTitle").textContent = view === "trainer" ? "Blunder Trainer" : "Game Review";
+  document.querySelectorAll(".tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === view ? "page" : "false"));
+  if (view === "trainer") trainerRefresh();
+}
+window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
+
+/* ---------- blunder trainer ---------- */
+const T = { list: [], idx: 0, fen: "", sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false };
+const tprog = { get() { return store.get("tprog", {}); }, set(id, v) { const p = this.get(); p[id] = v; store.set("tprog", p); } };
+$("tMistakes").checked = store.get("tMistakes", false);
+$("tSkip").checked = store.get("tSkip", true);
+$("tFormat").value = store.get("tFormat", "all");
+$("tOrder").value = store.get("tOrder", "new");
+
+function buildPuzzles() {
+  const withMistakes = $("tMistakes").checked, fmt = $("tFormat").value, prog = tprog.get();
+  const out = [];
+  for (const g of S.games) {
+    if (g.example || !g.me || (fmt !== "all" && g.tclass !== fmt)) continue;
+    const a = S.analyses[g.id]; if (!a || !a.evals) continue;
+    const ev = a.evals;
+    for (let i = 0; i < g.moves.length; i++) {
+      if (g.moves[i].color !== g.me || !ev[i] || !ev[i].best) continue;
+      const r = classify(g, ev, i); if (!r) continue;
+      if (!(r.cls === "blunder" || (withMistakes && r.cls === "mistake"))) continue;
+      const mv = g.moves[i];
+      out.push({ id: g.id + ":" + i, g, i, fen: g.fens[i], best: ev[i].best, played: mv.from + mv.to + (mv.promotion || ""), playedSan: mv.san, loss: r.loss, cls: r.cls, before: ev[i] });
+    }
+  }
+  const solvedAll = out.filter(p => prog[p.id] === "solved").length;
+  let list = $("tSkip").checked ? out.filter(p => prog[p.id] !== "solved") : out;
+  if ($("tOrder").value === "random") {
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  }
+  return { list, total: out.length, solvedAll };
+}
+let tMeta = { total: 0, solvedAll: 0 };
+function trainerRefresh(keepId) {
+  const curId = keepId || (T.list[T.idx] && T.list[T.idx].id);
+  const b = buildPuzzles(); T.list = b.list; tMeta = b;
+  const at = curId ? T.list.findIndex(p => p.id === curId) : -1;
+  if (at >= 0) { T.idx = at; renderTrainer(); } else loadPuzzle(0);
+}
+function loadPuzzle(idx) {
+  T.idx = T.list.length ? (idx + T.list.length) % T.list.length : 0;
+  const p = T.list[T.idx];
+  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false });
+  renderTrainer();
+}
+function sideName(c) { return c === "w" ? "White" : "Black"; }
+function renderTrainer() {
+  const p = T.list[T.idx];
+  const flip = p ? p.g.me === "b" : false;
+  renderBoard(T.fen, T.last, T.arrow, null, { el: "tboard", flip, sel: T.sel, targets: T.targets, hint: T.hint });
+  const reviewed = S.games.filter(g => !g.example && isDone(g)).length, mine = S.games.filter(g => !g.example).length;
+  const prog = tprog.get();
+  const solved = Object.values(prog).filter(v => v === "solved").length, missed = Object.values(prog).filter(v => v === "missed").length;
+  $("tstats").innerHTML = '<div><b>' + tMeta.total + '</b>puzzles from your games</div><div><b>' + solved + '</b>solved</div><div><b>' + missed + '</b>missed</div><div><b>' + reviewed + '/' + mine + '</b>games reviewed</div>';
+  const box = $("tprompt");
+  ["tHint", "tShow", "tPrev", "tNext"].forEach(id => $(id).disabled = !p);
+  if (!p) {
+    let why;
+    if (!mine) why = "Add your games on the Game review tab first.";
+    else if (!tMeta.total) why = reviewed < mine ? "No blunders found in your reviewed games yet. Puzzles appear as more games get reviewed (" + reviewed + " of " + mine + " so far)." : "No blunders found with these settings. Try including mistakes or another format.";
+    else why = "You've solved every puzzle here. Untick “Skip puzzles I've already solved” to go through them again.";
+    box.innerHTML = '<div class="eyebrow">Blunder trainer</div><p class="ask">Nothing to solve right now</p><div class="ctx">' + esc(why) + '</div>';
+    return;
+  }
+  const g = p.g, opp = g.me === "w" ? g.black : g.white;
+  const moveNo = g.fens[p.i].split(" ")[5] | 0;
+  let fb = "";
+  if (T.msg) fb = '<div class="feedback ' + T.msg.kind + '">' + T.msg.html + '</div>';
+  const ask = T.status === "solving" ? sideName(g.me) + " to move. Find the best move." : T.status === "solved" ? "Solved" : "Solution";
+  box.innerHTML = '<div class="eyebrow">Puzzle ' + (T.idx + 1) + ' of ' + T.list.length + (prog[p.id] === "solved" && T.status === "solving" ? ' · solved before' : '') + '</div>' +
+    '<p class="ask">' + esc(ask) + '</p>' +
+    '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '. In the game you played a ' + (p.cls === "blunder" ? "blunder" : "mistake") + ' here.</div>' + fb;
+}
+function sanOf(fen, uci) { return uciToSan(fen, uci); }
+function costText(p) {
+  const a = S.analyses[p.g.id], after = a && a.evals[p.i + 1];
+  if (after && after.mate != null && (after.mate > 0) !== (p.g.me === "w")) return "which let your opponent force mate in " + Math.abs(after.mate);
+  return "which cost " + p.loss.toFixed(1) + " pawns";
+}
+function finish(kind, html) { T.msg = { kind, html }; renderTrainer(); }
+function gameLink(p) { return ' <button type="button" class="tlink" data-open="' + p.id + '">See it in the game</button>'; }
+
+async function tryMove(from, to) {
+  const p = T.list[T.idx]; if (!p || T.status !== "solving" || T.checking) return;
+  const c = new Chess(T.fen); const m = c.move({ from, to, promotion: "q" });
+  T.sel = null; T.targets = [];
+  if (!m) { renderTrainer(); return; }
+  const uci = m.from + m.to + (m.promotion || "");
+  const bestSan = sanOf(p.fen, p.best);
+  const showMove = () => { T.fen = c.fen(); T.last = { from: m.from, to: m.to }; };
+  const accept = (extra) => {
+    showMove(); T.status = "solved";
+    if (!T.revealed) tprog.set(p.id, "solved");
+    $("tboard").classList.add("flash-good"); setTimeout(() => $("tboard").classList.remove("flash-good"), 700);
+    finish("good", (extra || '<b>' + esc(m.san) + '</b> is right.') + ' In the game you played <b>' + esc(p.playedSan) + '</b>, ' + costText(p) + '.' + gameLink(p));
+  };
+  const reject = (html) => {
+    T.tries++; showMove(); renderTrainer();
+    $("tboard").classList.add("flash-bad");
+    setTimeout(() => { $("tboard").classList.remove("flash-bad"); T.fen = p.fen; T.last = null; finish("bad", html + ' Try again.'); }, 650);
+  };
+  if (uci === p.best) return accept();
+  if (uci === p.played) return reject('<b>' + esc(m.san) + '</b> is the move you played in the game. It\'s the one ' + costText(p).replace("which ", "that ") + '.');
+  if (engine.ready) {
+    T.checking = true; showMove(); finish("info", 'Checking <b>' + esc(m.san) + '</b> with Stockfish…');
+    const r = toEval(c.fen(), await engine.analyse(c.fen(), Math.max(12, S.depth)));
+    T.checking = false;
+    const s = p.g.me === "w" ? 1 : -1;
+    const lost = s * p.before.num - s * r.num;
+    if (lost < 0.5) return accept('<b>' + esc(m.san) + '</b> works too. Stockfish’s top choice was <b>' + esc(bestSan) + '</b>.');
+    T.fen = p.fen; T.last = null;
+    return reject('<b>' + esc(m.san) + '</b> isn’t it. It gives away about ' + Math.min(10, lost).toFixed(1) + ' pawns.');
+  }
+  reject('<b>' + esc(m.san) + '</b> isn’t the move Stockfish found.');
+}
+
+$("tboard").addEventListener("click", e => {
+  const el = e.target.closest(".sq[data-sq]"); const p = T.list[T.idx];
+  if (!el || !p || T.status !== "solving" || T.checking) return;
+  const sq = el.dataset.sq; const c = new Chess(T.fen);
+  if (T.sel && T.targets.includes(sq)) { tryMove(T.sel, sq); return; }
+  const pc = c.get(sq);
+  if (pc && pc.color === c.turn()) { T.sel = sq; T.targets = c.moves({ square: sq, verbose: true }).map(m => m.to); }
+  else { T.sel = null; T.targets = []; }
+  renderTrainer();
+});
+$("tprompt").addEventListener("click", e => {
+  const b = e.target.closest("[data-open]"); if (!b) return;
+  const p = T.list.find(x => x.id === b.dataset.open); if (!p) return;
+  location.hash = "#review"; select(p.g); go(p.i);
+});
+$("tHint").onclick = () => {
+  const p = T.list[T.idx]; if (!p || T.status !== "solving") return;
+  T.hint = p.best.slice(0, 2);
+  const pc = new Chess(p.fen).get(T.hint);
+  const names = { k: "king", q: "queen", r: "rook", b: "bishop", n: "knight", p: "pawn" };
+  finish("info", 'Hint: move your ' + (pc ? names[pc.type] : "piece") + ' on <b>' + T.hint + '</b>.');
+};
+$("tShow").onclick = () => {
+  const p = T.list[T.idx]; if (!p || T.status === "solved") return;
+  T.revealed = true; T.status = "shown"; T.fen = p.fen; T.last = null; T.sel = null; T.targets = []; T.hint = null;
+  T.arrow = { from: p.best.slice(0, 2), to: p.best.slice(2, 4) };
+  if (tprog.get()[p.id] !== "solved") tprog.set(p.id, "missed");
+  finish("info", 'The move was <b>' + esc(sanOf(p.fen, p.best)) + '</b>. In the game you played <b>' + esc(p.playedSan) + '</b>, ' + costText(p) + '.' + gameLink(p));
+};
+$("tNext").onclick = () => {
+  const idx = T.idx;
+  if ($("tSkip").checked && T.status === "solved") { const b = buildPuzzles(); T.list = b.list; tMeta = b; loadPuzzle(Math.min(idx, Math.max(0, T.list.length - 1))); }
+  else loadPuzzle(idx + 1);
+};
+$("tPrev").onclick = () => loadPuzzle(T.idx - 1);
+for (const id of ["tMistakes", "tSkip", "tFormat", "tOrder"]) $(id).addEventListener("change", e => {
+  store.set(id, e.target.type === "checkbox" ? e.target.checked : e.target.value); T.list = []; trainerRefresh();
+});
+let resetArmed = false;
+$("tReset").onclick = () => {
+  if (!resetArmed) { resetArmed = true; $("tReset").textContent = "Click again to reset"; setTimeout(() => { resetArmed = false; $("tReset").textContent = "Reset my puzzle progress"; }, 3000); return; }
+  resetArmed = false; $("tReset").textContent = "Reset my puzzle progress"; store.set("tprog", {}); T.list = []; trainerRefresh();
+};
+
 /* ---------- boot ---------- */
 let engineFailed = false;
 if (!window.Chess) {
@@ -1055,6 +1290,7 @@ function savedNote() {
   rebuildGames();
   select(S.games[0]);
   savedNote();
+  showView(location.hash.slice(1));
 
   // Pull the games and reviews the website already has.
   loadSiteData().then(site => {
@@ -1064,6 +1300,7 @@ function savedNote() {
     rebuildGames();
     const keep = id && S.games.find(g => g.id === id);
     if (keep) { S.sel = keep; renderList(); renderReview(); } else select(S.games[0]);
+    if (view === "trainer") trainerRefresh();
     savedNote();
   });
 
