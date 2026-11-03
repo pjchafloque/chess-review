@@ -12,31 +12,97 @@ concurrency:
   group: update-games
   cancel-in-progress: false
 
+env:
+  CHESS_USER: chaflox
+  DEPTH: "14"
+  PUZZLE_DEPTH: "18"
+  SHARDS: "10"
+
 jobs:
-  update:
+  fetch:
+    name: Download new games
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: pip install chess==1.11.2
+      - name: Download from chess.com
+        env:
+          MODE: fetch
+        run: python scripts/update.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: games
+          path: data/games.json
+          retention-days: 1
 
+  review:
+    name: Review games (machine ${{ matrix.shard }})
+    needs: fetch
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: games
+          path: data
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install Stockfish and python-chess
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq stockfish
           pip install chess==1.11.2
-
-      - name: Download new games and review them
+      - name: Review this machine's share
         env:
-          CHESS_USER: chaflox
-          DEPTH: "14"
-          MAX_MINUTES: "40"
+          MODE: review
+          SHARD: ${{ matrix.shard }}
+          MAX_MINUTES: "45"
+          OUT: part-${{ matrix.shard }}.json
         run: python scripts/update.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: part-${{ matrix.shard }}
+          path: part-${{ matrix.shard }}.json
+          retention-days: 1
+          if-no-files-found: ignore
 
-      - name: Save results
+  save:
+    name: Save results
+    needs: [fetch, review]
+    if: always() && needs.fetch.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: games
+          path: data
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: part-*
+          path: parts
+          merge-multiple: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install chess==1.11.2
+      - name: Combine results
+        env:
+          MODE: merge
+        run: python scripts/update.py parts/*.json
+      - name: Commit
         run: |
           git config user.name "chess-review bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

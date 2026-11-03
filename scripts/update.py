@@ -12,6 +12,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -187,24 +188,20 @@ def puzzle_lines(pgn: str, evals: list, engine) -> dict:
     return out
 
 
-def main():
-    store = load(GAMES_FILE, {"user": USER, "games": []})
-    analysis = load(ANALYSIS_FILE, {})
-    try:
-        fetch_games(store)
-    except Exception as e:  # keep reviewing even if chess.com is down
-        print("Could not download games:", e)
-    save(GAMES_FILE, store)
-
-    todo = [g for g in store["games"] if g["id"] not in analysis]
+def run_reviews(store, analysis, shard=0, shards=1):
+    """Review unreviewed games and add puzzle lines. With shards > 1, this machine only
+    takes every shards-th game. Returns the ids it changed."""
     by_id = {g["id"]: g for g in store["games"]}
-    need_lines = [gid for gid, a in analysis.items() if a.get("e") and a.get("pz") != PUZZLE_VERSION and gid in by_id]
-    print(f"{len(todo)} games waiting for review, {len(need_lines)} reviewed games need puzzle lines")
-    if not todo and not need_lines:
-        return
+    todo = [g["id"] for g in store["games"] if g["id"] not in analysis]
+    need_lines = sorted(gid for gid, a in analysis.items() if a.get("e") and a.get("pz") != PUZZLE_VERSION and gid in by_id)
+    work = [("lines", gid) for gid in need_lines] + [("review", gid) for gid in todo]
+    work = work[shard::shards]
+    print(f"Shard {shard + 1}/{shards}: {len(work)} jobs ({len(todo)} unreviewed and {len(need_lines)} missing puzzle lines overall)")
+    changed = set()
+    if not work:
+        return changed
     engine = chess.engine.SimpleEngine.popen_uci(engine_path())
     engine.configure({"Threads": os.cpu_count() or 2, "Hash": 256})
-    done = lines = 0
 
     def add_lines(gid):
         a = analysis[gid]
@@ -215,34 +212,67 @@ def main():
             a["p"] = {}
         a["pz"] = PUZZLE_VERSION
 
-    def out_of_time():
-        return time.time() - START > MAX_MINUTES * 60
-
+    done = 0
     try:
-        # Games reviewed before puzzle lines existed come first; they are quick.
-        for gid in need_lines:
-            if out_of_time():
+        for kind, gid in work:
+            if time.time() - START > MAX_MINUTES * 60:
                 break
-            add_lines(gid)
-            lines += 1
-            if lines % 20 == 0:
-                save(ANALYSIS_FILE, analysis)
-        for g in todo:
-            if out_of_time():
-                break
-            try:
-                analysis[g["id"]] = {"d": DEPTH, "e": review(g["pgn"], engine)}
-                add_lines(g["id"])
-            except Exception as e:
-                print("Skipped", g["id"], e)
-                analysis[g["id"]] = {"d": DEPTH, "e": None}
+            if kind == "review":
+                try:
+                    analysis[gid] = {"d": DEPTH, "e": review(by_id[gid]["pgn"], engine)}
+                    add_lines(gid)
+                except Exception as e:
+                    print("Skipped", gid, e)
+                    analysis[gid] = {"d": DEPTH, "e": None}
+            else:
+                add_lines(gid)
+            changed.add(gid)
             done += 1
-            if done % 10 == 0:
-                save(ANALYSIS_FILE, analysis)
+            if done % 25 == 0:
+                print(f"  {done}/{len(work)} done")
     finally:
         engine.quit()
+    print(f"Shard {shard + 1}/{shards}: finished {done} of {len(work)}")
+    return changed
+
+
+def main():
+    mode = os.environ.get("MODE", "all")
+    store = load(GAMES_FILE, {"user": USER, "games": []})
+    analysis = load(ANALYSIS_FILE, {})
+
+    if mode in ("all", "fetch"):
+        try:
+            fetch_games(store)
+        except Exception as e:  # keep reviewing even if chess.com is down
+            print("Could not download games:", e)
+        save(GAMES_FILE, store)
+        if mode == "fetch":
+            return
+
+    if mode == "review":
+        # One of several machines working in parallel; writes only what it changed.
+        shard, shards = int(os.environ["SHARD"]), int(os.environ["SHARDS"])
+        changed = run_reviews(store, analysis, shard, shards)
+        out = os.environ.get("OUT", f"part-{shard}.json")
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump({gid: analysis[gid] for gid in changed}, f, separators=(",", ":"))
+        return
+
+    if mode == "merge":
+        parts = sys.argv[1:]
+        n = 0
+        for path in parts:
+            part = load(path, {})
+            analysis.update(part)
+            n += len(part)
         save(ANALYSIS_FILE, analysis)
-    print(f"Added puzzle lines to {lines} games; reviewed {done} new games; {len(todo) - done} left")
+        reviewed = sum(1 for g in store["games"] if (analysis.get(g["id"]) or {}).get("e"))
+        print(f"Merged {n} results from {len(parts)} machines; {reviewed}/{len(store['games'])} games reviewed")
+        return
+
+    run_reviews(store, analysis)
+    save(ANALYSIS_FILE, analysis)
 
 
 if __name__ == "__main__":
