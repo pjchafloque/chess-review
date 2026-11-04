@@ -70,6 +70,17 @@ button { cursor: pointer; }
 .brand h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(26px, 4vw, 38px); line-height: 1; margin: 0; letter-spacing: -.02em; text-wrap: balance; }
 .brand .who { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 14px; }
 .brand input { width: 150px; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 4px 8px; font-family: var(--f-mono); font-size: 14px; }
+.toprt { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.syncbtn[data-state="ok"] { color: var(--accent); }
+.syncbtn[data-state="error"] { color: var(--c-blunder); border-color: var(--c-blunder); }
+.syncdlg { max-width: 460px; width: calc(100% - 32px); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 20px 22px; }
+.syncdlg::backdrop { background: rgba(0,0,0,.4); }
+.syncdlg h2 { margin: 0 0 8px; font-size: 18px; }
+.syncdlg p, .syncdlg li { font-size: 14px; line-height: 1.5; }
+.syncdlg ol { padding-left: 20px; }
+.syncdlg a { color: var(--accent); }
+.syncdlg input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--ink); font-family: var(--f-mono); font-size: 14px; }
+.syncdlg .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .engine { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); font-family: var(--f-mono); }
 .engine .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c-inacc); }
 .engine[data-state="ready"] .dot { background: var(--c-best); }
@@ -256,10 +267,30 @@ button { cursor: pointer; }
       <nav class="tabs" aria-label="Sections"><a href="#review" data-view="review" aria-current="page">Game review</a><a href="#trainer" data-view="trainer">Blunder trainer</a><a href="#openings" data-view="openings">Openings</a></nav>
       <label class="who" for="username">Reviewing games for <input id="username" value="Chaflox" spellcheck="false" autocomplete="off"></label>
     </div>
-    <div class="engine" id="engine" data-state="loading">
-      <span class="dot"></span><span id="engineText">Stockfish loading…</span>
+    <div class="toprt">
+      <button class="btn small syncbtn" id="syncBtn" type="button" data-state="off">Sync: off</button>
+      <div class="engine" id="engine" data-state="loading">
+        <span class="dot"></span><span id="engineText">Stockfish loading…</span>
+      </div>
     </div>
   </header>
+
+  <dialog id="syncDlg" class="syncdlg" aria-labelledby="sync-h">
+    <h2 id="sync-h">Sync progress across devices</h2>
+    <p>Your Blunder trainer and Openings progress is saved in a private gist on your GitHub account, so your phone and laptop share it.</p>
+    <p class="note" id="syncStatus"></p>
+    <div id="syncOn">
+      <ol>
+        <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=PChess%20sync" target="_blank" rel="noopener">Make a GitHub token</a>. Only the <b>gist</b> box should be ticked. Set the expiration to “No expiration” or a long time.</li>
+        <li>Copy the token and paste it here. Do this once on each device.</li>
+      </ol>
+      <input id="syncToken" type="password" placeholder="ghp_…" autocomplete="off" spellcheck="false">
+      <div class="row"><button class="btn primary" id="syncSave" type="button">Connect</button><button class="btn" type="button" data-close>Close</button></div>
+    </div>
+    <div id="syncOff" hidden>
+      <div class="row"><button class="btn primary" id="syncNow" type="button">Sync now</button><button class="btn" id="syncDisc" type="button">Disconnect this device</button><button class="btn" type="button" data-close>Close</button></div>
+    </div>
+  </dialog>
 
   <main class="layout" id="viewReview">
     <aside class="library">
@@ -401,7 +432,92 @@ const SITE_DATA = ["https://raw.githubusercontent.com/pjchafloque/chess-review/m
 /* ---------- storage (best effort) ---------- */
 const store = {
   get(k, d) { try { const v = localStorage.getItem("gr." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem("gr." + k, JSON.stringify(v)); } catch (e) {} }
+  set(k, v) { try { localStorage.setItem("gr." + k, JSON.stringify(v)); } catch (e) {} sync.touch(k); }
+};
+
+/* ---------- sync progress across devices (a private GitHub gist) ----------
+   Each device keeps its progress in localStorage. When a GitHub token with only the "gist" scope is
+   saved on a device, progress is also kept in one secret gist and merged both ways.
+   meta[k] = { at: last local change, ep: last reset }. A newer reset wins outright; otherwise solved
+   puzzles are unioned, openings keep the copy with more lines played, and settings take the newest. */
+const SYNC_KEYS = ["oprog", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
+const SYNC_FILE = "pchess-progress.json", SYNC_DESC = "PChess progress (sync)";
+const sync = {
+  timer: null, busy: false, again: false, state: "off", when: 0, err: "", onPulled: null,
+  raw(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  put(k, v) { try { if (v === undefined) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  get token() { return this.raw("gr.syncToken", ""); },
+  get meta() { return this.raw("gr.syncMeta", {}); },
+  touch(k, reset) {
+    if (!SYNC_KEYS.includes(k)) return;
+    const m = this.meta, now = Date.now(); m[k] = { at: now, ep: reset ? now : (m[k] && m[k].ep) || 0 }; this.put("gr.syncMeta", m);
+    if (this.token) { clearTimeout(this.timer); this.timer = setTimeout(() => this.run(), 2500); }
+  },
+  reset(k) { this.touch(k, true); },
+  snapshot() { const m = this.meta, out = { v: 1, keys: {} }; for (const k of SYNC_KEYS) { const v = store.get(k, undefined); if (v !== undefined || m[k]) out.keys[k] = { v, at: (m[k] && m[k].at) || 0, ep: (m[k] && m[k].ep) || 0 }; } return out; },
+  mergeKey(k, a, b) { // a = local, b = remote; returns the winner {v, at, ep}
+    if (!a) return b; if (!b) return a;
+    if (a.ep !== b.ep) return a.ep > b.ep ? a : b;
+    const at = Math.max(a.at, b.at), ep = a.ep;
+    if (k === "tprog") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) if (v[id] !== "solved") v[id] = r; return { v, at, ep }; }
+    if (k === "oprog") { const n = x => x && x.v ? ((x.v.b && x.v.b.lines) || 0) + ((x.v.w && x.v.w.lines) || 0) : 0; const w = n(a) !== n(b) ? (n(a) > n(b) ? a : b) : (a.at >= b.at ? a : b); return { v: w.v, at, ep }; }
+    return a.at >= b.at ? a : b;
+  },
+  async api(path, opts) {
+    const r = await fetch("https://api.github.com" + path, Object.assign({ cache: "no-store" }, opts, { headers: { Authorization: "Bearer " + this.token, Accept: "application/vnd.github+json", "Content-Type": "application/json" } }));
+    if (r.status === 401) throw new Error("GitHub didn't accept the token. Make a new one with the gist box ticked.");
+    if (r.status === 404 && path.startsWith("/gists/")) { this.put("gr.syncGist", undefined); throw new Error("retry"); }
+    if (!r.ok) throw new Error("GitHub said " + r.status + ".");
+    return r.json();
+  },
+  async findGist() {
+    let id = this.raw("gr.syncGist", "");
+    if (id) return { id, files: null };
+    for (let page = 1; page <= 5; page++) {
+      const list = await this.api("/gists?per_page=100&page=" + page);
+      const g = list.find(g => g.files && g.files[SYNC_FILE]); if (g) { this.put("gr.syncGist", g.id); return { id: g.id, files: null }; }
+      if (list.length < 100) break;
+    }
+    const g = await this.api("/gists", { method: "POST", body: JSON.stringify({ description: SYNC_DESC, public: false, files: { [SYNC_FILE]: { content: JSON.stringify(this.snapshot()) } } }) });
+    this.put("gr.syncGist", g.id); return { id: g.id, files: g.files, fresh: true };
+  },
+  async run() {
+    if (!this.token) return;
+    if (this.busy) { this.again = true; return; }
+    this.busy = true; this.state = "busy"; this.label();
+    try {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const found = await this.findGist(); if (found.fresh) break;
+          const g = await this.api("/gists/" + found.id);
+          let remote = { keys: {} }; try { const f = g.files[SYNC_FILE]; remote = JSON.parse(f.truncated ? await (await fetch(f.raw_url, { cache: "no-store" })).text() : f.content) || remote; } catch (e) {}
+          const local = this.snapshot(), merged = { v: 1, keys: {} }, changed = [];
+          let push = false;
+          for (const k of SYNC_KEYS) {
+            const a = local.keys[k], b = remote.keys && remote.keys[k], w = this.mergeKey(k, a, b); if (!w) continue;
+            merged.keys[k] = w;
+            if (JSON.stringify(w.v) !== JSON.stringify(a && a.v)) { try { if (w.v === undefined || w.v === null) localStorage.removeItem("gr." + k); else localStorage.setItem("gr." + k, JSON.stringify(w.v)); } catch (e) {} changed.push(k); }
+            if (JSON.stringify(w) !== JSON.stringify(b)) push = true;
+          }
+          const m = this.meta; for (const [k, w] of Object.entries(merged.keys)) m[k] = { at: w.at, ep: w.ep }; this.put("gr.syncMeta", m);
+          if (push) await this.api("/gists/" + found.id, { method: "PATCH", body: JSON.stringify({ files: { [SYNC_FILE]: { content: JSON.stringify(merged) } } }) });
+          if (changed.length && this.onPulled) this.onPulled(changed);
+          break;
+        } catch (e) { if (e.message !== "retry" || attempt) throw e; }
+      }
+      this.state = "ok"; this.when = Date.now(); this.err = "";
+    } catch (e) { this.state = "error"; this.err = e.message === "retry" ? "Couldn't find the sync gist." : (e.message || "Couldn't reach GitHub."); }
+    this.busy = false; this.label();
+    if (this.again) { this.again = false; this.run(); }
+  },
+  label() {
+    const b = document.getElementById("syncBtn"); if (!b) return;
+    const t = { off: "Sync: off", busy: "Syncing…", ok: "Synced", error: "Sync problem" }[this.token ? this.state : "off"];
+    b.textContent = t; b.dataset.state = this.token ? this.state : "off";
+    const st = document.getElementById("syncStatus");
+    if (st) st.textContent = !this.token ? "Not connected on this device." : this.state === "error" ? this.err : this.state === "busy" ? "Syncing…" : this.when ? "Last synced at " + new Date(this.when).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "." : "Connected.";
+    const on = !!this.token; document.getElementById("syncOn").hidden = on; document.getElementById("syncOff").hidden = !on;
+  }
 };
 
 /* ---------- move sounds (made with Web Audio, no files) ---------- */
@@ -1435,7 +1551,7 @@ for (const id of ["tMistakes", "tSkip", "tFormat", "tOrder"]) $(id).addEventList
 let resetArmed = false;
 $("tReset").onclick = () => {
   if (!resetArmed) { resetArmed = true; $("tReset").textContent = "Click again to reset"; setTimeout(() => { resetArmed = false; $("tReset").textContent = "Reset my puzzle progress"; }, 3000); return; }
-  resetArmed = false; $("tReset").textContent = "Reset my puzzle progress"; store.set("tprog", {}); T.list = []; trainerRefresh();
+  resetArmed = false; $("tReset").textContent = "Reset my puzzle progress"; store.set("tprog", {}); sync.reset("tprog"); T.list = []; trainerRefresh();
 };
 
 /* ---------- boot ---------- */
@@ -1750,7 +1866,7 @@ $("ospots").addEventListener("click", e => {
 });
 $("oReset").onclick = () => {
   if (!confirm("Reset your openings progress, levels and variations?")) return;
-  store.set("oprog", null); renderOpenings();
+  store.set("oprog", null); sync.reset("oprog"); renderOpenings();
 };
 
 (async function boot() {
@@ -1785,6 +1901,24 @@ $("oReset").onclick = () => {
     if (view === "trainer") trainerRefresh();
     savedNote();
   });
+
+  // Sync wiring
+  sync.onPulled = changed => {
+    if (changed.includes("tprog") && view === "trainer") trainerRefresh();
+    if (changed.includes("oprog") && view === "openings" && O.book) renderOpenings();
+  };
+  $("syncBtn").onclick = () => { sync.label(); $("syncDlg").showModal(); };
+  $("syncDlg").addEventListener("click", e => { if (e.target.closest("[data-close]")) $("syncDlg").close(); });
+  $("syncSave").onclick = () => {
+    const t = $("syncToken").value.trim(); if (!t) return;
+    sync.put("gr.syncToken", t); sync.put("gr.syncGist", undefined); $("syncToken").value = ""; sync.run();
+  };
+  $("syncNow").onclick = () => sync.run();
+  $("syncDisc").onclick = () => { sync.put("gr.syncToken", undefined); sync.put("gr.syncGist", undefined); sync.state = "off"; sync.label(); };
+  sync.label();
+  sync.run();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sync.run(); });
+  window.addEventListener("pagehide", () => { if (sync.timer) { clearTimeout(sync.timer); sync.timer = null; sync.run(); } });
 
   engine.init().then(() => {
     $("engine").dataset.state = "ready"; $("engineText").textContent = "Stockfish 10 ready";
