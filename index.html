@@ -121,9 +121,9 @@ button { cursor: pointer; }
 .boardcol { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .boardwrap { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; }
 .evalbar { position: relative; border-radius: 4px; overflow: hidden; background: var(--graph-black); border: 1px solid var(--line); }
-.evalfill { position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: var(--graph-white); transition: height .35s ease; }
+.evalfill { position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: var(--graph-white); transition: height .6s cubic-bezier(.22,.61,.36,1); }
 .evalbar.flip .evalfill { top: 0; bottom: auto; }
-.evalbar span { position: absolute; left: 0; right: 0; font-family: var(--f-mono); font-size: 9px; text-align: center; font-weight: 600; writing-mode: vertical-rl; transform: rotate(180deg); padding: 4px 0; }
+.evalbar span { position: absolute; left: 0; right: 0; font-family: var(--f-mono); font-size: 9px; text-align: center; font-weight: 600; writing-mode: vertical-rl; transform: rotate(180deg); padding: 4px 0; transition: color .3s ease; }
 .board { position: relative; width: 100%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); border-radius: 4px; overflow: hidden; container-type: inline-size; user-select: none; }
 .sq { position: relative; display: grid; place-items: center; }
 .sq.l { background: var(--sq-light); } .sq.d { background: var(--sq-dark); }
@@ -228,7 +228,7 @@ button { cursor: pointer; }
 .legend { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .empty { padding: 24px 16px; color: var(--muted); font-size: 14px; text-align: center; }
-@media (prefers-reduced-motion: reduce) { .evalfill, .bar i { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .evalfill { transition-duration: .25s; } .bar i { transition: none; } }
 @media (max-width: 460px) { .summary { grid-template-columns: 1fr; } .pcard .acc { font-size: 26px; } }
 </style>
 
@@ -711,6 +711,12 @@ function toEval(fen, r) {
   const cp = sign * r.score.v;
   return { num: Math.max(-10, Math.min(10, cp / 100)), cp, best: r.best };
 }
+// Eval bar fill for White: a forced mate (or checkmate on the board) fills the bar completely.
+function barPct(e) {
+  if (!e) return 50;
+  if (e.mated || e.mate != null) return e.num > 0 ? 100 : 0;
+  return winPct(e.num);
+}
 function winPct(num) { const cp = num * 100; return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1); }
 function fmtEval(e) {
   if (!e) return "";
@@ -896,7 +902,7 @@ function renderAnalysis() {
 
   // eval bar
   const e = ev[ply];
-  const wp = e ? winPct(e.num) : 50;
+  const wp = barPct(e);
   $("evalfill").style.height = wp + "%";
   $("evalbar").classList.toggle("flip", !!S.flip);
   const et = $("evaltxt"); et.textContent = e ? fmtEval(e) : "";
