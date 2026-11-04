@@ -475,8 +475,22 @@ const sync = {
     const r = await fetch("https://api.github.com" + path, Object.assign({ cache: "no-store" }, opts, { headers: { Authorization: "Bearer " + this.token, Accept: "application/vnd.github+json", "Content-Type": "application/json" } }));
     if (r.status === 401) throw new Error("GitHub didn't accept the token. Make a new one with the gist box ticked.");
     if (r.status === 404 && path.startsWith("/gists/")) { this.put("gr.syncGist", undefined); throw new Error("retry"); }
-    if (!r.ok) throw new Error("GitHub said " + r.status + ".");
+    if (!r.ok) {
+      let msg = ""; try { msg = (await r.json()).message || ""; } catch (e) {}
+      const left = r.headers.get("x-ratelimit-remaining"), reset = +r.headers.get("x-ratelimit-reset"), wait = +r.headers.get("retry-after");
+      if ((r.status === 403 || r.status === 429) && (left === "0" || wait || /rate limit/i.test(msg))) {
+        const secs = wait || (reset ? Math.max(5, reset - Date.now() / 1000) : 60);
+        clearTimeout(this.retryT); this.retryT = setTimeout(() => this.run(), Math.min(secs, 3600) * 1000 + 1000);
+        throw new Error("GitHub asked us to slow down. Trying again in " + (secs < 90 ? Math.ceil(secs) + " seconds" : Math.ceil(secs / 60) + " minutes") + ".");
+      }
+      if (r.status === 403 && /not accessible|personal access token|permission/i.test(msg))
+        throw new Error("This token isn't allowed to use gists (GitHub: \u201c" + msg + "\u201d). Tap \u201cDisconnect this device\u201d, then make a new token with the link that appears (only the gist box ticked) and connect again.");
+      throw new Error("GitHub said " + r.status + (msg ? ": \u201c" + msg + "\u201d" : "") + ".");
+    }
     return r.json();
+  },
+  async whoami() { // which GitHub account the token belongs to, shown in the dialog
+    try { const u = await this.api("/user"); this.put("gr.syncUser", u.login); } catch (e) {}
   },
   async findGist() {
     let id = this.raw("gr.syncGist", "");
@@ -514,7 +528,7 @@ const sync = {
         } catch (e) { if (e.message !== "retry" || attempt) throw e; }
       }
       this.state = "ok"; this.when = Date.now(); this.err = "";
-    } catch (e) { this.state = "error"; this.err = e.message === "retry" ? "Couldn't find the sync gist." : (e.message || "Couldn't reach GitHub."); }
+    } catch (e) { this.state = "error"; this.err = e.message === "retry" ? "Couldn't find the sync gist." : (e.message || "Couldn't reach GitHub."); if (!this.raw("gr.syncUser", "")) this.whoami().then(() => this.label()); }
     this.busy = false; this.label();
     if (this.again) { this.again = false; this.run(); }
   },
@@ -523,7 +537,8 @@ const sync = {
     const t = { off: "Sync: off", busy: "Syncing…", ok: "Synced", error: "Sync problem" }[this.token ? this.state : "off"];
     b.textContent = t; b.dataset.state = this.token ? this.state : "off";
     const st = document.getElementById("syncStatus");
-    if (st) st.textContent = !this.token ? "Not connected on this device." : this.state === "error" ? this.err : this.state === "busy" ? "Syncing…" : this.when ? "Last synced at " + new Date(this.when).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "." : "Connected.";
+    const who = this.raw("gr.syncUser", ""), as = who ? " (GitHub account @" + who + ")" : "";
+    if (st) st.textContent = (!this.token ? "Not connected on this device." : this.state === "error" ? this.err : this.state === "busy" ? "Syncing…" : this.when ? "Last synced at " + new Date(this.when).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "." : "Connected.") + (this.token ? as : "");
     const on = !!this.token; document.getElementById("syncOn").hidden = on; document.getElementById("syncOff").hidden = !on;
   }
 };
@@ -2056,10 +2071,11 @@ $("oReset").onclick = () => {
   $("syncDlg").addEventListener("click", e => { if (e.target.closest("[data-close]")) $("syncDlg").close(); });
   $("syncSave").onclick = () => {
     const t = $("syncToken").value.trim(); if (!t) return;
-    sync.put("gr.syncToken", t); sync.put("gr.syncGist", undefined); $("syncToken").value = ""; sync.run();
+    sync.put("gr.syncToken", t); sync.put("gr.syncGist", undefined); sync.put("gr.syncUser", undefined); $("syncToken").value = "";
+    sync.whoami().then(() => sync.run());
   };
   $("syncNow").onclick = () => sync.run();
-  $("syncDisc").onclick = () => { sync.put("gr.syncToken", undefined); sync.put("gr.syncGist", undefined); sync.state = "off"; sync.label(); };
+  $("syncDisc").onclick = () => { sync.put("gr.syncToken", undefined); sync.put("gr.syncGist", undefined); sync.put("gr.syncUser", undefined); sync.state = "off"; sync.label(); };
   sync.label();
   sync.run();
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sync.run(); });
