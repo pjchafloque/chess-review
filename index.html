@@ -1777,20 +1777,21 @@ function confetti() {
   const ctx = c.getContext("2d"), dpr = window.devicePixelRatio || 1; c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
   const cols = ["#2c6a55", "#3f9a76", "#6cc2a0", "#a8e0c4", "#1f4d3d"], k = W / 600;
   const ps = [];
-  for (let i = 0; i < (calm ? 70 : 150); i++) {
-    const a = Math.random() * Math.PI * 2, v = (calm ? 3 + Math.random() * 4 : 6 + Math.random() * 14) * k;
-    ps.push({ x: W / 2, y: H / 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v - (calm ? 0 : 3 * k),
+  // Speeds are spread so pieces land all over the board, corners included (a corner is ~0.71 W from the centre).
+  for (let i = 0; i < (calm ? 110 : 240); i++) {
+    const a = Math.random() * Math.PI * 2, v = (calm ? 1 + 11 * Math.sqrt(Math.random()) : 1 + 15 * Math.sqrt(Math.random())) * k * (1 + .4 * Math.abs(Math.sin(2 * a)));
+    ps.push({ x: W / 2, y: H / 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
       w: (6 + Math.random() * 7) * Math.max(k, .6), h: (4 + Math.random() * 6) * Math.max(k, .6),
       r: Math.random() * 6, vr: (Math.random() - .5) * (calm ? .1 : .5), c: cols[i % cols.length] });
   }
-  const t0 = performance.now(), life = calm ? 1600 : 2000;
+  const t0 = performance.now(), life = calm ? 2000 : 2400;
   (function tick(t) {
     const age = t - t0; ctx.clearRect(0, 0, W, H);
     // quick flash at the centre for the "pop"
     if (!calm && age < 180) { ctx.globalAlpha = 1 - age / 180; ctx.fillStyle = "#a8e0c4"; ctx.beginPath(); ctx.arc(W / 2, H / 2, (20 + age * .9) * k, 0, 7); ctx.fill(); }
     ctx.globalAlpha = Math.max(0, 1 - Math.max(0, age - life * .55) / (life * .45));
     for (const p of ps) {
-      p.vx *= .955; p.vy = p.vy * .955 + .28 * k; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      p.vx *= .96; p.vy = p.vy * .96 + .08 * k; p.x += p.vx; p.y += p.vy; p.r += p.vr;
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.scale(1, Math.cos(p.r * 2));
       ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
     }
@@ -1802,6 +1803,14 @@ function lineDone(why) {
   O.status = "done"; O.arrow = null; confetti();
   const p = oprog.get(); const s = p[O.side]; s.lines++; if (!O.misses && O.mine) s.perfect++;
   let up = "";
+  if (O.drill) {
+    if (!O.misses) {
+      const line = O.drill;
+      for (const [k, sp] of Object.entries(p.spots)) if (sp.side === O.side && sp.path.every((m, i) => line[i] === m)) delete p.spots[k];
+      const now = varGroups(p, O.side).length;
+      up = " <b>Variation learned</b>, it's off your list." + (now ? " " + now + " more to fix before new lines." : " All fixed. Next line is a new one" + (s.level < OPEN_MAX_MOVES ? ", and perfect lines unlock the next move again." : "."));
+    } else up = " This one stays on your list. Next line keeps bringing your missed variations back until each one is clean.";
+  }
   if (!O.drill && !O.misses && O.mine >= s.level) {
     if (s.level < OPEN_MAX_MOVES) { s.level++; up = ' <b>Level up!</b> ' + levelUpText(p); }
     else up = " You're at the top level: 10 moves deep.";
@@ -1847,8 +1856,18 @@ function renderOpenings() {
   const pct = s.moves ? Math.round(100 * s.first / s.moves) : null;
   $("ostats").innerHTML = '<div><b>' + s.level + '</b>moves per line now</div><div><b>' + s.lines + '</b>lines played</div><div><b>' + s.perfect + '</b>perfect lines</div><div><b>' + (pct == null ? "–" : pct + "%") + '</b>moves right first time</div>';
   // One card per variation: spots on the same line (one a continuation of another) are merged.
-  const mineIdx = i => (i % 2 === 0) === (O.side === "w");
-  const spots = Object.values(p.spots).filter(v => v.side === O.side).map(v => ({ ...v, line: v.path.concat(v.main || v.moves[0] || []) }))
+  O.vars = varGroups(p, O.side).slice(0, 8);
+  $("ospots").innerHTML = '<div class="section-label">Variations to learn</div>' + (O.vars.length
+    ? '<ul class="ospots">' + O.vars.map((g, gi) => {
+      const moves = g.line.map((san, i) => (i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "") + (g.missAt.has(i) ? '<b>' + esc(san) + '</b>' : esc(san))).join(" ");
+      return '<li><button type="button" class="ospot" data-var="' + gi + '"><span class="onm">' + esc(g.name || "Opening") + '</span><span class="opath">' + moves + '</span><span class="omiss">missed ' + g.miss + '× · practice this line</span></button></li>';
+    }).join("") + '</ul><div class="omuted">The green moves are the ones you missed. Next line plays these first. A variation leaves the list once you play it through with no misses.</div>'
+    : '<div class="omuted">None yet. Lines where you miss a move show up here, one card per variation.</div>');
+}
+
+// One card per variation: spots on the same line (one a continuation of another) are merged.
+function varGroups(p, side) {
+  const spots = Object.values(p.spots).filter(v => v.side === side).map(v => ({ ...v, line: v.path.concat(v.main || v.moves[0] || []) }))
     .sort((a, b) => b.line.length - a.line.length);
   const groups = [];
   for (const sp of spots) {
@@ -1856,14 +1875,18 @@ function renderOpenings() {
     if (g) { g.miss += sp.miss; g.missAt.add(sp.path.length); g.at = Math.max(g.at, sp.at); }
     else groups.push({ line: sp.line, name: sp.name, miss: sp.miss, missAt: new Set([sp.path.length]), at: sp.at });
   }
-  groups.sort((a, b) => b.miss - a.miss || b.at - a.at);
-  O.vars = groups.slice(0, 8);
-  $("ospots").innerHTML = '<div class="section-label">Variations to learn</div>' + (O.vars.length
-    ? '<ul class="ospots">' + O.vars.map((g, gi) => {
-      const moves = g.line.map((san, i) => (i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "") + (g.missAt.has(i) ? '<b>' + esc(san) + '</b>' : esc(san))).join(" ");
-      return '<li><button type="button" class="ospot" data-var="' + gi + '"><span class="onm">' + esc(g.name || "Opening") + '</span><span class="opath">' + moves + '</span><span class="omiss">missed ' + g.miss + '× · practice this line</span></button></li>';
-    }).join("") + '</ul><div class="omuted">The green moves are the ones you missed. A variation leaves the list once you get them right 3 times in a row.</div>'
-    : '<div class="omuted">None yet. Lines where you miss a move show up here, one card per variation.</div>');
+  return groups.sort((a, b) => b.miss - a.miss || b.at - a.at);
+}
+// "Next line": variations you've missed come first, until each one is played with no misses.
+// Only then do new lines (and levelling up) come back.
+function nextLine() {
+  const groups = varGroups(oprog.get(), O.side);
+  if (groups.length) {
+    const last = O.drill ? O.drill.join(" ") : "";
+    const g = groups.find(g => g.line.join(" ") !== last) || groups[0];
+    return openingsStart(g.line);
+  }
+  openingsStart();
 }
 
 function openingsRefresh() {
@@ -1885,7 +1908,11 @@ $("oside").addEventListener("click", e => {
   const b = e.target.closest("button[data-side]"); if (!b || b.dataset.side === O.side) return;
   O.side = b.dataset.side; store.set("oside", O.side); O.bookSide = O.side; O.recent = []; openingsStart();
 });
-$("oNext").onclick = () => openingsStart();
+$("oNext").onclick = () => {
+  if (O.status === "done") return nextLine();
+  // Restart the same line (same variation), not a new one.
+  const keep = O.plan; openingsStart(O.drill || undefined); if (keep && !O.drill) O.plan = keep;
+};
 $("oHint").onclick = () => {
   if (O.status !== "mine") return;
   const main = mainMove(); if (!main) return;
