@@ -100,7 +100,7 @@ button { cursor: pointer; }
 .gmeta { min-width: 0; }
 .gmeta .opp { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gmeta .sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gacc { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.gacc { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .gacc b { display: block; color: var(--ink); font-size: 14px; }
 .tag { display: inline-block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; color: var(--muted); font-weight: 600; vertical-align: 1px; }
 
@@ -777,9 +777,10 @@ function renderList() {
     let acc = "";
     if (isDone(g)) {
       const sm = summarize(g, S.analyses[g.id].evals); const side = g.me || "w"; const a = sm[side].accuracy;
-      acc = '<b>' + (a == null ? "–" : a.toFixed(0)) + '</b>' + (sm[side].c.blunder ? sm[side].c.blunder + " ??" : "acc");
+      const nb = sm[side].c.blunder || 0;
+      acc = '<b title="Your accuracy in this game">' + (a == null ? "–" : a.toFixed(0)) + '</b><span title="' + nb + (nb === 1 ? ' blunder' : ' blunders') + ' by you">' + nb + ' ??</span>';
     } else if (S.job && S.job.id === g.id) acc = "analyzing";
-    const sub = [g.date, g.tc, g.bookName || g.opening].filter(Boolean).join(" · ");
+    const sub = [g.date, g.tc].filter(Boolean).join(" · ");
     const cur = S.sel && S.sel.id === g.id;
     return '<li><button type="button" class="game" data-id="' + g.id + '" aria-current="' + cur + '">' +
       '<span class="res ' + g.res + '" title="' + ({ W: "Win", L: "Loss", D: "Draw", X: "Result" }[g.res]) + '">' + resTxt + '</span>' +
