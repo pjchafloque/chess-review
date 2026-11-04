@@ -205,6 +205,11 @@ button { cursor: pointer; }
 .omv.me.ok { color: var(--c-best); font-weight: 600; }
 .omv.me.miss { color: var(--c-blunder); font-weight: 600; }
 .omuted { color: var(--muted); font-size: 13px; }
+.ocovrow { margin: 6px 0 10px; font-size: 13px; color: var(--muted); }
+.ocovtop { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.ocovtop b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.ocovbar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.ocovbar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s; }
 .ospots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ospot { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
 .ospot:hover { border-color: var(--accent); }
@@ -396,6 +401,7 @@ button { cursor: pointer; }
         <button class="btn primary" id="oNext" type="button">Next line</button>
       </div>
       <div class="panel tstats" id="ostats"></div>
+      <div class="panel tsettings" id="ocov"></div>
       <div class="panel tsettings" id="ospots"></div>
       <div><button class="btn small" id="oReset" type="button">Reset my openings progress</button></div>
     </div>
@@ -448,7 +454,7 @@ const store = {
    saved on a device, progress is also kept in one secret gist and merged both ways.
    meta[k] = { at: last local change, ep: last reset }. A newer reset wins outright; otherwise solved
    puzzles are unioned, openings keep the copy with more lines played, and settings take the newest. */
-const SYNC_KEYS = ["oseen", "oprog", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
+const SYNC_KEYS = ["oseen", "oprog", "ocov", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
 const SYNC_FILE = "pchess-progress.json", SYNC_DESC = "PChess progress (sync)";
 const sync = {
   timer: null, busy: false, again: false, state: "off", when: 0, err: "", onPulled: null,
@@ -468,6 +474,7 @@ const sync = {
     if (a.ep !== b.ep) return a.ep > b.ep ? a : b;
     const at = Math.max(a.at, b.at), ep = a.ep;
     if (k === "tprog") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) if (v[id] !== "solved") v[id] = r; return { v, at, ep }; }
+    if (k === "ocov") { const v = { b: [], w: [] }; for (const x of [a.v, b.v]) for (const sd of ["b", "w"]) for (const l of (x && x[sd]) || []) if (!v[sd].includes(l)) v[sd].push(l); return { v, at, ep }; }
     if (k === "oprog") { const n = x => x && x.v ? ((x.v.b && x.v.b.lines) || 0) + ((x.v.w && x.v.w.lines) || 0) : 0; const w = n(a) !== n(b) ? (n(a) > n(b) ? a : b) : (a.at >= b.at ? a : b); return { v: w.v, at, ep }; }
     return a.at >= b.at ? a : b;
   },
@@ -1677,6 +1684,41 @@ const oprog = {
   get() { const p = store.get("oprog", null) || {}; for (const k of ["b", "w"]) { p[k] = p[k] || { lines: 0, perfect: 0, moves: 0, first: 0 }; if (!p[k].level) p[k].level = OPEN_MIN_MOVES; } p.spots = p.spots || {}; return p; },
   set(p) { store.set("oprog", p); }
 };
+// Book coverage: every line you've finished, per side (move lists joined by spaces). A book line counts
+// as covered once you've played it through, as part of a line at least that long. The first time, it
+// starts from the recent lines the trainer had already saved ("oseen").
+const ocov = {
+  get() {
+    let c = store.get("ocov", null);
+    if (!c) { const seen = store.get("oseen", {}) || {}; c = { b: (seen.b || []).slice(), w: (seen.w || []).slice() }; store.set("ocov", c); }
+    c.b = c.b || []; c.w = c.w || []; return c;
+  },
+  add(side, path) {
+    const c = this.get(), k = path.join(" "); if (!k || c[side].includes(k)) return;
+    c[side] = c[side].filter(x => !k.startsWith(x + " ")).concat(k); store.set("ocov", c);
+  },
+  has(side, path, c) { const k = path.join(" "); return (c || this.get())[side].some(x => x === k || x.startsWith(k + " ")); }
+};
+// All the lines "Next line" can give you at a level: your main book move each time, every opponent reply.
+function bookLines(side, target, all) {
+  const nodes = repBook(side).nodes, real = repBook(side).real, plans = [];
+  const best = n => { let b = null, bd = -1; for (const [san, ck] of n.moves) { const d = nodes[ck].depth; if (d > bd) { bd = d; b = san; } } return b; };
+  (function walk(at, path, mine, fam) {
+    if (plans.length > 3000) return;
+    const n = nodes[at];
+    if (!n.moves.size || mine >= target) { plans.push({ path, mine, fam }); return; }
+    if ((path.length % 2 === 0) === (side === "w")) { const san = best(n); walk(n.moves.get(san), path.concat(san), mine + 1, fam); return; }
+    const r = real.get(at);
+    for (const [san, ck] of n.moves) walk(ck, path.concat(san), mine, fam + Math.log1p(r && r.get(san) || 0));
+  })(0, [], 0, 0);
+  const minLen = Math.min(target, Math.max(3, Math.ceil(target / 2)));
+  const pool = all ? plans : plans.filter(p => p.mine >= minLen);
+  return pool.length ? pool : plans;
+}
+function coverage(side, target) {
+  const c = ocov.get(), lines = bookLines(side, target, true);
+  return { done: lines.filter(l => ocov.has(side, l.path, c)).length, total: lines.length };
+}
 // REP_DATA[side] is a precomputed position graph: node = [nameIndex, myTheoryMovesLeft, [san, childIndex, san, childIndex, …]].
 function buildRep(side) {
   const nodes = REP_DATA[side].map(([ni, depth, flat]) => {
@@ -1723,18 +1765,9 @@ function lineTarget() {
 // (remembered per side, across reloads) are skipped; longer lines and replies my real opponents
 // play are preferred. Lines shorter than the level still count, so thin openings don't repeat.
 function planLine(side, target) {
-  const nodes = O.book.nodes, real = O.book.real, plans = [];
-  const best = n => { let b = null, bd = -1; for (const [san, ck] of n.moves) { const d = nodes[ck].depth; if (d > bd) { bd = d; b = san; } } return b; };
-  (function walk(at, path, mine, fam) {
-    if (plans.length > 3000) return;
-    const n = nodes[at];
-    if (!n.moves.size || mine >= target) { plans.push({ path, mine, fam }); return; }
-    if ((path.length % 2 === 0) === (side === "w")) { const san = best(n); walk(n.moves.get(san), path.concat(san), mine + 1, fam); return; }
-    const r = real.get(at);
-    for (const [san, ck] of n.moves) walk(ck, path.concat(san), mine, fam + Math.log1p(r && r.get(san) || 0));
-  })(0, [], 0, 0);
-  const minLen = Math.min(target, Math.max(3, Math.ceil(target / 2)));
-  let pool = plans.filter(p => p.mine >= minLen); if (!pool.length) pool = plans;
+  // Lines you haven't covered yet come first, short ones included, so every book line comes up once.
+  const cov = ocov.get(), todo = bookLines(side, target, true).filter(p => !ocov.has(side, p.path, cov));
+  let pool = todo.length ? todo : bookLines(side, target);
   const seen = (store.get("oseen", {}) || {})[side] || [];
   const keep = Math.min(seen.length, Math.max(0, pool.length - 1), 12);
   const recent = new Set(seen.slice(-keep));
@@ -1869,6 +1902,7 @@ function confetti() {
 
 function lineDone(why) {
   O.status = "done"; O.arrow = null; confetti();
+  ocov.add(O.side, pathSan());
   const p = oprog.get(); const s = p[O.side]; s.lines++; if (!O.misses && O.mine) s.perfect++;
   let up = "";
   if (O.drill) {
@@ -1942,6 +1976,12 @@ function renderOpenings() {
   const p = oprog.get(), s = p[O.side];
   const pct = s.moves ? Math.round(100 * s.first / s.moves) : null;
   $("ostats").innerHTML = '<div><b>' + s.level + '</b>moves per line now</div><div><b>' + s.lines + '</b>lines played</div><div><b>' + s.perfect + '</b>perfect lines</div><div><b>' + (pct == null ? "–" : pct + "%") + '</b>moves right first time</div>';
+  const cl = coverage(O.side, s.level), cf = s.level === OPEN_MAX_MOVES ? cl : coverage(O.side, OPEN_MAX_MOVES);
+  const bar = (label, c) => { const pc = c.total ? Math.floor(100 * c.done / c.total) : 0;
+    return '<div class="ocovrow"><div class="ocovtop"><span>' + label + '</span><span><b>' + pc + '%</b> · ' + c.done + ' of ' + c.total + ' lines</span></div><div class="ocovbar"><i style="width:' + pc + '%"></i></div></div>'; };
+  $("ocov").innerHTML = '<div class="section-label">' + esc(meta.title) + ' lines covered</div>' +
+    (s.level < OPEN_MAX_MOVES ? bar("At your level (" + s.level + " moves)", cl) : "") + bar("Whole book (" + OPEN_MAX_MOVES + " moves)", cf) +
+    (cf.done >= cf.total ? '<div class="omuted">You\u2019ve played every ' + esc(meta.title) + ' line in the book. Time to add more.</div>' : '<div class="omuted">A line counts once you\u2019ve played it through. Next line picks lines you haven\u2019t covered yet.</div>');
   // One card per variation: spots on the same line (one a continuation of another) are merged.
   O.vars = varGroups(p, O.side).slice(0, 8);
   $("ospots").innerHTML = '<div class="section-label">Variations to learn</div>' + (O.vars.length
@@ -2014,7 +2054,7 @@ $("ospots").addEventListener("click", e => {
 });
 $("oReset").onclick = () => {
   if (!confirm("Reset your openings progress, levels and variations?")) return;
-  store.set("oprog", null); sync.reset("oprog"); renderOpenings();
+  store.set("oprog", null); sync.reset("oprog"); store.set("ocov", { b: [], w: [] }); sync.reset("ocov"); renderOpenings();
 };
 
 (async function boot() {
@@ -2065,7 +2105,7 @@ $("oReset").onclick = () => {
   // Sync wiring
   sync.onPulled = changed => {
     if (changed.includes("tprog") && view === "trainer") trainerRefresh();
-    if (changed.includes("oprog") && view === "openings" && O.book) renderOpenings();
+    if ((changed.includes("oprog") || changed.includes("ocov")) && view === "openings" && O.book) renderOpenings();
   };
   $("syncBtn").onclick = () => { sync.label(); $("syncDlg").showModal(); };
   $("syncDlg").addEventListener("click", e => { if (e.target.closest("[data-close]")) $("syncDlg").close(); });
