@@ -474,9 +474,16 @@ const sync = {
   touch(k, reset) {
     if (!SYNC_KEYS.includes(k)) return;
     const m = this.meta, now = Date.now(); m[k] = { at: now, ep: reset ? now : (m[k] && m[k].ep) || 0 }; this.put("gr.syncMeta", m);
-    if (this.token) { clearTimeout(this.timer); this.timer = setTimeout(() => this.run(), 2500); }
+    if (this.token) this.later();
   },
   reset(k) { this.touch(k, true); },
+  // GitHub limits how often a gist can be saved (every save is a new revision). Saving after every
+  // move went over that limit, so changes are batched: 20 s after the last one, at most once a minute.
+  later() {
+    clearTimeout(this.timer);
+    const gap = Math.max(20000, (this.last || 0) + 60000 - Date.now());
+    this.timer = setTimeout(() => { this.timer = null; this.run(); }, gap);
+  },
   snapshot() { const m = this.meta, out = { v: 1, keys: {} }; for (const k of SYNC_KEYS) { const v = store.get(k, undefined); if (v !== undefined || m[k]) out.keys[k] = { v, at: (m[k] && m[k].at) || 0, ep: (m[k] && m[k].ep) || 0 }; } return out; },
   mergeKey(k, a, b) { // a = local, b = remote; returns the winner {v, at, ep}
     if (!a) return b; if (!b) return a;
@@ -495,7 +502,9 @@ const sync = {
       let msg = ""; try { msg = (await r.json()).message || ""; } catch (e) {}
       const left = r.headers.get("x-ratelimit-remaining"), reset = +r.headers.get("x-ratelimit-reset"), wait = +r.headers.get("retry-after");
       if ((r.status === 403 || r.status === 429) && (left === "0" || wait || /rate limit/i.test(msg))) {
-        const secs = wait || (reset ? Math.max(5, reset - Date.now() / 1000) : 60);
+        // A used-up hourly quota says when it resets. Otherwise it's GitHub's limit on saves: wait 1 minute, then 2, 4…
+        const secs = wait || (left === "0" && reset ? Math.max(5, reset - Date.now() / 1000) : (this.backoff = Math.min(900, (this.backoff || 30) * 2)));
+        this.cooldown = Date.now() + secs * 1000;
         clearTimeout(this.retryT); this.retryT = setTimeout(() => this.run(), Math.min(secs, 3600) * 1000 + 1000);
         throw new Error("GitHub asked us to slow down. Trying again in " + (secs < 90 ? Math.ceil(secs) + " seconds" : Math.ceil(secs / 60) + " minutes") + ".");
       }
@@ -521,6 +530,8 @@ const sync = {
   },
   async run() {
     if (!this.token) return;
+    if (this.cooldown && Date.now() < this.cooldown) { this.label(); return; }
+    this.last = Date.now();
     if (this.busy) { this.again = true; return; }
     this.busy = true; this.state = "busy"; this.label();
     try {
@@ -543,7 +554,7 @@ const sync = {
           break;
         } catch (e) { if (e.message !== "retry" || attempt) throw e; }
       }
-      this.state = "ok"; this.when = Date.now(); this.err = "";
+      this.state = "ok"; this.when = Date.now(); this.err = ""; this.backoff = 0; this.cooldown = 0;
     } catch (e) { this.state = "error"; this.err = e.message === "retry" ? "Couldn't find the sync gist." : (e.message || "Couldn't reach GitHub."); if (!this.raw("gr.syncUser", "")) this.whoami().then(() => this.label()); }
     this.busy = false; this.label();
     if (this.again) { this.again = false; this.run(); }
@@ -554,7 +565,7 @@ const sync = {
     b.textContent = t; b.dataset.state = this.token ? this.state : "off";
     const st = document.getElementById("syncStatus");
     const who = this.raw("gr.syncUser", ""), as = who ? " (GitHub account @" + who + ")" : "";
-    if (st) st.textContent = (!this.token ? "Not connected on this device." : this.state === "error" ? this.err : this.state === "busy" ? "Syncing…" : this.when ? "Last synced at " + new Date(this.when).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "." : "Connected.") + (this.token ? as : "");
+    if (st) st.textContent = (!this.token ? "Not connected on this device." : this.state === "error" ? (this.cooldown > Date.now() ? "GitHub asked us to slow down, so syncing is paused for " + (this.cooldown - Date.now() < 90000 ? Math.ceil((this.cooldown - Date.now()) / 1000) + " seconds" : Math.ceil((this.cooldown - Date.now()) / 60000) + " minutes") + ". Your progress is safe on this device and syncs after that." : this.err) : this.state === "busy" ? "Syncing…" : this.when ? "Last synced at " + new Date(this.when).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "." : "Connected.") + (this.token ? as : "");
     const on = !!this.token; document.getElementById("syncOn").hidden = on; document.getElementById("syncOff").hidden = !on;
   }
 };
