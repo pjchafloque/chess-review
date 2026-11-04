@@ -381,7 +381,10 @@ button { cursor: pointer; }
   </section>
 
   <section class="trainer" id="viewOpenings" hidden aria-label="Openings">
-    <div class="panel tboardwrap"><div class="board play" id="oboard"></div></div>
+    <div class="panel tboardwrap"><div class="boardwrap">
+      <div class="evalbar" id="oevalbar"><div class="evalfill" id="oevalfill"></div><span id="oevaltxt"></span></div>
+      <div class="board play" id="oboard"></div>
+    </div></div>
     <div class="tside">
       <div class="oside" id="oside" role="group" aria-label="Choose your side">
         <button type="button" data-side="b" aria-pressed="true">Black · Caro-Kann</button>
@@ -874,6 +877,16 @@ function barPct(e) {
   if (e.mated || e.mate != null) return e.num > 0 ? 100 : 0;
   return winPct(e.num);
 }
+// Draws an eval bar: prefix "" is Game review's, "o" is the Openings one.
+function paintEvalBar(pre, e, flip) {
+  const wp = barPct(e);
+  $(pre + "evalfill").style.height = wp + "%";
+  $(pre + "evalbar").classList.toggle("flip", !!flip);
+  const et = $(pre + "evaltxt"); et.textContent = e ? fmtEval(e) : "";
+  const whiteAhead = wp >= 50; const atBottom = whiteAhead !== !!flip;
+  et.style.top = atBottom ? "auto" : "0"; et.style.bottom = atBottom ? "0" : "auto";
+  et.style.color = whiteAhead ? "#1c1c1c" : "#f0f0ea";
+}
 function winPct(num) { const cp = num * 100; return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1); }
 function fmtEval(e) {
   if (!e) return "";
@@ -1062,14 +1075,7 @@ function renderAnalysis() {
   renderBoard(fen, last, arrow, badge);
 
   // eval bar
-  const e = ev[ply];
-  const wp = barPct(e);
-  $("evalfill").style.height = wp + "%";
-  $("evalbar").classList.toggle("flip", !!S.flip);
-  const et = $("evaltxt"); et.textContent = e ? fmtEval(e) : "";
-  const whiteAhead = wp >= 50; const atBottom = whiteAhead !== !!S.flip;
-  et.style.top = atBottom ? "auto" : "0"; et.style.bottom = atBottom ? "0" : "auto";
-  et.style.color = whiteAhead ? "#1c1c1c" : "#f0f0ea";
+  paintEvalBar("", ev[ply], S.flip);
 
   // insight
   const ins = $("insight");
@@ -1882,8 +1888,27 @@ function moveListHTML() {
   return html;
 }
 
+// Openings eval bar: Stockfish looks at each new position (results cached), and the bar glides
+// to the new value with the same transition as Game review's.
+const oEvals = new Map();
+let oEvalFen = null;
+function updateOpeningEval() {
+  const fen = O.fen; if (!fen) return;
+  const flip = O.side === "b";
+  if (oEvals.has(fen)) { paintEvalBar("o", oEvals.get(fen), flip); return; }
+  if (!engine.ready || oEvalFen === fen) return;
+  oEvalFen = fen;
+  const c = new Chess(fen); let quick = null;
+  if (c.in_checkmate()) quick = { num: c.turn() === "w" ? -10 : 10, mated: true, best: null };
+  else if (c.in_stalemate() || c.insufficient_material()) quick = { num: 0, cp: 0, best: null };
+  const done = e => { oEvals.set(fen, e); if (O.fen === fen) paintEvalBar("o", e, O.side === "b"); };
+  if (quick) return done(quick);
+  engine.analyse(fen, 12).then(r => done(toEval(fen, r))).catch(() => {}).finally(() => { if (oEvalFen === fen) oEvalFen = null; });
+}
+
 function renderOpenings() {
   if (!O.book) return;
+  updateOpeningEval();
   renderBoard(O.fen, O.last, O.arrow, null, { el: "oboard", flip: O.side === "b", sel: O.sel, targets: O.targets });
   document.querySelectorAll("#oside button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === O.side)));
   const meta = REP_SIDES[O.side];
@@ -2042,6 +2067,7 @@ $("oReset").onclick = () => {
 
   engine.init().then(() => {
     $("engine").dataset.state = "ready"; $("engineText").textContent = "Stockfish 10 ready";
+    if (view === "openings") updateOpeningEval();     // ask before the review queue so the bar fills quickly
     if (S.sel) enqueue(S.sel); renderProgress();
   }).catch(() => {
     engineFailed = true; $("engine").dataset.state = "error"; $("engineText").textContent = "Stockfish didn't load"; renderProgress();
