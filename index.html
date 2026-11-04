@@ -1,11 +1,16 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>[hidden]{display:none!important}body{margin:0}</style></head><body>
-<title>Chaflox Game Review</title>
+<style>[hidden]{display:none!important}body{margin:0}</style>
+<title>Chess Review</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Chess Review">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+</head><body>
 <style>
 /* Layout: analysis-room split. Game library on the left, the board and its scoresheet on the right; stacks on phones. */
 :root {
@@ -60,6 +65,8 @@ button { cursor: pointer; }
 .app { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 
 .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.titlerow { display: flex; align-items: center; gap: 10px; }
+.logo { flex: none; width: clamp(30px, 4.4vw, 44px); aspect-ratio: 169 / 240; background: var(--ink); -webkit-mask: url("icons/logo-mask.png") center / contain no-repeat; mask: url("icons/logo-mask.png") center / contain no-repeat; }
 .brand h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(26px, 4vw, 38px); line-height: 1; margin: 0; letter-spacing: -.02em; text-wrap: balance; }
 .brand .who { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 14px; }
 .brand input { width: 150px; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 4px 8px; font-family: var(--f-mono); font-size: 14px; }
@@ -245,7 +252,7 @@ button { cursor: pointer; }
 <div class="app">
   <header class="top">
     <div class="brand">
-      <h1 id="viewTitle">Game Review</h1>
+      <div class="titlerow"><span class="logo" role="img" aria-label="Chess Review logo"></span><h1 id="viewTitle">Game Review</h1></div>
       <nav class="tabs" aria-label="Sections"><a href="#review" data-view="review" aria-current="page">Game review</a><a href="#trainer" data-view="trainer">Blunder trainer</a><a href="#openings" data-view="openings">Openings</a></nav>
       <label class="who" for="username">Reviewing games for <input id="username" value="Chaflox" spellcheck="false" autocomplete="off"></label>
     </div>
