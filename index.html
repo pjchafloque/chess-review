@@ -1478,6 +1478,7 @@ function loadPuzzle(idx) {
   T.idx = T.list.length ? (idx + T.list.length) % T.list.length : 0;
   const p = preparePuzzle(T.list[T.idx]); const token = ++T.token;
   if (p) store.set("tcur", p.id);
+  const oldBurst = document.querySelector(".tboardwrap canvas.confetti"); if (oldBurst) oldBurst.remove();
   Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", intro: false, tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [] });
   if (p) {
     if (p.pv) T.line = trimLine(p.fen, p.pv);
@@ -1558,6 +1559,7 @@ function withWhy(p, kind, lead) {
 function solvedNow(p, lead) {
   T.status = "solved";
   if (!T.revealed) tprog.set(p.id, "solved");
+  confetti("tboard");
   $("tboard").classList.add("flash-good"); setTimeout(() => $("tboard").classList.remove("flash-good"), 700);
   withWhy(p, "good", lead);
 }
@@ -1897,9 +1899,9 @@ function oTryMove(from, to) {
   }, 700);
 }
 
-function confetti() {
-  // A burst of green confetti from the middle of the openings board, clipped to the board.
-  const board = $("oboard"), wrap = board && board.parentElement; if (!wrap || !board.offsetWidth) return;
+function confetti(id) {
+  // A burst of green confetti from the middle of a board (openings by default), clipped to the board.
+  const board = $(id || "oboard"), wrap = board && board.parentElement; if (!wrap || !board.offsetWidth) return;
   let calm = false; try { calm = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
   if (getComputedStyle(wrap).position === "static") wrap.style.position = "relative";
   const old = wrap.querySelector("canvas.confetti"); if (old) old.remove();
