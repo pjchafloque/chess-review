@@ -1487,10 +1487,10 @@ const REP_DATA = {"names":["English Opening: Symmetrical Variation, Anti-Benoni 
 /* ---------- openings trainer ---------- */
 // Theory from the Lichess opening database (CC0): Caro-Kann lines for Black, Queen's Gambit (1.d4 … 2.c4) lines for White.
 const REP_SIDES = { b: { title: "Caro-Kann", who: "Black" }, w: { title: "Queen's Gambit", who: "White" } };
-const OPEN_MAX_MOVES = 10;
+const OPEN_MAX_MOVES = 10, OPEN_MIN_MOVES = 2;
 const O = { side: store.get("oside", "b"), book: null, fen: "", hist: [], mine: 0, misses: 0, missedNow: false, status: "idle", sel: null, targets: [], last: null, arrow: null, name: "", msg: null, token: 0, recent: [], drill: null };
 const oprog = {
-  get() { const p = store.get("oprog", null) || {}; p.b = p.b || { lines: 0, perfect: 0, moves: 0, first: 0 }; p.w = p.w || { lines: 0, perfect: 0, moves: 0, first: 0 }; p.spots = p.spots || {}; return p; },
+  get() { const p = store.get("oprog", null) || {}; for (const k of ["b", "w"]) { p[k] = p[k] || { lines: 0, perfect: 0, moves: 0, first: 0 }; if (!p[k].level) p[k].level = OPEN_MIN_MOVES; } p.spots = p.spots || {}; return p; },
   set(p) { store.set("oprog", p); }
 };
 // REP_DATA[side] is a precomputed position graph: node = [nameIndex, myTheoryMovesLeft, [san, childIndex, san, childIndex, …]].
@@ -1526,20 +1526,19 @@ function mainMove() {
   return best;
 }
 function pathSan() { return O.hist.map(h => h.san); }
+// How many of my moves this line runs: the current level, or the whole variation when practising one.
+function lineTarget() {
+  if (O.drill) return O.drill.filter((_, i) => (i % 2 === 0) === (O.side === "w")).length;
+  return oprog.get()[O.side].level;
+}
 
 function openingsStart(drillPath) {
   O.token++; O.book = repBook(O.side);
   const c = new Chess(); O.at = 0; O.hist = []; O.mine = 0; O.misses = 0; O.missedNow = false; O.sel = null; O.targets = []; O.last = null; O.arrow = null; O.msg = null; O.name = "";
-  O.drill = drillPath || null;
-  if (drillPath) for (const san of drillPath) {
-    const m = c.move(san); if (!m) break;
-    O.hist.push({ san: m.san, by: c.turn() === O.side ? "cpu" : "me", ok: true, pre: true }); O.last = { from: m.from, to: m.to };
-    const nx = O.at == null ? null : O.book.nodes[O.at].moves.get(m.san); O.at = nx == null ? null : nx;
-    const n = oNode(); if (n && n.name) O.name = n.name;
-  }
+  O.drill = drillPath || null; O.target = lineTarget();
   O.fen = c.fen();
   if (c.turn() === O.side) { O.status = "mine"; renderOpenings(); }
-  else { O.status = "cpu"; renderOpenings(); setTimeout(cpuMove, drillPath ? 350 : 500, O.token); }
+  else { O.status = "cpu"; renderOpenings(); setTimeout(cpuMove, 500, O.token); }
 }
 
 function cpuMove(token) {
@@ -1547,10 +1546,13 @@ function cpuMove(token) {
   const n = oNode(); if (!n || !n.moves.size) return lineDone("Theory ends here.");
   const real = O.book.real.get(O.at);
   const here = pathSan().join(" ");
+  const want = O.drill && n.moves.has(O.drill[O.hist.length]) ? O.drill[O.hist.length] : null;
+  const need = O.target - O.mine;                                     // my moves still to play in this line
   const cands = [...n.moves].map(([san, ck]) => {
     let w = 1 + (real && real.get(san) || 0);                       // like your real opponents
     const d = O.book.nodes[ck].depth;                                 // prefer lines with real theory left to learn
-    w *= d >= 4 ? 1 : d === 3 ? 0.5 : d === 2 ? 0.25 : 0.08;
+    w *= d >= need ? 1 : 0.01;                                       // lines deep enough for this level
+    if (want) w = san === want ? 1 : 0;                              // practising: follow the variation
     const rep = O.recent.filter(p => p.startsWith((here ? here + " " : "") + san)).length;
     w /= 1 + 0.8 * rep;                                              // and something different from last time
     return [san, w];
@@ -1563,6 +1565,8 @@ function cpuMove(token) {
   sound.play(m.san);
   if (!nn || !nn.moves.size) return lineDone("Theory ends here.");
   O.status = "mine"; renderOpenings();
+}
+function levelUpText(p) { return "Next lines are " + p[O.side].level + " moves deep.";
 }
 
 function spotKey() { return O.side + "|" + pathSan().join(" "); }
@@ -1591,7 +1595,7 @@ function oTryMove(from, to) {
     const nn = oNode(); if (nn && nn.name) O.name = nn.name;
     const others = theory.filter(s => s !== m.san);
     O.msg = { cls: "good", html: '<b>' + esc(m.san) + '</b> is theory.' + (others.length ? ' Also good here: <b>' + others.map(esc).join("</b>, <b>") + '</b>.' : "") };
-    if (O.mine >= OPEN_MAX_MOVES) return lineDone("That's " + OPEN_MAX_MOVES + " moves of theory.");
+    if (O.mine >= O.target) return lineDone(O.drill ? "That's the whole variation." : "That's " + O.target + " moves of theory.");
     if (!nn || !nn.moves.size) return lineDone("Theory ends here.");
     O.status = "cpu"; renderOpenings(); setTimeout(cpuMove, 450, O.token);
     return;
@@ -1614,10 +1618,16 @@ function oTryMove(from, to) {
 
 function lineDone(why) {
   O.status = "done"; O.arrow = null;
-  const p = oprog.get(); const s = p[O.side]; s.lines++; if (!O.misses && O.mine) s.perfect++; oprog.set(p);
+  const p = oprog.get(); const s = p[O.side]; s.lines++; if (!O.misses && O.mine) s.perfect++;
+  let up = "";
+  if (!O.drill && !O.misses && O.mine >= s.level) {
+    if (s.level < OPEN_MAX_MOVES) { s.level++; up = ' <b>Level up!</b> ' + levelUpText(p); }
+    else up = " You're at the top level: 10 moves deep.";
+  } else if (!O.drill && O.misses) up = " Get a line right with no misses to go one move deeper.";
+  oprog.set(p);
   O.recent.push(pathSan().join(" ")); if (O.recent.length > 6) O.recent.shift();
   const right = O.mine - O.misses;
-  O.msg = { cls: O.misses ? "info" : "good", html: why + ' You got <b>' + right + ' of ' + O.mine + '</b> moves right first time.' + (O.misses ? "" : " A perfect line.") };
+  O.msg = { cls: O.misses ? "info" : "good", html: why + ' You got <b>' + right + ' of ' + O.mine + '</b> moves right first time.' + (O.misses ? "" : " A perfect line.") + up };
   renderOpenings();
   if (!O.misses && O.mine) { $("oboard").classList.add("flash-good"); setTimeout(() => $("oboard").classList.remove("flash-good"), 700); }
 }
@@ -1644,23 +1654,34 @@ function renderOpenings() {
   else if (O.status === "cpu") ask = "Opponent is thinking…";
   else if (O.status === "wrong") ask = "Not quite…";
   else if (O.status === "done") ask = O.misses ? "Line finished." : "Perfect line!";
-  $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + (O.drill ? " · practicing a weak spot" : "") + '</div>' +
+  $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + (O.drill ? " · practicing a variation" : " · " + O.target + "-move lines") + '</div>' +
     '<p class="ask">' + esc(ask) + '</p>' +
-    '<div class="ctx">' + esc(O.name || (O.side === "b" ? "Caro-Kann Defense" : "Queen's Pawn Game")) + ' · your move ' + Math.min(O.mine + (O.status === "done" ? 0 : 1), OPEN_MAX_MOVES) + ' of up to ' + OPEN_MAX_MOVES + '</div>' +
+    '<div class="ctx">' + esc(O.name || (O.side === "b" ? "Caro-Kann Defense" : "Queen's Pawn Game")) + ' · your move ' + Math.min(O.mine + (O.status === "done" ? 0 : 1), O.target) + ' of ' + O.target + '</div>' +
     (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "") +
     '<div class="omoves">' + moveListHTML() + '</div>';
   $("oHint").disabled = O.status !== "mine";
   $("oNext").textContent = O.status === "done" ? "Next line" : "Restart line";
   const p = oprog.get(), s = p[O.side];
   const pct = s.moves ? Math.round(100 * s.first / s.moves) : null;
-  $("ostats").innerHTML = '<div><b>' + s.lines + '</b>lines played</div><div><b>' + s.perfect + '</b>perfect lines</div><div><b>' + (pct == null ? "–" : pct + "%") + '</b>moves right first time</div>';
-  const spots = Object.entries(p.spots).filter(([, v]) => v.side === O.side).sort((a, b) => (b[1].miss - b[1].streak) - (a[1].miss - a[1].streak) || b[1].at - a[1].at).slice(0, 8);
-  $("ospots").innerHTML = '<div class="section-label">Your weak spots</div>' + (spots.length
-    ? '<ul class="ospots">' + spots.map(([k, v]) => {
-      const moves = v.path.map((san, i) => (i % 2 === 0 ? (i / 2 + 1) + "." : "") + san).join(" ");
-      return '<li><button type="button" class="ospot" data-spot="' + esc(k) + '"><span class="onm">' + esc(v.name || "Opening") + '</span><span class="opath">' + esc(moves || "Start") + ' → <b>' + esc(v.main || v.moves[0] || "") + '</b></span><span class="omiss">missed ' + v.miss + '×' + (v.streak ? ' · ' + v.streak + '/3 right since' : "") + '</span></button></li>';
-    }).join("") + '</ul><div class="omuted">Click one to practice it. A spot leaves the list after you get it right 3 times in a row.</div>'
-    : '<div class="omuted">None yet. Moves you get wrong show up here so you can drill them.</div>');
+  $("ostats").innerHTML = '<div><b>' + s.level + '</b>moves per line now</div><div><b>' + s.lines + '</b>lines played</div><div><b>' + s.perfect + '</b>perfect lines</div><div><b>' + (pct == null ? "–" : pct + "%") + '</b>moves right first time</div>';
+  // One card per variation: spots on the same line (one a continuation of another) are merged.
+  const mineIdx = i => (i % 2 === 0) === (O.side === "w");
+  const spots = Object.values(p.spots).filter(v => v.side === O.side).map(v => ({ ...v, line: v.path.concat(v.main || v.moves[0] || []) }))
+    .sort((a, b) => b.line.length - a.line.length);
+  const groups = [];
+  for (const sp of spots) {
+    const g = groups.find(g => sp.line.every((m, i) => g.line[i] === m));
+    if (g) { g.miss += sp.miss; g.missAt.add(sp.path.length); g.at = Math.max(g.at, sp.at); }
+    else groups.push({ line: sp.line, name: sp.name, miss: sp.miss, missAt: new Set([sp.path.length]), at: sp.at });
+  }
+  groups.sort((a, b) => b.miss - a.miss || b.at - a.at);
+  O.vars = groups.slice(0, 8);
+  $("ospots").innerHTML = '<div class="section-label">Variations to learn</div>' + (O.vars.length
+    ? '<ul class="ospots">' + O.vars.map((g, gi) => {
+      const moves = g.line.map((san, i) => (i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "") + (g.missAt.has(i) ? '<b>' + esc(san) + '</b>' : esc(san))).join(" ");
+      return '<li><button type="button" class="ospot" data-var="' + gi + '"><span class="onm">' + esc(g.name || "Opening") + '</span><span class="opath">' + moves + '</span><span class="omiss">missed ' + g.miss + '× · practice this line</span></button></li>';
+    }).join("") + '</ul><div class="omuted">The green moves are the ones you missed. A variation leaves the list once you get them right 3 times in a row.</div>'
+    : '<div class="omuted">None yet. Lines where you miss a move show up here, one card per variation.</div>');
 }
 
 function openingsRefresh() {
@@ -1691,12 +1712,12 @@ $("oHint").onclick = () => {
   renderOpenings();
 };
 $("ospots").addEventListener("click", e => {
-  const b = e.target.closest("[data-spot]"); if (!b) return;
-  const sp = oprog.get().spots[b.dataset.spot]; if (!sp) return;
-  openingsStart(sp.path);
+  const b = e.target.closest("[data-var]"); if (!b) return;
+  const g = O.vars && O.vars[+b.dataset.var]; if (!g) return;
+  openingsStart(g.line);
 });
 $("oReset").onclick = () => {
-  if (!confirm("Reset your openings progress and weak spots?")) return;
+  if (!confirm("Reset your openings progress, levels and variations?")) return;
   store.set("oprog", null); renderOpenings();
 };
 
