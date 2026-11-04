@@ -70,6 +70,10 @@ button { cursor: pointer; }
 .brand h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(26px, 4vw, 38px); line-height: 1; margin: 0; letter-spacing: -.02em; text-wrap: balance; }
 .brand .who { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 14px; }
 .brand input { width: 150px; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 4px 8px; font-family: var(--f-mono); font-size: 14px; }
+.loadbar { position: fixed; top: 0; left: 0; right: 0; height: 4px; z-index: 1000; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); opacity: 0; transition: opacity .2s; pointer-events: none; will-change: transform; box-shadow: 0 0 8px var(--accent); }
+.loadbar.on { opacity: 1; }
+.loadbar.boot { animation: loadboot 2.4s cubic-bezier(.3,.6,.4,1) forwards; }
+@keyframes loadboot { from { transform: scaleX(0); } to { transform: scaleX(.3); } }
 .toprt { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .syncbtn[data-state="ok"] { color: var(--accent); }
 .syncbtn[data-state="error"] { color: var(--c-blunder); border-color: var(--c-blunder); }
@@ -260,6 +264,7 @@ button { cursor: pointer; }
 @media (max-width: 460px) { .summary { grid-template-columns: 1fr; } .pcard .acc { font-size: 26px; } }
 </style>
 
+<div class="loadbar on boot" id="loadbar" role="progressbar" aria-label="Loading your games" aria-hidden="false"></div>
 <div class="app">
   <header class="top">
     <div class="brand">
@@ -714,12 +719,47 @@ function timeControl(tc) {
 }
 
 function rebuildGames() {
-  const out = [];
-  for (const e of S.raw) { try { out.push(buildGame(e)); } catch (err) { /* skip unreadable */ } }
+  const out = [], old = new Map((S.games || []).map(g => [g.id, g]));
+  for (const e of S.raw) {
+    const prev = old.get(e.id); // keep games already read (and replayed) so a refresh doesn't redo the work
+    if (prev && prev._src === e.pgn && prev._user === S.user) { out.push(prev); continue; }
+    try { const g = buildGame(e); g._src = e.pgn; g._user = S.user; out.push(g); } catch (err) { /* skip unreadable */ }
+  }
   out.sort((a, b) => (a.example - b.example) || b.sortKey.localeCompare(a.sortKey));
   S.games = out;
 }
 
+/* ---------- loading bar ----------
+   Shown while the page loads your games. It moves at a steady pace for most of the way, then
+   speeds up at the end: people judge a wait as shorter when progress accelerates near the
+   finish (Harrison et al., "Rethinking the progress bar", 2007), and the last stretch zips to full. */
+const loader = {
+  el: null, real: 0, on: false, creepT: null, hideT: null,
+  shown(r) { return r <= .7 ? r * .75 : .525 + (r - .7) / .3 * .475; },
+  start() {
+    this.el = this.el || $("loadbar"); clearTimeout(this.hideT);
+    if (this.el.classList.contains("boot")) { // take over from the CSS animation that runs before the script
+      const now = new DOMMatrix(getComputedStyle(this.el).transform).a || 0;
+      this.el.classList.remove("boot"); this.el.style.transition = "none"; this.el.style.transform = "scaleX(" + now + ")"; this.el.offsetWidth;
+      this.on = true; this.real = now / .75;
+    }
+    if (!this.on) { this.on = true; this.real = 0; this.el.style.transition = "none"; this.el.style.transform = "scaleX(0)"; this.el.offsetWidth; }
+    this.el.classList.add("on"); this.el.setAttribute("aria-hidden", "false");
+  },
+  to(r) {
+    if (!this.on) return; this.real = Math.max(this.real, Math.min(1, r));
+    this.el.style.transition = "transform .3s linear"; this.el.style.transform = "scaleX(" + this.shown(this.real).toFixed(4) + ")";
+  },
+  creep(upTo) { // while waiting on the network: ease toward upTo, never reaching it
+    clearInterval(this.creepT); const t0 = Date.now(), from = this.real;
+    this.creepT = setInterval(() => this.to(from + (upTo - from) * (1 - Math.exp(-(Date.now() - t0) / 4000))), 200);
+  },
+  done() {
+    if (!this.on) return; clearInterval(this.creepT); this.on = false;
+    this.el.style.transition = "transform .18s ease-in"; this.el.style.transform = "scaleX(1)";
+    this.hideT = setTimeout(() => { this.el.classList.remove("on"); this.el.setAttribute("aria-hidden", "true"); }, 380);
+  }
+};
 /* ---------- import ---------- */
 function importText(text) {
   const chunks = splitPgn(text);
@@ -934,7 +974,9 @@ function renderList() {
     const resTxt = { W: "W", L: "L", D: "½", X: "·" }[g.res];
     let acc = "";
     if (isDone(g)) {
-      const sm = summarize(g, S.analyses[g.id].evals); const side = g.me || "w"; const a = sm[side].accuracy;
+      const ev = S.analyses[g.id].evals; // summarizing ~1000 games on every redraw was slow, so remember it per review
+      if (g._accFor !== ev) { g._accFor = ev; g._acc = summarize(g, ev)[g.me || "w"].accuracy; }
+      const a = g._acc;
       acc = '<b title="Your accuracy in this game">' + (a == null ? "–" : a.toFixed(0)) + '</b>';
     } else if (S.job && S.job.id === g.id) acc = "analyzing";
     const sub = [g.date, g.tc].filter(Boolean).join(" · ");
@@ -949,7 +991,9 @@ function renderList() {
 
 function select(g) {
   S.sel = g || null; S.ply = g ? g.moves.length : 0; S.flip = g ? g.me === "b" : false;
-  renderList(); renderReview();
+  renderList();
+  // The review panel is the slowest thing to draw; skip it while another tab is showing.
+  if (view === "review") { S.reviewStale = false; renderReview(); } else S.reviewStale = true;
   if (g) enqueue(g);
 }
 
@@ -1218,6 +1262,7 @@ function showView(v) {
   $("viewReview").hidden = view !== "review"; $("viewTrainer").hidden = view !== "trainer"; $("viewOpenings").hidden = view !== "openings";
   $("viewTitle").textContent = { trainer: "Blunder Trainer", openings: "Openings", review: "Game Review" }[view];
   document.querySelectorAll(".tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === view ? "page" : "false"));
+  if (view === "review" && S.reviewStale) { S.reviewStale = false; renderReview(); }
   if (view === "trainer") trainerRefresh();
   if (view === "openings") openingsRefresh();
 }
@@ -1620,10 +1665,12 @@ function buildRep(side) {
   // What your real opponents played in each position (from your games as this colour).
   const real = new Map();
   for (const g of S.games) {
-    if (g.example || g.me !== side || !g.moves) continue;
+    // Read the moves straight from the PGN text: replaying every game on the board took ~45 ms a game
+    // (tens of seconds for a big library) and froze the page the first time Openings opened.
+    if (g.example || g.me !== side || g.headers.FEN || !g.tokens) continue;
     let at = 0;
-    for (let i = 0; i < Math.min(24, g.moves.length); i++) {
-      const san = g.moves[i].san; const isMine = (i % 2 === 0) === (side === "w");
+    for (let i = 0; i < Math.min(24, g.tokens.length); i++) {
+      const san = g.tokens[i]; const isMine = (i % 2 === 0) === (side === "w");
       if (!isMine) { const m = real.get(at) || new Map(); m.set(san, (m.get(san) || 0) + 1); real.set(at, m); }
       const nx = nodes[at].moves.get(san); if (nx == null) break; at = nx;
     }
@@ -1931,6 +1978,7 @@ $("oReset").onclick = () => {
 };
 
 (async function boot() {
+  loader.start();
   buildBook();
   syncFormatButtons();
   const ok = await Promise.race([big.open(), new Promise(r => setTimeout(() => r(false), 3000))]);
@@ -1946,21 +1994,32 @@ $("oReset").onclick = () => {
   S.raw = Array.isArray(raw) && raw.length ? raw : [{ id: "example", pgn: EXAMPLE_PGN, example: true }];
   S.analyses = an || {};
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  const haveLocal = S.raw.some(e => !e.example);
+  // Let the bar paint between the heavy steps instead of running them as one long freeze.
+  const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  // First visit: the download is most of the wait, so the local steps only take a small share.
+  loader.to(haveLocal ? .3 : .08); await frame();
   rebuildGames();
+  loader.to(haveLocal ? .6 : .14); await frame();
+  { const h = location.hash.slice(1); view = h === "trainer" || h === "openings" ? h : "review"; }
   select(S.games[0]);
   savedNote();
   showView(location.hash.slice(1));
+  // With games saved on this device the page is ready now; on a first visit, wait for the download.
+  if (haveLocal) setTimeout(() => loader.done(), 250); else loader.creep(.85);
 
   // Pull the games and reviews the website already has.
   loadSiteData().then(site => {
-    if (!site || !mergeSite(site)) return;
+    if (!site || !mergeSite(site)) { loader.done(); return; }
     const id = S.sel && !S.sel.example ? S.sel.id : null;
     if (S.job && isDone({ id: S.job.id, fens: { length: S.job.total } })) S.job.cancel = true;
     rebuildGames();
     const keep = id && S.games.find(g => g.id === id);
-    if (keep) { S.sel = keep; renderList(); renderReview(); } else select(S.games[0]);
-    if (view === "trainer") trainerRefresh();
+    if (keep) { S.sel = keep; renderList(); if (view === "review") renderReview(); else S.reviewStale = true; } else select(S.games[0]);
     savedNote();
+    O.books = {};                                     // re-read your real opponents' moves
+    if (view === "trainer") trainerRefresh(); else if (view === "openings") openingsRefresh();
+    loader.done();
   });
 
   // Sync wiring
