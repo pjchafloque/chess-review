@@ -440,7 +440,7 @@ const store = {
    saved on a device, progress is also kept in one secret gist and merged both ways.
    meta[k] = { at: last local change, ep: last reset }. A newer reset wins outright; otherwise solved
    puzzles are unioned, openings keep the copy with more lines played, and settings take the newest. */
-const SYNC_KEYS = ["oprog", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
+const SYNC_KEYS = ["oseen", "oprog", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
 const SYNC_FILE = "pchess-progress.json", SYNC_DESC = "PChess progress (sync)";
 const sync = {
   timer: null, busy: false, again: false, state: "off", when: 0, err: "", onPulled: null,
@@ -1650,10 +1650,39 @@ function lineTarget() {
   return oprog.get()[O.side].level;
 }
 
+// Pick the next line to test up front, so "Next line" rotates through different variations.
+// Every line follows my main book move and branches on each opponent reply. Lines played recently
+// (remembered per side, across reloads) are skipped; longer lines and replies my real opponents
+// play are preferred. Lines shorter than the level still count, so thin openings don't repeat.
+function planLine(side, target) {
+  const nodes = O.book.nodes, real = O.book.real, plans = [];
+  const best = n => { let b = null, bd = -1; for (const [san, ck] of n.moves) { const d = nodes[ck].depth; if (d > bd) { bd = d; b = san; } } return b; };
+  (function walk(at, path, mine, fam) {
+    if (plans.length > 3000) return;
+    const n = nodes[at];
+    if (!n.moves.size || mine >= target) { plans.push({ path, mine, fam }); return; }
+    if ((path.length % 2 === 0) === (side === "w")) { const san = best(n); walk(n.moves.get(san), path.concat(san), mine + 1, fam); return; }
+    const r = real.get(at);
+    for (const [san, ck] of n.moves) walk(ck, path.concat(san), mine, fam + Math.log1p(r && r.get(san) || 0));
+  })(0, [], 0, 0);
+  const minLen = Math.min(target, Math.max(3, Math.ceil(target / 2)));
+  let pool = plans.filter(p => p.mine >= minLen); if (!pool.length) pool = plans;
+  const seen = (store.get("oseen", {}) || {})[side] || [];
+  const keep = Math.min(seen.length, Math.max(0, pool.length - 1), 12);
+  const recent = new Set(seen.slice(-keep));
+  const fresh = pool.filter(p => !recent.has(p.path.join(" "))); if (fresh.length) pool = fresh;
+  const w = p => Math.pow(p.mine / target, 2) * (1 + p.fam);
+  let r = Math.random() * pool.reduce((a, p) => a + w(p), 0), pick = pool[0];
+  for (const p of pool) { r -= w(p); if (r <= 0) { pick = p; break; } }
+  const all = store.get("oseen", {}) || {}; all[side] = seen.filter(k => k !== pick.path.join(" ")).concat(pick.path.join(" ")).slice(-30); store.set("oseen", all);
+  return pick.path;
+}
+
 function openingsStart(drillPath) {
   O.token++; O.book = repBook(O.side);
   const c = new Chess(); O.at = 0; O.hist = []; O.mine = 0; O.misses = 0; O.missedNow = false; O.sel = null; O.targets = []; O.last = null; O.arrow = null; O.msg = null; O.name = "";
   O.drill = drillPath || null; O.target = lineTarget();
+  O.plan = O.drill ? null : planLine(O.side, O.target);
   O.fen = c.fen();
   if (c.turn() === O.side) { O.status = "mine"; renderOpenings(); }
   else { O.status = "cpu"; renderOpenings(); setTimeout(cpuMove, 500, O.token); }
@@ -1664,7 +1693,8 @@ function cpuMove(token) {
   const n = oNode(); if (!n || !n.moves.size) return lineDone("Theory ends here.");
   const real = O.book.real.get(O.at);
   const here = pathSan().join(" ");
-  const want = O.drill && n.moves.has(O.drill[O.hist.length]) ? O.drill[O.hist.length] : null;
+  const route = O.drill || O.plan, onRoute = route && pathSan().every((san, i) => san === route[i]);
+  const want = onRoute && n.moves.has(route[O.hist.length]) ? route[O.hist.length] : null;
   const need = O.target - O.mine;                                     // my moves still to play in this line
   const cands = [...n.moves].map(([san, ck]) => {
     let w = 1 + (real && real.get(san) || 0);                       // like your real opponents
