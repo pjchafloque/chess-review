@@ -84,6 +84,8 @@ button { cursor: pointer; }
 .syncdlg ol { padding-left: 20px; }
 .syncdlg a { color: var(--accent); }
 .syncdlg input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--ink); font-family: var(--f-mono); font-size: 14px; }
+.resetlist { font-size: 14px; line-height: 1.6; padding-left: 20px; margin: 8px 0; }
+.btn.danger { background: var(--c-blunder); color: #fff; border-color: var(--c-blunder); }
 .syncdlg .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .engine { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); font-family: var(--f-mono); }
 .engine .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c-inacc); }
@@ -284,6 +286,13 @@ button { cursor: pointer; }
       </div>
     </div>
   </header>
+
+  <dialog id="resetDlg" class="syncdlg" aria-labelledby="reset-h">
+    <h2 id="reset-h">Are you sure?</h2>
+    <p>This wipes your Openings progress on both sides, on every device that syncs. You can't undo it.</p>
+    <ul class="resetlist" id="resetList"></ul>
+    <div class="row"><button class="btn" type="button" id="resetNo" autofocus>No, keep my progress</button><button class="btn danger" type="button" id="resetYes">Yes, reset everything</button></div>
+  </dialog>
 
   <dialog id="syncDlg" class="syncdlg" aria-labelledby="sync-h">
     <h2 id="sync-h">Sync progress across devices</h2>
@@ -2052,8 +2061,18 @@ $("ospots").addEventListener("click", e => {
   const g = O.vars && O.vars[+b.dataset.var]; if (!g) return;
   openingsStart(g.line);
 });
+// Reset asks first, in a dialog that shows what would be lost. "No" is the default button.
 $("oReset").onclick = () => {
-  if (!confirm("Reset your openings progress, levels and variations?")) return;
+  const p = oprog.get(), c = ocov.get();
+  $("resetList").innerHTML = ["b", "w"].map(sd => {
+    const s = p[sd], v = varGroups(p, sd).length;
+    return "<li><b>" + esc(REP_SIDES[sd].title) + "</b>: level " + s.level + ", " + s.lines + " lines played, " + c[sd].length + " lines covered" + (v ? ", " + v + " variations to learn" : "") + "</li>";
+  }).join("");
+  $("resetDlg").showModal(); $("resetNo").focus();
+};
+$("resetNo").onclick = () => $("resetDlg").close();
+$("resetYes").onclick = () => {
+  $("resetDlg").close();
   store.set("oprog", null); sync.reset("oprog"); store.set("ocov", { b: [], w: [] }); sync.reset("ocov"); renderOpenings();
 };
 
