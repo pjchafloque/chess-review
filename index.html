@@ -463,7 +463,7 @@ const store = {
    saved on a device, progress is also kept in one secret gist and merged both ways.
    meta[k] = { at: last local change, ep: last reset }. A newer reset wins outright; otherwise solved
    puzzles are unioned, openings keep the copy with more lines played, and settings take the newest. */
-const SYNC_KEYS = ["oseen", "oprog", "ocov", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
+const SYNC_KEYS = ["oseen", "oprog", "ocov", "ohold", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
 const SYNC_FILE = "pchess-progress.json", SYNC_DESC = "PChess progress (sync)";
 const sync = {
   timer: null, busy: false, again: false, state: "off", when: 0, err: "", onPulled: null,
@@ -1922,10 +1922,14 @@ function lineDone(why) {
       up = " <b>Variation learned</b>, it's off your list." + (now ? " " + now + " more to fix before new lines." : " All fixed. Next line is a new one" + (s.level < OPEN_MAX_MOVES ? ", and perfect lines unlock the next move again." : "."));
     } else up = " This one stays on your list. Next line keeps bringing your missed variations back until each one is clean.";
   }
-  if (!O.drill && !O.misses && O.mine >= s.level) {
-    if (s.level < OPEN_MAX_MOVES) { s.level++; up = ' <b>Level up!</b> ' + levelUpText(p); }
+  const hold = !O.drill && s.level < OPEN_MAX_MOVES && (store.get("ohold", {}) || {})[O.side];
+  const cl = hold ? coverage(O.side, s.level) : null, left = cl ? cl.total - cl.done : 0;
+  if (!O.drill && !O.misses && (O.mine >= s.level || hold) && left > 0) {
+    up = " You're staying at " + s.level + " moves until you've covered every line here: <b>" + left + " to go</b>.";
+  } else if (!O.drill && !O.misses && (O.mine >= s.level || hold)) {
+    if (s.level < OPEN_MAX_MOVES) { s.level++; up = (hold ? " <b>Every " + (s.level - 1) + "-move line covered!</b>" : "") + ' <b>Level up!</b> ' + levelUpText(p); }
     else up = " You're at the top level: 10 moves deep.";
-  } else if (!O.drill && O.misses) up = " Get a line right with no misses to go one move deeper.";
+  } else if (!O.drill && O.misses) up = left > 0 ? " " + left + " lines at this level still to cover." : " Get a line right with no misses to go one move deeper.";
   oprog.set(p);
   O.recent.push(pathSan().join(" ")); if (O.recent.length > 6) O.recent.shift();
   const right = O.mine - O.misses;
@@ -1988,7 +1992,9 @@ function renderOpenings() {
   const cl = coverage(O.side, s.level), cf = s.level === OPEN_MAX_MOVES ? cl : coverage(O.side, OPEN_MAX_MOVES);
   const bar = (label, c) => { const pc = c.total ? Math.floor(100 * c.done / c.total) : 0;
     return '<div class="ocovrow"><div class="ocovtop"><span>' + label + '</span><span><b>' + pc + '%</b> · ' + c.done + ' of ' + c.total + ' lines</span></div><div class="ocovbar"><i style="width:' + pc + '%"></i></div></div>'; };
+  const holdOn = !!(store.get("ohold", {}) || {})[O.side];
   $("ocov").innerHTML = '<div class="section-label">' + esc(meta.title) + ' lines covered</div>' +
+    (s.level < OPEN_MAX_MOVES ? '<label for="oHold"><input type="checkbox" id="oHold"' + (holdOn ? " checked" : "") + '> Cover every ' + s.level + '-move line before going deeper</label>' : "") +
     (s.level < OPEN_MAX_MOVES ? bar("At your level (" + s.level + " moves)", cl) : "") + bar("Whole book (" + OPEN_MAX_MOVES + " moves)", cf) +
     (cf.done >= cf.total ? '<div class="omuted">You\u2019ve played every ' + esc(meta.title) + ' line in the book. Time to add more.</div>' : '<div class="omuted">A line counts once you\u2019ve played it through. Next line picks lines you haven\u2019t covered yet.</div>');
   // One card per variation: spots on the same line (one a continuation of another) are merged.
@@ -2062,6 +2068,10 @@ $("ospots").addEventListener("click", e => {
   openingsStart(g.line);
 });
 // Reset asks first, in a dialog that shows what would be lost. "No" is the default button.
+$("ocov").addEventListener("change", e => {
+  if (e.target.id !== "oHold") return;
+  const h = store.get("ohold", {}) || {}; h[O.side] = e.target.checked; store.set("ohold", h); renderOpenings();
+});
 $("oReset").onclick = () => {
   const p = oprog.get(), c = ocov.get();
   $("resetList").innerHTML = ["b", "w"].map(sd => {
@@ -2124,7 +2134,7 @@ $("resetYes").onclick = () => {
   // Sync wiring
   sync.onPulled = changed => {
     if (changed.includes("tprog") && view === "trainer") trainerRefresh();
-    if ((changed.includes("oprog") || changed.includes("ocov")) && view === "openings" && O.book) renderOpenings();
+    if ((changed.includes("oprog") || changed.includes("ocov") || changed.includes("ohold")) && view === "openings" && O.book) renderOpenings();
   };
   $("syncBtn").onclick = () => { sync.label(); $("syncDlg").showModal(); };
   $("syncDlg").addEventListener("click", e => { if (e.target.closest("[data-close]")) $("syncDlg").close(); });
