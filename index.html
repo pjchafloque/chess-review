@@ -91,7 +91,7 @@ button { cursor: pointer; }
 
 .games { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 70vh; overflow-y: auto; }
 @media (max-width: 980px) { .games { max-height: 340px; } }
-.game { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; text-align: left; width: 100%; background: transparent; border-left: 0; border-right: 0; border-top: 0; }
+.game { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 20px 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; text-align: left; width: 100%; background: transparent; border-left: 0; border-right: 0; border-top: 0; }
 .games li:last-child .game { border-bottom: 0; }
 .game:hover { background: var(--surface-2); }
 .game[aria-current="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
@@ -270,12 +270,11 @@ button { cursor: pointer; }
           <div class="board" id="board"></div>
         </div>
         <div class="controls">
-          <button class="btn" id="bStart" type="button" aria-label="First move">|◀</button>
+          <button class="btn" id="bStart" type="button" aria-label="First move">Start</button>
           <button class="btn" id="bPrev" type="button" aria-label="Previous move">◀</button>
           <button class="btn" id="bNext" type="button" aria-label="Next move">▶</button>
-          <button class="btn" id="bEnd" type="button" aria-label="Last move">▶|</button>
-          <button class="btn" id="bFlip" type="button">Flip</button>
-          <button class="btn" id="bSound" type="button" aria-pressed="true">Sound on</button>
+          <button class="btn" id="bEnd" type="button" aria-label="Last move">End</button>
+          <button class="btn" id="bSound" type="button" aria-pressed="true" aria-label="Sound" title="Sound on">🔊</button>
         </div>
         <div class="legend">
           <span><i class="k book"></i>Book: known opening theory</span>
@@ -396,7 +395,8 @@ const sound = {
   },
   label() {
     const b = document.getElementById("bSound"); if (!b) return;
-    b.textContent = this.on ? "Sound on" : "Sound off"; b.setAttribute("aria-pressed", String(this.on));
+    b.textContent = this.on ? "🔊" : "🔇"; b.title = this.on ? "Sound on (click to mute)" : "Sound off (click to turn on)";
+    b.setAttribute("aria-pressed", String(this.on));
   },
   toggle() { this.on = !this.on; store.set("sound", this.on); this.label(); if (this.on) this.play("e4"); }
 };
@@ -1042,7 +1042,7 @@ $("moves").addEventListener("click", e => { const b = e.target.closest(".mv[data
 $("bStart").onclick = () => go(0); $("bPrev").onclick = () => go(S.ply - 1);
 $("bNext").onclick = () => go(S.ply + 1); $("bEnd").onclick = () => go(1e9);
 $("bSound").onclick = () => sound.toggle(); sound.label();
-$("bFlip").onclick = () => { S.flip = !S.flip; renderAnalysis(); };
+
 $("graph").addEventListener("click", e => {
   if (!S.sel) return; const rect = e.currentTarget.getBoundingClientRect();
   go(Math.round((e.clientX - rect.left) / rect.width * S.sel.moves.length));
