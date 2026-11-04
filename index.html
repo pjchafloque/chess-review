@@ -311,6 +311,7 @@ button { cursor: pointer; }
           <button class="btn" id="bNext" type="button" aria-label="Next move">▶</button>
           <button class="btn" id="bEnd" type="button" aria-label="Last move">▶|</button>
           <button class="btn" id="bFlip" type="button">Flip</button>
+          <button class="btn" id="bSound" type="button" aria-pressed="true">Sound on</button>
         </div>
         <div class="legend">
           <span><i class="k book"></i>Book: known opening theory</span>
@@ -396,6 +397,44 @@ const SITE_DATA = ["https://raw.githubusercontent.com/pjchafloque/chess-review/m
 const store = {
   get(k, d) { try { const v = localStorage.getItem("gr." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("gr." + k, JSON.stringify(v)); } catch (e) {} }
+};
+
+/* ---------- move sounds (made with Web Audio, no files) ---------- */
+const sound = {
+  on: store.get("sound", true), ctx: null,
+  ac() {
+    if (!this.ctx) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; this.ctx = new A(); }
+    if (this.ctx.state === "suspended") this.ctx.resume();
+    return this.ctx;
+  },
+  // One wooden knock: a short filtered noise burst plus a quick low tone.
+  knock(t, freq, vol) {
+    const c = this.ctx, len = Math.floor(c.sampleRate * 0.06);
+    const buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+    const n = c.createBufferSource(); n.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq * 3; f.Q.value = 1.2;
+    const ng = c.createGain(); ng.gain.value = vol;
+    n.connect(f); f.connect(ng); ng.connect(c.destination); n.start(t);
+    const o = c.createOscillator(); o.type = "sine";
+    o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * 0.6, t + 0.08);
+    const og = c.createGain(); og.gain.setValueAtTime(vol * 0.6, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    o.connect(og); og.connect(c.destination); o.start(t); o.stop(t + 0.1);
+  },
+  // Captures get a sharper double knock; everything else one soft knock.
+  play(san) {
+    if (!this.on || !san) return;
+    try {
+      const c = this.ac(); if (!c) return; const t = c.currentTime + 0.005;
+      if (san.includes("x")) { this.knock(t, 300, 0.9); this.knock(t + 0.045, 520, 0.7); }
+      else this.knock(t, 360, 0.7);
+    } catch (e) {}
+  },
+  label() {
+    const b = document.getElementById("bSound"); if (!b) return;
+    b.textContent = this.on ? "Sound on" : "Sound off"; b.setAttribute("aria-pressed", String(this.on));
+  },
+  toggle() { this.on = !this.on; store.set("sound", this.on); this.label(); if (this.on) this.play("e4"); }
 };
 
 // Games and reviews go to IndexedDB, which holds far more than localStorage's ~5 MB.
@@ -962,7 +1001,10 @@ function renderBoard(fen, last, arrow, badge, o) {
 }
 
 function go(ply) {
-  if (!S.sel) return; S.ply = Math.max(0, Math.min(S.sel.moves.length, ply)); renderAnalysis();
+  if (!S.sel) return; const prev = S.ply;
+  S.ply = Math.max(0, Math.min(S.sel.moves.length, ply));
+  if (S.ply !== prev) sound.play(S.ply > prev ? S.sel.moves[S.ply - 1].san : "back");
+  renderAnalysis();
 }
 
 /* ---------- wiring ---------- */
@@ -1062,6 +1104,7 @@ $("games").addEventListener("click", e => { const b = e.target.closest(".game");
 $("moves").addEventListener("click", e => { const b = e.target.closest(".mv[data-ply]"); if (b) go(+b.dataset.ply); });
 $("bStart").onclick = () => go(0); $("bPrev").onclick = () => go(S.ply - 1);
 $("bNext").onclick = () => go(S.ply + 1); $("bEnd").onclick = () => go(1e9);
+$("bSound").onclick = () => sound.toggle(); sound.label();
 $("bFlip").onclick = () => { S.flip = !S.flip; renderAnalysis(); };
 $("graph").addEventListener("click", e => {
   if (!S.sel) return; const rect = e.currentTarget.getBoundingClientRect();
@@ -1322,6 +1365,7 @@ async function tryMove(from, to) {
   const c = new Chess(T.fen); const m = c.move({ from, to, promotion: "q" });
   T.sel = null; T.targets = [];
   if (!m) { renderTrainer(); return; }
+  sound.play(m.san);
   const uci = m.from + m.to + (m.promotion || "");
   const startFen = T.fen, token = T.token;
   const showMove = () => { T.fen = c.fen(); T.last = { from: m.from, to: m.to }; };
@@ -1338,7 +1382,7 @@ async function tryMove(from, to) {
     T.status = "replying"; finish("good", '<b>' + esc(m.san) + '</b> is right. Keep going.');
     setTimeout(() => {
       if (token !== T.token) return;
-      const r = uciMove(c, reply); T.step++;
+      const r = uciMove(c, reply); T.step++; if (r) sound.play(r.san);
       T.fen = c.fen(); T.last = r ? { from: r.from, to: r.to } : null; T.status = "solving";
       finish("good", '<b>' + esc(m.san) + '</b> is right. Your opponent answered <b>' + esc(r ? r.san : reply) + '</b>. Keep going.');
     }, 550);
