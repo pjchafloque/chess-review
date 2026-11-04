@@ -67,7 +67,6 @@ button { cursor: pointer; }
 .engine .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c-inacc); }
 .engine[data-state="ready"] .dot { background: var(--c-best); }
 .engine[data-state="error"] .dot { background: var(--c-blunder); }
-.engine select { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 3px 6px; font-size: 13px; }
 
 .layout { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 980px) { .layout { grid-template-columns: minmax(0, 1fr); } }
@@ -77,12 +76,6 @@ button { cursor: pointer; }
 .import { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .import h2, .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0; font-weight: 600; }
 .import ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
-.urlrow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.urlrow select { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 3px 6px; font-size: 13px; }
-.url { font-family: var(--f-mono); font-size: 11.5px; word-break: break-all; color: var(--accent); }
-.drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 12px; text-align: center; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; align-items: center; }
-.drop.over { border-color: var(--accent); background: var(--surface-2); }
-.drop textarea { width: 100%; min-height: 54px; resize: vertical; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 6px 8px; font-family: var(--f-mono); font-size: 11.5px; }
 .btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 7px; padding: 6px 12px; font-size: 13.5px; font-weight: 500; }
 .btn:hover { border-color: var(--muted); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
@@ -241,13 +234,6 @@ button { cursor: pointer; }
     </div>
     <div class="engine" id="engine" data-state="loading">
       <span class="dot"></span><span id="engineText">Stockfish loading…</span>
-      <label for="depth" style="margin-left:8px">Depth</label>
-      <select id="depth">
-        <option value="10">10 · quick</option>
-        <option value="12" selected>12 · normal</option>
-        <option value="15">15 · deep</option>
-        <option value="18">18 · slow</option>
-      </select>
     </div>
   </header>
 
@@ -257,28 +243,6 @@ button { cursor: pointer; }
         <h2 id="imp-h">Add games from chess.com</h2>
         <button class="btn primary" id="update" type="button">Update from chess.com</button>
         <div class="note" id="updateNote"></div>
-        <details id="manual">
-          <summary style="cursor:pointer;font-size:13.5px">Add a month by hand</summary>
-        <ol style="margin-top:8px">
-          <li>
-            <div class="urlrow"><span>Pick a month:</span><select id="month"></select></div>
-            <a class="url" id="monthUrl" target="_blank" rel="noopener" href="#"></a>
-            <div class="btnrow" style="justify-content:flex-start;margin-top:4px"><button class="btn small" id="copyUrl" type="button">Copy link</button></div>
-          </li>
-          <li>Open that link. It downloads a .pgn file with every game you played that month.</li>
-          <li>Drop the file below, or open it and paste the text.</li>
-        </ol>
-        <div class="drop" id="drop">
-          <span>Drop .pgn files here</span>
-          <div class="btnrow">
-            <label class="btn primary" for="file" style="cursor:pointer">Choose file</label>
-            <input type="file" id="file" accept=".pgn,.txt,text/plain" multiple hidden>
-          </div>
-          <textarea id="paste" placeholder="…or paste PGN text here"></textarea>
-          <div class="btnrow"><button class="btn small" id="addPaste" type="button">Add pasted games</button></div>
-        </div>
-        </details>
-        <div class="note" id="importNote"></div>
       </section>
 
       <div class="filters" id="formats" role="group" aria-label="Filter by format">
@@ -473,7 +437,7 @@ const S = {
   flip: null,
   filter: "all",
   tfilter: store.get("tfilter", "all"),
-  depth: store.get("depth", 12),
+  depth: 12,
   job: null,
   queue: []
 };
@@ -617,14 +581,9 @@ function importText(text) {
   parts.push(added + " game" + (added === 1 ? "" : "s") + " added");
   if (dup) parts.push(dup + " already here");
   if (bad) parts.push(bad + " skipped (variants or unreadable)");
-  $("importNote").textContent = chunks.length ? parts.join(", ") + "." : "No games found in that text.";
+  if ($("importNote")) $("importNote").textContent = chunks.length ? parts.join(", ") + "." : "No games found in that text.";
   if (added && (!S.sel || S.sel.example || !S.games.includes(S.sel))) select(S.games[0]);
   renderList();
-}
-function readFiles(files) {
-  const list = Array.from(files || []);
-  if (!list.length) return;
-  Promise.all(list.map(f => f.text())).then(texts => importText(texts.join("\n\n")));
 }
 
 /* ---------- engine ---------- */
@@ -809,7 +768,7 @@ function renderFormatCounts() {
 function renderList() {
   const ul = $("games"); const list = filtered(); renderFormatCounts();
   $("gcount").textContent = list.length + " / " + S.games.length;
-  if (!S.games.length) { ul.innerHTML = '<li class="empty">No games yet. Add a month of games above.</li>'; return; }
+  if (!S.games.length) { ul.innerHTML = '<li class="empty">No games yet. Press “Update from chess.com” above.</li>'; return; }
   if (!list.length) { ul.innerHTML = '<li class="empty">No games match this filter.</li>'; return; }
   ul.innerHTML = list.map(g => {
     const opp = g.me === "w" ? g.black : g.me === "b" ? g.white : g.white + " vs " + g.black;
@@ -1013,21 +972,8 @@ function go(ply) {
   renderAnalysis();
 }
 
-/* ---------- wiring ---------- */
-function monthOptions() {
-  const sel = $("month"); const now = new Date(); let html = "";
-  for (let i = 0; i < 18; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const v = d.getFullYear() + "/" + String(d.getMonth() + 1).padStart(2, "0");
-    html += '<option value="' + v + '">' + d.toLocaleString("en-US", { month: "long", year: "numeric" }) + '</option>';
-  }
-  sel.innerHTML = html; updateUrl();
-}
-function updateUrl() {
-  const url = "https://api.chess.com/pub/player/" + encodeURIComponent(S.user.trim().toLowerCase()) + "/games/" + $("month").value + "/pgn";
-  const a = $("monthUrl"); a.href = url; a.textContent = url;
-}
 
+/* ---------- wiring ---------- */
 /* ---------- one-click update from the chess.com API ---------- */
 async function getJson(url) {
   const r = await fetch(url, { headers: { Accept: "application/json" } });
@@ -1048,8 +994,8 @@ async function updateFromChessCom(quiet) {
       if (e.code === 404) { note.textContent = "chess.com has no player called “" + S.user + "”. Check the spelling at the top."; return; }
       if (e.code) { note.textContent = "chess.com answered with error " + e.code + ". Try again in a minute."; return; }
       if (quiet) { note.textContent = savedNote; return; }
-      note.textContent = "This online copy of the page isn't allowed to connect to chess.com. Open the copy saved on your computer to update with one click, or add a month by hand below.";
-      $("manual").open = true; return;
+      note.textContent = "This online copy of the page isn't allowed to connect to chess.com. Open the copy saved on your computer to update with one click.";
+      return;
     }
     // Only re-check from the newest month already here; the first run pulls everything.
     const mine = S.games.filter(g => !g.example);
@@ -1074,28 +1020,13 @@ async function updateFromChessCom(quiet) {
 }
 $("update").addEventListener("click", () => updateFromChessCom(false));
 
-$("month").addEventListener("change", updateUrl);
-$("copyUrl").addEventListener("click", () => {
-  const url = $("monthUrl").textContent;
-  const done = () => { $("copyUrl").textContent = "Copied"; setTimeout(() => $("copyUrl").textContent = "Copy link", 1500); };
-  try { navigator.clipboard.writeText(url).then(done, () => selectText($("monthUrl"))); } catch (e) { selectText($("monthUrl")); }
-});
-function selectText(el) { try { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
 
 $("username").value = S.user;
 $("username").addEventListener("change", e => {
-  S.user = e.target.value.trim() || "Chaflox"; store.set("user", S.user); updateUrl();
+  S.user = e.target.value.trim() || "Chaflox"; store.set("user", S.user);
   const id = S.sel && S.sel.id; rebuildGames(); renderList(); select(S.games.find(g => g.id === id) || S.games[0]);
 });
-$("depth").value = String(S.depth);
-$("depth").addEventListener("change", e => { S.depth = +e.target.value; store.set("depth", S.depth); });
 
-$("file").addEventListener("change", e => { readFiles(e.target.files); e.target.value = ""; });
-const drop = $("drop");
-drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
-drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); readFiles(e.dataTransfer.files); });
-$("addPaste").addEventListener("click", () => { const t = $("paste").value; if (t.trim()) { importText(t); $("paste").value = ""; } });
 
 $("results").addEventListener("click", e => {
   const b = e.target.closest("button[data-f]"); if (!b) return;
@@ -1510,7 +1441,6 @@ function savedNote() {
 }
 
 (async function boot() {
-  monthOptions();
   buildBook();
   syncFormatButtons();
   const ok = await Promise.race([big.open(), new Promise(r => setTimeout(() => r(false), 3000))]);
