@@ -1,6 +1,6 @@
 {
-  "name": "Chess Review",
-  "short_name": "Chess Review",
+  "name": "PChess",
+  "short_name": "PChess",
   "start_url": "./",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
