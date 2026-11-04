@@ -1258,14 +1258,16 @@ function preparePuzzle(p) {
   return p;
 }
 function trainerRefresh(keepId) {
-  const curId = keepId || (T.list[T.idx] && T.list[T.idx].id);
+  const liveId = keepId || (T.list[T.idx] && T.list[T.idx].id);
+  const curId = liveId || store.get("tcur", null); // after a reload, pick up at the last puzzle
   const b = buildPuzzles(); T.list = b.list; tMeta = b;
   const at = curId ? T.list.findIndex(p => p.id === curId) : -1;
-  if (at >= 0) { preparePuzzle(T.list[at]).line = T.line; renderTrainer(); } else loadPuzzle(0);
+  if (at >= 0 && liveId) { T.idx = at; preparePuzzle(T.list[at]).line = T.line; renderTrainer(); } else loadPuzzle(Math.max(0, at));
 }
 function loadPuzzle(idx) {
   T.idx = T.list.length ? (idx + T.list.length) % T.list.length : 0;
   const p = preparePuzzle(T.list[T.idx]); const token = ++T.token;
+  if (p) store.set("tcur", p.id);
   Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [] });
   if (p) {
     if (p.pv) T.line = trimLine(p.fen, p.pv);
@@ -1617,7 +1619,7 @@ function oTryMove(from, to) {
 }
 
 function confetti() {
-  try { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) {}
+  let calm = false; try { calm = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
   const c = document.createElement("canvas");
   c.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999";
   document.body.appendChild(c);
@@ -1625,7 +1627,9 @@ function confetti() {
   const W = innerWidth, H = innerHeight; c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
   const cols = ["#2c6a55", "#3f9a76", "#6cc2a0", "#a8e0c4", "#1f4d3d"];
   const ps = [];
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < (calm ? 90 : 200); i++) {
+    if (calm) { ps.push({ x: Math.random() * W, y: -20 - Math.random() * H * .4, vx: (Math.random() - .5) * 1.5, vy: 2 + Math.random() * 2,
+      w: 6 + Math.random() * 6, h: 4 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - .5) * .08, c: cols[i % cols.length] }); continue; }
     const left = i % 2 === 0, a = (left ? -60 : -120) * Math.PI / 180 + (Math.random() - .5) * .9, v = 9 + Math.random() * 9;
     ps.push({ x: left ? 0 : W, y: H * .75, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 6 + Math.random() * 6, h: 4 + Math.random() * 6,
       r: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[i % cols.length] });
@@ -1636,7 +1640,7 @@ function confetti() {
     const age = t - t0, fade = Math.max(0, 1 - Math.max(0, age - 1800) / 900);
     ctx.globalAlpha = fade;
     for (const p of ps) {
-      p.vy += .32; p.vx *= .985; p.vy *= .985; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      if (!calm) { p.vy += .32; p.vx *= .985; p.vy *= .985; } p.x += p.vx; p.y += p.vy; p.r += p.vr;
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.scale(1, Math.cos(p.r * 2));
       ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
     }
