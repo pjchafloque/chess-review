@@ -450,7 +450,8 @@ function splitPgn(text) {
 }
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
 
-function parseGame(pgn) {
+// Headers and move list as text, no board replay (fast enough for a thousand games).
+function lexGame(pgn) {
   const headers = {};
   const re = /^\s*\[(\w+)\s+"((?:[^"\\]|\\.)*)"\]\s*$/gm;
   let m; while ((m = re.exec(pgn))) headers[m[1]] = m[2];
@@ -458,23 +459,32 @@ function parseGame(pgn) {
   mt = mt.replace(/\{[^}]*\}/g, " ").replace(/;[^\n]*/g, " ");
   let prev; do { prev = mt; mt = mt.replace(/\([^()]*\)/g, " "); } while (mt !== prev);
   mt = mt.replace(/\$\d+/g, " ").replace(/\d+\.(\.\.)?/g, " ").replace(/(1-0|0-1|1\/2-1\/2|\*)\s*$/, " ");
-  const tokens = mt.split(/\s+/).filter(t => t && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t));
+  const tokens = mt.split(/\s+/).filter(t => t && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t)).map(t => t.replace(/[!?]+$/, ""));
   if (headers.Variant && !/standard/i.test(headers.Variant)) throw new Error("variant");
-  const startFen = headers.FEN || undefined;
-  const ch = startFen ? new Chess(startFen) : new Chess();
+  return { headers, tokens };
+}
+// Board replay, done only for the games actually opened.
+function replay(g) {
+  if (g._moves) return;
+  const ch = g.headers.FEN ? new Chess(g.headers.FEN) : new Chess();
   const fens = [ch.fen()], moves = [];
-  for (const t of tokens) {
-    const san = t.replace(/[!?]+$/, "");
-    const mv = ch.move(san, { sloppy: true });
-    if (!mv) throw new Error("bad move " + t);
+  for (const t of g.tokens) {
+    const mv = ch.move(t, { sloppy: true });
+    if (!mv) break;
     moves.push({ san: mv.san, from: mv.from, to: mv.to, promotion: mv.promotion || "", color: mv.color });
     fens.push(ch.fen());
   }
-  return { headers, fens, moves };
+  g._moves = moves; g._fens = fens;
 }
+function parseGame(pgn) { // used to check pasted or downloaded games
+  const g = lexGame(pgn); replay(g); if (g._moves.length !== g.tokens.length) throw new Error("bad moves"); return g;
+}
+const moverAt = (g, i) => ((g.start === "w") === (i % 2 === 0)) ? "w" : "b";
 
 function buildGame(entry) {
-  const g = parseGame(entry.pgn);
+  const g = lexGame(entry.pgn);
+  Object.defineProperty(g, "moves", { get() { replay(this); return this._moves; } });
+  Object.defineProperty(g, "fens", { get() { replay(this); return this._fens; } });
   const h = g.headers;
   const u = S.user.toLowerCase();
   const white = h.White || "White", black = h.Black || "Black";
@@ -486,31 +496,34 @@ function buildGame(entry) {
   const date = (h.UTCDate || h.Date || "").replace(/\?+/g, "").replace(/\.$/, "");
   const time = h.UTCTime || h.StartTime || "";
   return Object.assign(g, {
-    id: entry.id, example: !!entry.example, me, res, white, black,
+    id: entry.id, example: !!entry.example, me, res, white, black, nply: g.tokens.length,
+    start: h.FEN ? h.FEN.split(" ")[1] : "w",
     whiteElo: h.WhiteElo, blackElo: h.BlackElo, date, sortKey: date.replace(/\./g, "") + time.replace(/:/g, ""),
     opening: openingName(h), tc: timeControl(h.TimeControl), tclass: timeClass(h.TimeControl), link: h.Link || ""
-  }, bookInfo(g.fens));
+  }, h.FEN ? { bookPly: 0, bookName: "", bookNames: [] } : bookInfo(g.tokens));
 }
 
 /* ---------- opening book (Caro-Kann and Queen's Pawn lines from the Lichess opening database, CC0) ---------- */
-let bookMap = null; // position -> {name, exact}
-const fenKey = f => f.split(" ").slice(0, 4).join(" ");
+// A tree of move sequences; a game is "in book" while its moves follow a branch.
+let bookTree = null;
+const sanKey = t => t.replace(/[+#!?]/g, "");
 function buildBook() {
-  bookMap = new Map();
+  bookTree = { next: new Map(), name: "" };
   for (const [, name, pgn] of BOOK) {
-    const c = new Chess(); const toks = pgn.replace(/\d+\.(\.\.)?/g, " ").split(/\s+/).filter(Boolean);
-    toks.forEach((t, i) => {
-      if (!c.move(t, { sloppy: true })) return;
-      const k = fenKey(c.fen()); const last = i === toks.length - 1; const cur = bookMap.get(k);
-      if (!cur || (last && !cur.exact)) bookMap.set(k, { name, exact: last });
-    });
+    let node = bookTree;
+    for (const t of pgn.replace(/\d+\.(\.\.)?/g, " ").split(/\s+/).filter(Boolean)) {
+      const k = sanKey(t);
+      if (!node.next.has(k)) node.next.set(k, { next: new Map(), name: "" });
+      node = node.next.get(k);
+    }
+    node.name = name;
   }
 }
-function bookInfo(fens) {
-  let bookPly = 0, name = "", names = [];
-  if (bookMap) for (let i = 1; i < fens.length; i++) {
-    const e = bookMap.get(fenKey(fens[i])); if (!e) break;
-    bookPly = i; if (e.exact) name = e.name; names[i] = name;
+function bookInfo(tokens) {
+  let bookPly = 0, name = "", names = [], node = bookTree;
+  if (node) for (let i = 0; i < tokens.length; i++) {
+    node = node.next.get(sanKey(tokens[i])); if (!node) break;
+    bookPly = i + 1; if (node.name) name = node.name; names[i + 1] = name;
   }
   return { bookPly, bookName: name, bookNames: names };
 }
@@ -553,8 +566,8 @@ function importText(text) {
   if (chunks.length && S.raw.some(e => e.example)) S.raw = S.raw.filter(e => !e.example);
   const ids = new Set(S.raw.map(e => e.id));
   for (const pgn of chunks) {
-    let g; try { g = parseGame(pgn); } catch (e) { bad++; continue; }
-    if (!g.moves.length) { bad++; continue; }
+    let g; try { g = lexGame(pgn); } catch (e) { bad++; continue; }
+    if (!g.tokens.length) { bad++; continue; }
     const id = g.headers.Link ? "l" + hash(g.headers.Link) : "p" + hash(pgn);
     if (ids.has(id)) { dup++; continue; }
     ids.add(id); S.raw.push({ id, pgn }); added++;
@@ -669,12 +682,13 @@ function fmtEval(e) {
 function classify(g, evals, i) {
   if (i < (g.bookPly || 0)) return { cls: "book", loss: 0, acc: null };
   const a = evals[i], b = evals[i + 1]; if (!a || !b) return null;
-  const mv = g.moves[i]; const s = mv.color === "w" ? 1 : -1;
+  const s = moverAt(g, i) === "w" ? 1 : -1;
   const before = s * a.num, after = s * b.num;
   const loss = Math.max(0, before - after);
-  const uci = mv.from + mv.to + (mv.promotion || "");
+  const mv = g._moves && g._moves[i];
+  const uci = mv ? mv.from + mv.to + (mv.promotion || "") : null;
   let cls;
-  if (a.best && uci === a.best) cls = "best";
+  if (a.best && (uci ? uci === a.best : loss < 0.05)) cls = "best";
   else if ((before >= 4 && after >= 4) || (before <= -4 && after <= -4)) cls = "good"; // game already decided
   else if (loss >= 2) cls = "blunder";
   else if (loss >= 1) cls = "mistake";
@@ -687,9 +701,9 @@ function classify(g, evals, i) {
 function summarize(g, evals) {
   const out = { w: { n: 0, acc: 0, c: {} }, b: { n: 0, acc: 0, c: {} } };
   for (const k of ORDER) { out.w.c[k] = 0; out.b.c[k] = 0; }
-  for (let i = 0; i < g.moves.length; i++) {
+  for (let i = 0; i < g.nply; i++) {
     const r = classify(g, evals, i); if (!r) continue;
-    const p = out[g.moves[i].color]; p.c[r.cls]++;
+    const p = out[moverAt(g, i)]; p.c[r.cls]++;
     if (r.acc != null) { p.n++; p.acc += r.acc; }
   }
   for (const k of ["w", "b"]) out[k].accuracy = out[k].n ? out[k].acc / out[k].n : null;
@@ -705,7 +719,7 @@ function evalsFor(g) {
   if (S.job && S.job.id === g.id) return S.job.evals;
   const a = S.analyses[g.id]; return a ? a.evals : null;
 }
-function isDone(g) { const a = S.analyses[g.id]; return !!(a && a.evals && a.evals.length === g.fens.length && a.evals.every(Boolean)); }
+function isDone(g) { const a = S.analyses[g.id]; return !!(a && a.evals && a.evals.length === (g.nply != null ? g.nply : g.fens.length - 1) + 1 && a.evals.every(Boolean)); }
 function enqueue(g) {
   if (!g || isDone(g) || (S.job && S.job.id === g.id) || S.queue.includes(g.id)) return;
   S.queue.push(g.id); pump();
@@ -766,7 +780,7 @@ function renderList() {
     return '<li><button type="button" class="game" data-id="' + g.id + '" aria-current="' + cur + '">' +
       '<span class="res ' + g.res + '" title="' + ({ W: "Win", L: "Loss", D: "Draw", X: "Result" }[g.res]) + '">' + resTxt + '</span>' +
       '<span class="gmeta"><div class="opp">' + (g.me ? '<span style="color:var(--muted);font-weight:400">vs </span>' : "") + esc(opp) + (oppElo ? ' <span style="color:var(--muted);font-weight:400">(' + esc(oppElo) + ')</span>' : "") + (g.example ? '<span class="tag">Example</span>' : "") + '</div>' +
-      '<div class="sub">' + esc(sub) + ' · ' + Math.ceil(g.moves.length / 2) + ' moves</div></span>' +
+      '<div class="sub">' + esc(sub) + ' · ' + Math.ceil(g.nply / 2) + ' moves</div></span>' +
       '<span class="gacc">' + acc + '</span></button></li>';
   }).join("");
 }
@@ -1085,13 +1099,12 @@ function buildPuzzles() {
     if (g.example || !g.me || (fmt !== "all" && g.tclass !== fmt)) continue;
     const a = S.analyses[g.id]; if (!a || !a.evals) continue;
     const ev = a.evals;
-    for (let i = 0; i < g.moves.length; i++) {
-      if (g.moves[i].color !== g.me || !ev[i] || !ev[i].best) continue;
+    for (let i = 0; i < g.nply; i++) {
+      if (moverAt(g, i) !== g.me || !ev[i] || !ev[i].best) continue;
       const r = classify(g, ev, i); if (!r) continue;
       if (!(r.cls === "blunder" || (withMistakes && r.cls === "mistake"))) continue;
-      const mv = g.moves[i];
-      out.push({ id: g.id + ":" + i, g, i, fen: g.fens[i], best: ev[i].best, pv: a.pv && a.pv[i] ? a.pv[i] : null, ref: a.ref && a.ref[i] ? a.ref[i] : null,
-        played: mv.from + mv.to + (mv.promotion || ""), playedSan: mv.san, loss: r.loss, cls: r.cls, before: ev[i] });
+      out.push({ id: g.id + ":" + i, g, i, best: ev[i].best, pv: a.pv && a.pv[i] ? a.pv[i] : null, ref: a.ref && a.ref[i] ? a.ref[i] : null,
+        loss: r.loss, cls: r.cls, before: ev[i] });
     }
   }
   const solvedAll = out.filter(p => prog[p.id] === "solved").length;
@@ -1141,7 +1154,7 @@ function nounList(types, owner) {
   const parts = Object.keys(counts).sort((a, b) => PIECE_VAL[b] - PIECE_VAL[a]).map(t => {
     const n = counts[t]; const name = PNAME[t] + (n > 1 ? "s" : "");
     if (n > 1) return (owner ? owner + " " : "") + (words[n] || n) + " " + name;
-    return (owner ? owner + " " : (t === "q" || t === "r" || t === "k" ? "the " : "a ")) + name;
+    return (owner ? owner + " " : (t === "q" || t === "k" ? "the " : "a ")) + name;
   });
   return parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
 }
@@ -1191,7 +1204,7 @@ async function explain(p) {
   const s = p.g.me === "w" ? 1 : -1;
   const ev = S.analyses[p.g.id].evals;
   const before = s * ev[p.i].num, after = s * ev[p.i + 1].num;
-  const sol = describeLine(p.fen, T.line, "their");
+  const sol = describeLine(p.fen, T.line, null);
   const ref = await refutationFor(p);
   const playedCap = (() => { try { const m = uciMove(new Chess(p.fen), p.played); return m && m.captured; } catch (e) { return null; } })();
   const bad = ref && ref.length ? describeLine(p.g.fens[p.i + 1], ref, "your", playedCap) : null;
@@ -1208,22 +1221,28 @@ async function explain(p) {
   let game = "In the game you played <b>" + esc(p.playedSan) + "</b>";
   if (bad && bad.mate) game += ", which let " + opp + " force checkmate with <b>" + esc(bad.line) + "</b>.";
   else if (bad && bad.what) game += ", which let " + opp + " " + bad.what + " with <b>" + esc(bad.line) + "</b>." + (bad.fork ? " " + esc(bad.fork) + "." : "");
-  else if (solActive) game += ". It didn\u2019t lose anything right away, but it missed this chance, and the position went from " + signedEval(before) + " to " + signedEval(after) + ".";
+  else if (solActive) game += " and missed this, so the position went from " + signedEval(before) + " to " + signedEval(after) + ".";
   else game += ". " + opp + "\u2019s best answer was <b>" + esc(bad ? bad.first : sanOf(p.g.fens[p.i + 1], ref && ref[0])) + "</b>, and the position went from " + signedEval(before) + " to " + signedEval(after) + ".";
   // Lead with whichever half carries the point: the threat you allowed, or the chance you missed.
   return solActive || !badReal ? solText + " " + game : game + " " + solText;
 }
 
 let tMeta = { total: 0, solvedAll: 0 };
+function preparePuzzle(p) {
+  if (!p || p.fen) return p;
+  const mv = p.g.moves[p.i];
+  p.fen = p.g.fens[p.i]; p.played = mv ? mv.from + mv.to + (mv.promotion || "") : ""; p.playedSan = mv ? mv.san : p.g.tokens[p.i];
+  return p;
+}
 function trainerRefresh(keepId) {
   const curId = keepId || (T.list[T.idx] && T.list[T.idx].id);
   const b = buildPuzzles(); T.list = b.list; tMeta = b;
   const at = curId ? T.list.findIndex(p => p.id === curId) : -1;
-  if (at >= 0) { T.list[at].line = T.line; renderTrainer(); } else loadPuzzle(0);
+  if (at >= 0) { preparePuzzle(T.list[at]).line = T.line; renderTrainer(); } else loadPuzzle(0);
 }
 function loadPuzzle(idx) {
   T.idx = T.list.length ? (idx + T.list.length) % T.list.length : 0;
-  const p = T.list[T.idx]; const token = ++T.token;
+  const p = preparePuzzle(T.list[T.idx]); const token = ++T.token;
   Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [] });
   if (p) {
     if (p.pv) T.line = trimLine(p.fen, p.pv);
