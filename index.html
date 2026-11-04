@@ -1317,7 +1317,7 @@ function showView(v) {
 window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
 
 /* ---------- blunder trainer ---------- */
-const T = { list: [], idx: 0, fen: "", sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, line: [], step: 0, token: 0 };
+const T = { list: [], idx: 0, fen: "", intro: false, sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, line: [], step: 0, token: 0 };
 const tprog = { get() { return store.get("tprog", {}); }, set(id, v) { const p = this.get(); p[id] = v; store.set("tprog", p); } };
 $("tMistakes").checked = store.get("tMistakes", false);
 $("tSkip").checked = store.get("tSkip", true);
@@ -1464,6 +1464,7 @@ function preparePuzzle(p) {
   if (!p || p.fen) return p;
   const mv = p.g.moves[p.i];
   p.fen = p.g.fens[p.i]; p.played = mv ? mv.from + mv.to + (mv.promotion || "") : ""; p.playedSan = mv ? mv.san : p.g.tokens[p.i];
+  p.prev = p.i > 0 ? p.g.moves[p.i - 1] || null : null; // the opponent's move that led here
   return p;
 }
 function trainerRefresh(keepId) {
@@ -1477,7 +1478,7 @@ function loadPuzzle(idx) {
   T.idx = T.list.length ? (idx + T.list.length) % T.list.length : 0;
   const p = preparePuzzle(T.list[T.idx]); const token = ++T.token;
   if (p) store.set("tcur", p.id);
-  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [] });
+  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", intro: false, tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [] });
   if (p) {
     if (p.pv) T.line = trimLine(p.fen, p.pv);
     else if (engine.ready) {
@@ -1491,6 +1492,15 @@ function loadPuzzle(idx) {
     }
     if (!T.line.length && T.status !== "loading") T.line = [p.best];
     if (!p.ref && engine.ready) refutationFor(p).catch(() => {});
+    // Show the position one move earlier, then play the opponent's last move after a second for context.
+    if (p.prev) {
+      T.intro = true; T.fen = p.g.fens[p.i - 1];
+      setTimeout(() => {
+        if (token !== T.token) return;
+        T.intro = false; T.fen = p.fen; T.last = { from: p.prev.from, to: p.prev.to };
+        sound.play(p.prev.san); renderTrainer();
+      }, 1000);
+    }
   }
   renderTrainer();
 }
@@ -1518,6 +1528,7 @@ function renderTrainer() {
   const moveNo = g.fens[p.i].split(" ")[5] | 0;
   let ask;
   if (T.status === "loading") ask = "Setting up the puzzle…";
+  else if (T.intro && T.status === "solving") ask = "Your opponent is about to move…";
   else if (T.status === "solving") ask = sideName(g.me) + " to move. " + (myMoves() > 1 ? "Find the winning sequence." : "Find the best move.");
   else ask = T.status === "solved" ? "Solved" : "Solution";
   let sub = "";
@@ -1525,7 +1536,7 @@ function renderTrainer() {
   const fb = T.msg ? '<div class="feedback ' + T.msg.kind + '">' + T.msg.html + '</div>' : "";
   box.innerHTML = '<div class="eyebrow">Puzzle ' + (T.idx + 1) + ' of ' + T.list.length + (prog[p.id] === "solved" && T.status === "solving" ? ' · solved before' : '') + '</div>' +
     '<p class="ask">' + esc(ask) + '</p>' + sub +
-    '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '. In the game you played a ' + (p.cls === "blunder" ? "blunder" : "mistake") + ' here.</div>' + fb;
+    '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '.' + (p.prev && !T.intro ? ' Your opponent had just played <b>' + esc(p.prev.san) + '</b>.' : '') + ' In the game you played a ' + (p.cls === "blunder" ? "blunder" : "mistake") + ' here.</div>' + fb;
 }
 function sanOf(fen, uci) { return uciToSan(fen, uci); }
 function costText(p) {
@@ -1595,7 +1606,7 @@ async function tryMove(from, to) {
 
 $("tboard").addEventListener("click", e => {
   const el = e.target.closest(".sq[data-sq]"); const p = T.list[T.idx];
-  if (!el || !p || T.status !== "solving" || T.checking) return;
+  if (!el || !p || T.status !== "solving" || T.checking || T.intro) return;
   const sq = el.dataset.sq; const c = new Chess(T.fen);
   if (T.sel && T.targets.includes(sq)) { tryMove(T.sel, sq); return; }
   const pc = c.get(sq);
@@ -1609,7 +1620,7 @@ $("tprompt").addEventListener("click", e => {
   location.hash = "#review"; select(p.g); go(p.i);
 });
 $("tHint").onclick = () => {
-  const p = T.list[T.idx]; if (!p || T.status !== "solving") return;
+  const p = T.list[T.idx]; if (!p || T.status !== "solving" || T.intro) return;
   const u = T.line[T.step]; if (!u) return;
   T.hint = u.slice(0, 2);
   const pc = new Chess(T.fen).get(T.hint);
@@ -1618,6 +1629,7 @@ $("tHint").onclick = () => {
 };
 $("tShow").onclick = () => {
   const p = T.list[T.idx]; if (!p || T.status === "solved" || T.status === "shown" || T.status === "loading") return;
+  if (T.intro) { T.intro = false; T.fen = p.fen; T.last = p.prev ? { from: p.prev.from, to: p.prev.to } : null; }
   T.revealed = true; T.status = "shown"; T.sel = null; T.targets = []; T.hint = null;
   if (tprog.get()[p.id] !== "solved") tprog.set(p.id, "missed");
   // Play the rest of the line on the board, one move at a time.
