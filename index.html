@@ -222,6 +222,45 @@ button { cursor: pointer; }
 .omode-c { font-size: 12.5px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .omode-c b { color: var(--ink); }
 @media (max-width: 560px) { .omode { padding: 8px 9px; } .omode-s { display: none; } .omode-t { font-size: 14px; } }
+.omaphead { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 10px; }
+.omaphead .olegend { margin-top: 0; }
+.omap { display: flex; flex-direction: column; gap: 6px; max-height: min(520px, 65vh); overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; margin-bottom: 10px; }
+.ovar { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); flex: none; }
+.ovar.insect { margin-left: 14px; }
+.ovar-head, .osec { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; text-align: left; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--ink); font: inherit; padding: 9px 11px; cursor: pointer; }
+.osec { flex: none; background: var(--surface-2); border-color: var(--line); margin-top: 4px; }
+.osec:first-child { margin-top: 0; }
+.ovar-head:hover, .osec:hover { border-color: var(--accent); }
+.ovar-t { flex: 1 1 170px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ovar-nm { font-weight: 600; font-size: 13.5px; }
+.ovar-g { font-size: 12px; color: var(--muted); }
+.oblks { display: flex; flex-wrap: wrap; gap: 3px; max-width: 205px; }
+.oblk { display: block; width: 12px; height: 10px; border-radius: 2px; }
+.oblk.now { outline: 2px solid var(--ink); outline-offset: 1px; }
+.ovar-need { font-size: 12px; color: var(--muted); min-width: 96px; text-align: right; white-space: nowrap; }
+.oneed.fix { color: var(--c-blunder); } .oneed.wait { color: var(--c-book); } .oneed.ok { color: var(--accent); }
+.ostack.mini { width: 110px; height: 8px; flex: none; border-radius: 4px; }
+.ovar-pre { padding: 0 12px 6px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.onow { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 2px 0 6px; }
+.onow-t { font-size: 14px; min-width: 0; } .onow-t b { font-weight: 700; } .onow-t span { color: var(--muted); }
+.onow-n { font-size: 12.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.osteps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.ostep { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.ostep.on { background: rgba(217, 165, 20, .22); color: var(--ink); font-weight: 600; }
+.ostep.done { color: var(--accent); }
+.osteparr { color: var(--muted); font-style: normal; font-size: 12px; }
+.ostrip { font-family: var(--f-mono); font-size: 13.5px; line-height: 2; margin-top: 6px; color: var(--muted); }
+.ostrip .onum { color: var(--muted); margin-left: 4px; }
+.ostrip .omv { padding: 1px 3px; border-radius: 4px; }
+.omv.cur { background: rgba(217, 165, 20, .28); color: var(--ink); font-weight: 600; }
+.omv.up { color: var(--muted); opacity: .6; }
+.omisslist { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.omissrow { width: 100%; display: flex; align-items: baseline; gap: 10px; text-align: left; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; padding: 7px 10px; cursor: pointer; }
+.omissrow:hover { border-color: var(--accent); }
+.omiss-mv { font-family: var(--f-mono); font-weight: 600; font-size: 13px; min-width: 70px; }
+.omiss-ctx { flex: 1; min-width: 0; font-size: 12.5px; color: var(--muted); }
+.omiss-n { font-size: 12px; color: var(--c-blunder); white-space: nowrap; }
+.owarn { color: var(--c-book); }
 .ostack { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; display: flex; }
 .ostack i { display: block; height: 100%; transition: width .4s; }
 .st-prac { background: var(--accent); } .st-learn { background: var(--c-inacc); } .st-new { background: var(--line); }
@@ -452,13 +491,14 @@ button { cursor: pointer; }
         <button type="button" data-side="b" aria-pressed="true">Black · Caro-Kann</button>
         <button type="button" data-side="w" aria-pressed="false">White · Queen's Gambit</button>
       </div>
-      <div class="panel tsettings" id="ocov"></div>
       <div class="omodes" id="omodes" role="group" aria-label="How to train"></div>
       <div class="panel tcard" id="oprompt"></div>
       <div class="tactions">
         <button class="btn" id="oHint" type="button">Show book move</button>
         <button class="btn primary" id="oNext" type="button">Next line</button>
       </div>
+      <div class="panel tsettings" id="ocov"></div>
+      <div class="panel tsettings" id="omiss"></div>
       <div class="panel tstats" id="ostats"></div>
       <div><button class="btn small" id="oReset" type="button">Reset my openings progress</button></div>
     </div>
@@ -1835,19 +1875,19 @@ function buildRep(side) {
     return { name: ni >= 0 ? REP_DATA.names[ni] : "", depth, moves };
   });
   // What your real opponents played in each position (from your games as this colour).
-  const real = new Map();
+  const real = new Map(); let total = 0;
   for (const g of S.games) {
     // Read the moves straight from the PGN text: replaying every game on the board took ~45 ms a game
     // (tens of seconds for a big library) and froze the page the first time Openings opened.
     if (g.example || g.me !== side || g.headers.FEN || !g.tokens) continue;
-    let at = 0;
+    let at = 0; total++;
     for (let i = 0; i < Math.min(24, g.tokens.length); i++) {
       const san = g.tokens[i]; const isMine = (i % 2 === 0) === (side === "w");
       if (!isMine) { const m = real.get(at) || new Map(); m.set(san, (m.get(san) || 0) + 1); real.set(at, m); }
       const nx = nodes[at].moves.get(san); if (nx == null) break; at = nx;
     }
   }
-  return { nodes, real };
+  return { nodes, real, total };
 }
 function repBook(side) {
   O.books = O.books || {};
@@ -1872,9 +1912,10 @@ function wantMove() {
 }
 
 
-function openingsStart(drillPath, mode) {
+function openingsStart(drillPath, mode, step) {
   if (!drillPath) return startMode(O.mode, true);
   O.token++; O.book = repBook(O.side); if (mode) O.mode = mode;
+  O.step = O.mode === "learn" ? (step || "watch") : null;
   const c = new Chess(); O.at = 0; O.hist = []; O.mine = 0; O.misses = 0; O.missedNow = false; O.sel = null; O.targets = []; O.last = null; O.arrow = null; O.msg = null; O.name = "";
   O.drill = drillPath; O.target = lineTarget(); O.plan = null;
   O.fen = c.fen();
@@ -1926,7 +1967,7 @@ function oTryMove(from, to) {
   O.sel = null; O.targets = [];
   if (!m) { renderOpenings(); return; }
   sound.play(m.san);
-  const learning = O.mode === "learn", theory = theoryMoves(), want = wantMove(), target = want ? want.san : mainMove();
+  const learning = O.mode === "learn" && O.step === "watch", theory = theoryMoves(), want = wantMove(), target = want ? want.san : mainMove();
   if (m.san === target) {
     const firstTry = !O.missedNow;
     if (!learning) { recordMove(firstTry); if (!firstTry) O.misses++; }
@@ -1998,23 +2039,26 @@ function confetti(id) {
 }
 
 function lineDone(why) {
-  O.status = "done"; O.arrow = null; confetti();
+  O.status = "done"; O.arrow = null;
   const line = O.drill || pathSan(), key = line.join(" ");
   O.recent.push(key); if (O.recent.length > 6) O.recent.shift();
-  if (O.mode === "learn") {
-    // Learn mode: the moves were shown, so nothing is scored. The line moves on to Practice.
+  if (O.mode === "learn" && O.step === "watch") {
+    // Step 1 done: nothing is scored. Step 2 (the same line, from memory) starts by itself.
     olearn.add(O.side, line); O.justLearned = key;
-    O.msg = { cls: "good", html: why + ' <b>Line learned.</b> Press <b>Practice</b> to play it on your own, or <b>Next line</b> to learn another.' };
-    renderOpenings(); return;
+    O.msg = { cls: "info", html: "You’ve seen the whole line. Step 2 starts in a moment: play it from memory." };
+    renderOpenings();
+    const t = O.token; setTimeout(() => { if (t === O.token && O.status === "done") openingsStart(line, "learn", "memory"); }, 1800);
+    return;
   }
+  confetti();
   ocov.add(O.side, line); oclean.set(O.side, line, !O.misses);
   const p = oprog.get(); const s = p[O.side]; s.lines++; if (!O.misses && O.mine) s.perfect++;
   let up;
   if (!O.misses) {
     // A clean run clears every missed move on this line, so it counts as practiced.
     for (const [k, sp] of Object.entries(p.spots)) if (sp.side === O.side && sp.path.every((m, i) => line[i] === m)) delete p.spots[k];
-    up = O.mode === "random" ? " Still solid." : " <b>Practiced!</b> This line now comes up in Random practice.";
-  } else up = O.mode === "random" ? " It goes back under Learned until you play it again with no misses." : " It stays under Learned until you play it with no misses.";
+    up = O.mode === "random" ? " Still solid." : O.mode === "learn" ? " <b>Learned and practiced.</b> It now comes up in Random practice." : " <b>Practiced!</b> This line now comes up in Random practice.";
+  } else up = O.mode === "random" ? " It goes back under Learned until you play it again with no misses." : " It stays under Learned: Practice brings it back until you play it with no misses.";
   oprog.set(p);
   const right = O.mine - O.misses;
   O.msg = { cls: O.misses ? "info" : "good", html: why + ' You got <b>' + right + ' of ' + O.mine + '</b> moves right first time.' + up };
@@ -2055,37 +2099,61 @@ function updateOpeningEval() {
 function renderOpenings() {
   if (!O.book) return;
   updateOpeningEval();
-  const learning = O.mode === "learn", want = O.status === "mine" ? wantMove() : null;
-  if (learning && want) O.arrow = { from: want.from, to: want.to };   // Learn mode: always show the move
+  const showing = O.mode === "learn" && O.step === "watch", want = O.status === "mine" ? wantMove() : null;
+  if (showing && want) O.arrow = { from: want.from, to: want.to };   // Watch: always show the move
   renderBoard(O.fen, O.last, O.arrow, null, { el: "oboard", flip: O.side === "b", sel: O.sel, targets: O.targets });
   document.querySelectorAll("#oside button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === O.side)));
-  const meta = REP_SIDES[O.side];
+  const meta = REP_SIDES[O.side], info = lineInfo(O.side, O.drill);
   let ask = "";
-  if (O.status === "mine") ask = learning ? "Play " + (want ? want.san : "the move shown") + "." : O.missedNow ? "Play the book move." : "Your move.";
+  if (O.status === "mine") ask = showing ? "Play " + plyNum(O.hist.length) + (want ? want.san : "") + "." : O.missedNow ? "Play the book move." : "Your move.";
   else if (O.status === "cpu") ask = "Opponent is thinking…";
   else if (O.status === "wrong") ask = "Not quite…";
-  else if (O.status === "done") ask = learning ? "Line learned!" : O.misses ? "Line finished." : "Perfect line!";
-  const modeName = { learn: "Learning", practice: "Practice", random: "Random practice" }[O.mode] || "";
-  $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title + " · " + modeName) + '</div>' +
+  else if (O.status === "done") ask = showing ? "Now play it from memory." : O.misses ? "Line finished." : "Perfect line!";
+  const head = info ? '<div class="onow"><div class="onow-t"><b>' + esc(info.g.title) + '</b><span> · ' + esc(info.l.title) + '</span></div><div class="onow-n">Line ' + (info.li + 1) + ' of ' + info.g.lines.length + '</div></div>' : "";
+  const steps = O.mode === "learn"
+    ? '<div class="osteps"><span class="ostep ' + (showing ? "on" : "done") + '">' + (showing ? "" : "✓ ") + 'Step 1 · Watch</span><i class="osteparr" aria-hidden="true">→</i><span class="ostep' + (showing ? "" : " on") + '">Step 2 · From memory</span></div>'
+    : '<div class="osteps"><span class="ostep on">' + (O.mode === "random" ? "Random practice · a line you’ve practiced" : "Practice · on your own") + '</span></div>';
+  $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + '</div>' + head + steps +
     '<p class="ask">' + esc(ask) + '</p>' +
-    '<div class="ctx">' + esc(O.name || (O.side === "b" ? "Caro-Kann Defense" : "Queen's Pawn Game")) + ' · your move ' + Math.min(O.mine + (O.status === "done" ? 0 : 1), O.target) + ' of ' + O.target + '</div>' +
-    (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "") +
-    '<div class="omoves">' + moveListHTML() + '</div>';
-  $("oHint").disabled = O.status !== "mine" || learning;
-  $("oNext").textContent = O.status === "done" ? "Next line" : "Restart line";
+    '<div class="ostrip">' + lineStripHTML(showing) + '</div>' +
+    (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "");
+  $("oHint").disabled = O.status !== "mine" || showing;
+  $("oNext").textContent = O.status === "done" ? (showing ? "Play from memory" : "Next line") : "Restart line";
   const s = oprog.get()[O.side];
   const pct = s.moves ? Math.round(100 * s.first / s.moves) : null;
   $("ostats").innerHTML = '<div><b>' + s.lines + '</b>lines played</div><div><b>' + s.perfect + '</b>perfect lines</div><div><b>' + (pct == null ? "–" : pct + "%") + '</b>moves right first time</div>';
-  renderModes(renderLineList(meta));
+  renderModes(renderMap(meta));
+  renderMissed();
+}
+function plyNum(i) { return i % 2 === 0 ? (i / 2 + 1) + "." : Math.floor(i / 2 + 1) + "..."; }
+// The whole line as a strip: moves played so far (green right first time, red missed), your current
+// move, then what's left. Watch shows every move; from memory hides the moves you haven't reached.
+function lineStripHTML(showing) {
+  const line = O.drill || [], reveal = showing || O.status === "done";
+  let h = "";
+  for (let i = 0; i < line.length; i++) {
+    const n = i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "";
+    if (i < O.hist.length) { const x = O.hist[i]; h += n + '<span class="omv ' + (x.by === "me" ? (x.ok ? "me ok" : "me miss") : "cpu") + '">' + esc(x.san) + '</span> '; }
+    else if (i === O.hist.length && (O.status === "mine" || O.status === "wrong")) h += n + '<span class="omv cur">' + (reveal ? esc(line[i]) : "?") + '</span> ';
+    else h += n + '<span class="omv up">' + (reveal ? esc(line[i]) : "·") + '</span> ';
+  }
+  return h;
+}
+function lineInfo(side, path) {
+  if (!path) return null;
+  const groups = lineGroups(side), k = repBook(side).byKey.get(path.join(" "));
+  return k ? { g: groups[k[0]], l: groups[k[0]].lines[k[1]], gi: k[0], li: k[1] } : null;
 }
 
-// Learn: new lines with the moves shown. Practice: learned lines, on your own. Random practice: a
-// random line you've already practiced, picked like your real opponents play.
+// Learn: new lines, watch then from memory. Practice: learned lines, on your own. Random practice: a
+// random line you've already practiced. Learn waits while LEARN_BLOCK learned lines need practice.
+const LEARN_BLOCK = 2;
 function renderModes(n) {
+  const blocked = n.learn >= LEARN_BLOCK;
   const btn = (mode, title, sub, count, off) => '<button type="button" class="omode' + (O.mode === mode ? " on" : "") + '" data-mode="' + mode + '" aria-pressed="' + (O.mode === mode) + '"' + (off ? " disabled" : "") + '>' +
     '<span class="omode-t">' + title + '</span><span class="omode-s">' + sub + '</span><span class="omode-c">' + count + '</span></button>';
   $("omodes").innerHTML =
-    btn("learn", "Learn", "New lines, moves shown", n.new ? "<b>" + (n.all - n.new) + "/" + n.all + "</b> learned" : "All learned", !n.new) +
+    btn("learn", "Learn", "Watch, then from memory", !n.new ? "All learned" : blocked ? '<span class="owarn">Practice ' + n.learn + ' waiting first</span>' : "<b>" + (n.all - n.new) + "/" + n.all + "</b> learned", !n.new) +
     btn("practice", "Practice", "Learned lines, on your own", n.learn ? "<b>" + n.learn + "</b> to practice" : "None waiting", !n.learn) +
     btn("random", "Random practice", "Lines you’ve practiced", n.prac ? "<b>" + n.prac + "</b> line" + (n.prac === 1 ? "" : "s") : "None yet", !n.prac);
 }
@@ -2124,9 +2192,24 @@ function lineGroups(side) {
     for (const l of g.lines) {
       let nm = strip(nameAt(l.path));
       if (!g.other && g.title && nm.startsWith(g.title)) nm = nm.slice(g.title.length).replace(/^[,:]\s*/, "");
+      else { const op = g.title.split(":")[0]; if (g.title.includes(":") && nm.startsWith(op + ":")) nm = nm.slice(op.length + 1).trim(); }
       l.title = nm || "Main line";
     }
   }
+  // Order by your own games: how often your opponents went into each group (counted at the last
+  // opponent move of its starting moves), and inside a group, the reply they chose most at each branch.
+  const real = book.real, isOpp = i => (i % 2 === 0) !== (side === "w");
+  const nodeAt = path => { let at = 0; for (const san of path) { at = nodes[at].moves.get(san); if (at == null) return -1; } return at; };
+  const seen = path => { let at = 0, n = null; for (let i = 0; i < path.length; i++) { if (isOpp(i)) { const r = real.get(at); n = (r && r.get(path[i])) || 0; } at = nodes[at].moves.get(path[i]); if (at == null) break; } return n == null ? (book.total || 0) : n; };
+  const first = new Map();
+  groups.forEach((g, i) => {
+    g.idx = i; if (!first.has(g.sect)) first.set(g.sect, i);
+    g.count = g.other ? [...new Set(g.lines.map(l => l.path[g.prefix.length]))].reduce((a, san) => a + seen(g.prefix.concat(san)), 0) : seen(g.prefix);
+    g.lines.sort((a, b) => { for (let k = 0; k < Math.min(a.path.length, b.path.length); k++) if (a.path[k] !== b.path[k]) { const r = real.get(nodeAt(a.path.slice(0, k))); return ((r && r.get(b.path[k])) || 0) - ((r && r.get(a.path[k])) || 0); } return 0; });
+  });
+  for (const g of groups) g.sectCount = side === "w" ? (g.other && g.branch <= 1 ? g.count : seen(g.lines[0].path.slice(0, 2))) : 0;
+  groups.sort((a, b) => (b.sectCount - a.sectCount) || (first.get(a.sect) - first.get(b.sect)) || (b.count - a.count) || (a.idx - b.idx));
+  book.byKey = new Map(); groups.forEach((g, gi) => g.lines.forEach((l, li) => book.byKey.set(l.path.join(" "), [gi, li])));
   return (book.groups = groups);
 }
 // Moves from ply `from` on, numbered ("3.e5 Bf5 4.Nf3" or "3...Bf5 4.Nf3"); plies in `mark` in bold.
@@ -2157,50 +2240,82 @@ function listUI() {
 }
 function closeList() { const ui = listUI(); if (ui.open) { ui.open = false; store.set("olist", { open: false, filter: ui.filter }); } }
 function toBoard() { const top = $("oboard").getBoundingClientRect().top; if (top < 0 || top > innerHeight * .6) $("oboard").scrollIntoView({ behavior: "smooth", block: "start" }); }
-function renderLineList(meta) {
-  const side = O.side, ui = listUI(), p = oprog.get(), c = ocov.get(), groups = lineGroups(side), st = lineStates(side, p, c);
+// The map: one row per variation, most played first, with a block per line coloured by stage and what
+// the variation still needs. Queen's Gambit rows sit under folding "Against 1..." sections.
+function renderMap(meta) {
+  const side = O.side, p = oprog.get(), c = ocov.get(), groups = lineGroups(side), st = lineStates(side, p, c);
   const n = { all: 0, new: 0, learn: 0, prac: 0 }; for (const g of st) for (const x of g) { n.all++; n[x.st]++; }
-  const pc = k => n.all ? (100 * n[k] / n.all).toFixed(2) : 0;
-  let h = '<div class="section-label">' + esc(meta.title) + ' lines</div>';
-  h += '<div class="ocovrow"><div class="ocovtop"><span>Whole book (' + OPEN_MAX_MOVES + ' moves)</span><span><b>' + n.prac + '</b> of ' + n.all + ' practiced</span></div>' +
-    '<div class="ostack"><i class="st-prac" style="width:' + pc("prac") + '%"></i><i class="st-learn" style="width:' + pc("learn") + '%"></i></div>' +
+  O.lgrp = O.lgrp || { b: {}, w: {} }; O.lsec = O.lsec || { b: {}, w: {} };
+  const info = lineInfo(side, O.drill), curG = info ? info.gi : -1, curL = info ? info.li : -1;
+  const games = k => k ? "faced in " + k + " game" + (k === 1 ? "" : "s") : "not in your games yet";
+  const need = sts => {
+    const fix = sts.filter(x => x.st === "learn" && x.miss).length, wt = sts.filter(x => x.st === "learn" && !x.miss).length, nw = sts.filter(x => x.st === "new").length, out = [];
+    if (fix) out.push('<span class="oneed fix">' + fix + ' to fix</span>');
+    if (wt) out.push('<span class="oneed wait">' + wt + ' learned</span>');
+    if (nw) out.push('<span class="oneed">' + nw + ' new</span>');
+    return out.length ? out.slice(0, 2).join(" · ") : '<span class="oneed ok">All practiced</span>';
+  };
+  const stacked = sts => { const k = s => (100 * sts.filter(x => x.st === s).length / Math.max(1, sts.length)).toFixed(2);
+    return '<i class="st-prac" style="width:' + k("prac") + '%"></i><i class="st-learn" style="width:' + k("learn") + '%"></i>'; };
+  let h = '<div class="omaphead"><div class="section-label">Your ' + esc(meta.title) + ' map · most played first</div>' +
     '<div class="olegend"><span><i class="odot st-prac"></i>' + n.prac + ' practiced</span><span><i class="odot st-learn"></i>' + n.learn + ' learned</span><span><i class="odot st-new"></i>' + n.new + ' new</span></div></div>';
-  h += '<button type="button" class="olist-toggle" data-ltoggle aria-expanded="' + !!ui.open + '"><span>' + (ui.open ? "Hide the lines" : "See all " + n.all + " lines") + '</span><span class="ochev" aria-hidden="true">' + (ui.open ? "▴" : "▾") + '</span></button>';
-  if (ui.open) {
-    const f = ui.filter, labels = { all: "All", new: "New", learn: "Learned", prac: "Practiced" };
-    h += '<div class="ofilters" role="group" aria-label="Show lines">' + Object.keys(labels).map(k =>
-      '<button type="button" data-lfilter="' + k + '" aria-pressed="' + (f === k) + '">' + labels[k] + ' <span>' + n[k] + '</span></button>').join("") + '</div>';
-    const cur = O.drill ? O.drill.join(" ") : "";
-    let body = "", sect = "";
-    groups.forEach((g, gi) => {
-      const rows = g.lines.map((l, li) => ({ l, li, x: st[gi][li] })).filter(r => f === "all" || r.x.st === f);
-      if (!rows.length) return;
-      const done = st[gi].filter(x => x.st === "prac").length, lrn = st[gi].filter(x => x.st === "learn").length;
-      const set = O.lgrp[side][g.key], open = set != null ? set : f !== "all";
-      if (g.sect && g.sect !== sect) { sect = g.sect; body += '<div class="osect">' + esc(sect) + '</div>'; }
-      body += '<div class="ogrp' + (open ? " open" : "") + '"><button type="button" class="ogrp-head" data-lgrp="' + gi + '" aria-expanded="' + open + '">' +
-        '<span class="ogrp-t"><span class="ogrp-nm">' + esc(g.title) + '</span><span class="opath">' + sanLine(g.prefix, 0) + (g.other ? " …" : "") + '</span></span>' +
-        '<span class="ogrp-n"><span><b>' + done + '/' + g.lines.length + '</b> practiced</span>' + (lrn ? '<em>' + lrn + ' learned</em>' : "") + '</span>' +
-        '<span class="ochev" aria-hidden="true">' + (open ? "▴" : "▾") + '</span></button>';
-      if (open) body += '<ul class="olines">' + rows.map(({ l, li, x }) =>
-        '<li><button type="button" class="oline st-' + x.st + (l.path.join(" ") === cur ? " now" : "") + '" data-lline="' + gi + '.' + li + '">' +
-        '<i class="odot st-' + x.st + '"></i><span class="oline-t"><span class="onm">' + esc(l.title) + '</span>' +
+  let body = "", sect = null, sectOpen = true;
+  groups.forEach((g, gi) => {
+    if (g.sect && g.sect !== sect) {
+      sect = g.sect;
+      const idx = groups.map((_, i) => i).filter(i => groups[i].sect === sect), all = idx.flatMap(i => st[i]);
+      const set = O.lsec[side][sect]; sectOpen = set != null ? set : idx.includes(curG);
+      body += '<button type="button" class="osec' + (sectOpen ? " open" : "") + '" data-lsect="' + esc(sect) + '" aria-expanded="' + sectOpen + '">' +
+        '<span class="ovar-t"><span class="ovar-nm">' + esc(sect) + '</span><span class="ovar-g">' + games(g.sectCount) + ' · ' + all.length + ' lines</span></span>' +
+        '<span class="ostack mini">' + stacked(all) + '</span><span class="ovar-need">' + need(all) + '</span><span class="ochev" aria-hidden="true">' + (sectOpen ? "▴" : "▾") + '</span></button>';
+    }
+    if (!sectOpen) return;
+    const open = !!O.lgrp[side][g.key];
+    body += '<div class="ovar' + (open ? " open" : "") + (g.sect ? " insect" : "") + '"><button type="button" class="ovar-head" data-lgrp="' + gi + '" aria-expanded="' + open + '">' +
+      '<span class="ovar-t"><span class="ovar-nm">' + esc(g.title) + '</span><span class="ovar-g">' + games(g.count) + '</span></span>' +
+      '<span class="oblks">' + st[gi].map((x, li) => '<i class="oblk st-' + x.st + (gi === curG && li === curL ? " now" : "") + '"></i>').join("") + '</span>' +
+      '<span class="ovar-need">' + need(st[gi]) + '</span><span class="ochev" aria-hidden="true">' + (open ? "▴" : "▾") + '</span></button>';
+    if (open) body += '<div class="opath ovar-pre">' + sanLine(g.prefix, 0) + (g.other ? " …" : "") + '</div><ul class="olines">' + g.lines.map((l, li) => { const x = st[gi][li];
+      return '<li><button type="button" class="oline st-' + x.st + (gi === curG && li === curL ? " now" : "") + '" data-lline="' + gi + '.' + li + '">' +
+        '<i class="odot st-' + x.st + '"></i><span class="oline-t"><span class="onm">' + (li + 1) + '. ' + esc(l.title) + '</span>' +
         '<span class="opath">' + sanLine(l.path, g.prefix.length, x.missAt) + '</span>' +
         (x.st === "new" ? '<span class="ost">New · tap to learn</span>'
           : x.st === "learn" ? (x.miss ? '<span class="ost miss">Missed ' + x.miss + '× · tap to practice</span>' : '<span class="ost">Learned · tap to practice</span>')
-          : '<span class="ost">Practiced · tap to practice again</span>') +
-        '</span></button></li>').join("") + '</ul>';
-      body += '</div>';
-    });
-    h += body ? '<div class="ogroups">' + body + '</div>' : '<div class="omuted">' + ({ new: "No new lines left. You’ve learned every line in the book.", learn: "No learned lines waiting for practice.", prac: "No practiced lines yet. Play a learned line with no misses and it shows up here." })[f] + '</div>';
-    h += '<div class="omuted">Tap a line to learn it (new) or practice it. Green moves are the ones you missed.</div>';
-  } else if (n.prac >= n.all) h += '<div class="omuted">You’ve practiced every ' + esc(meta.title) + ' line in the book. Time to add more.</div>';
-  // The list scrolls inside its own box; keep its scroll position when the panel redraws after a move or tap.
-  const old = $("ocov").querySelector(".ogroups"), keep = old && O.lscroll === side + ui.filter ? old.scrollTop : 0;
+          : '<span class="ost">Practiced · tap to practice again</span>') + '</span></button></li>'; }).join("") + '</ul>';
+    body += '</div>';
+  });
+  h += '<div class="omap">' + body + '</div>' +
+    '<div class="omuted">' + (n.prac >= n.all ? 'You’ve practiced every ' + esc(meta.title) + ' line in the book. Time to add more. ' : '') + 'Tap a variation to see its lines, and a line to play it. Green moves are the ones you missed.</div>';
+  // The map scrolls inside its own box; keep its scroll position when it redraws after a move or tap.
+  const old = $("ocov").querySelector(".omap"), keep = old && O.lscroll === side ? old.scrollTop : 0;
   $("ocov").innerHTML = h;
-  const box = $("ocov").querySelector(".ogroups"); if (box) box.scrollTop = keep;
-  O.lscroll = side + ui.filter;
+  const box = $("ocov").querySelector(".omap"); if (box) box.scrollTop = keep;
+  O.lscroll = side;
   return n;
+}
+// The moves you've missed most (on your own), where they come up, and a tap to practice a line through them.
+function spotGroups(side, v) {
+  const key = v.path.concat(v.main || v.moves[0] || []).join(" ") + " ";
+  return lineGroups(side).filter(g => g.lines.some(l => (l.path.join(" ") + " ").startsWith(key))).length;
+}
+function spotLine(side, v) {
+  const key = v.path.concat(v.main || v.moves[0] || []).join(" ") + " ", groups = lineGroups(side);
+  for (let gi = 0; gi < groups.length; gi++) for (let li = 0; li < groups[gi].lines.length; li++)
+    if ((groups[gi].lines[li].path.join(" ") + " ").startsWith(key)) return { g: groups[gi], l: groups[gi].lines[li] };
+  return null;
+}
+function renderMissed() {
+  const side = O.side;
+  const rows = Object.entries(oprog.get().spots).filter(([, v]) => v.side === side && (v.miss || 0) > 0)
+    .map(([k, v]) => ({ k, v, hit: spotLine(side, v) })).filter(r => r.hit)
+    .sort((a, b) => b.v.miss - a.v.miss || (b.v.at || 0) - (a.v.at || 0)).slice(0, 5);
+  const ctx = path => { const from = Math.max(0, path.length - 4); return path.slice(from).map((san, j) => { const i = from + j; return (i % 2 === 0 ? (i / 2 + 1) + "." : j === 0 ? Math.floor(i / 2 + 1) + "..." : "") + san; }).join(" "); };
+  $("omiss").innerHTML = '<div class="section-label">Moves you keep missing</div>' + (rows.length
+    ? '<ul class="omisslist">' + rows.map(r => '<li><button type="button" class="omissrow" data-miss="' + esc(r.k) + '">' +
+      '<span class="omiss-mv">' + esc(plyNum(r.v.path.length) + (r.v.main || r.v.moves[0] || "")) + '</span>' +
+      '<span class="omiss-ctx">' + esc((n => n > 1 ? "In " + n + " variations" : r.hit.g.title)(spotGroups(side, r.v))) + (r.v.path.length ? ' · after ' + esc(ctx(r.v.path)) : "") + '</span>' +
+      '<span class="omiss-n">missed ' + r.v.miss + '×</span></button></li>').join("") + '</ul><div class="omuted">Tap one to practice a line that goes through it.</div>'
+    : '<div class="omuted">Nothing here right now. Moves you miss when you play on your own show up here.</div>');
 }
 
 // One card per variation: spots on the same line (one a continuation of another) are merged.
@@ -2215,9 +2330,9 @@ function varGroups(p, side) {
   }
   return groups.sort((a, b) => b.miss - a.miss || b.at - a.at);
 }
-// Which line each mode serves next. Learn: the new line your real opponents play most. Practice: the
-// line you just learned, then lines with missed moves, then the most common. Random practice: any practiced line,
-// leaning toward replies your real opponents play, and not one of the last few.
+// Which line each mode serves next, in map order (most played first). Learn: the next new line.
+// Practice: the line you just learned, then lines with missed moves, then map order. Random practice:
+// any practiced line, leaning toward replies your real opponents play, and not one of the last few.
 function pickLine(mode) {
   const want = { learn: "new", practice: "learn", random: "prac" }[mode]; if (!want) return null;
   const st = lineStates(O.side, oprog.get(), ocov.get()), all = [];
@@ -2225,11 +2340,10 @@ function pickLine(mode) {
   const cur = O.drill ? O.drill.join(" ") : "";
   let pool = all.filter(r => r.x.st === want); if (!pool.length) return null;
   if (pool.length > 1) pool = pool.filter(r => r.l.path.join(" ") !== cur);
-  // l.fam: how often your real opponents went down this line (log scale), so common lines come first.
-  if (mode === "learn") return pool.slice().sort((a, b) => (b.l.fam || 0) - (a.l.fam || 0) || a.i - b.i)[0].l.path;
+  if (mode === "learn") return pool[0].l.path;
   if (mode === "practice") {
     const jl = pool.find(r => r.l.path.join(" ") === O.justLearned); if (jl) return jl.l.path;
-    return pool.slice().sort((a, b) => b.x.miss - a.x.miss || (b.l.fam || 0) - (a.l.fam || 0) || a.i - b.i)[0].l.path;
+    return pool.slice().sort((a, b) => b.x.miss - a.x.miss || a.i - b.i)[0].l.path;
   }
   const keep = Math.min(O.recent.length, pool.length - 1), recent = new Set(O.recent.slice(O.recent.length - keep));
   const fresh = pool.filter(r => !recent.has(r.l.path.join(" "))); if (fresh.length) pool = fresh;
@@ -2238,10 +2352,22 @@ function pickLine(mode) {
   for (const q of pool) { r -= w(q); if (r <= 0) return q.l.path; }
   return pool[pool.length - 1].l.path;
 }
+function waitingLines() { return lineStates(O.side, oprog.get(), ocov.get()).flat().filter(x => x.st === "learn").length; }
 // Start a line in a mode. With fallback, a mode with nothing to serve hands over to the next one.
+// While LEARN_BLOCK or more learned lines wait for practice, Learn sends you to Practice and says why.
 function startMode(mode, fallback) {
-  const order = [mode].concat(fallback ? ["practice", "learn", "random"].filter(m => m !== mode) : []);
-  for (const m of order) { const path = pickLine(m); if (path) { O.mode = m; store.set("omode", m); return openingsStart(path, m); } }
+  const waiting = waitingLines(), blocked = waiting >= LEARN_BLOCK;
+  let order = [mode].concat(fallback ? ["practice", "learn", "random"].filter(m => m !== mode) : []), note = false;
+  if (blocked) {
+    if (order[0] === "learn") { order = ["practice"].concat(order.filter(m => m !== "learn" && m !== "practice")); note = true; }
+    else order = order.filter(m => m !== "learn");
+  }
+  for (const m of order) {
+    const path = pickLine(m); if (!path) continue;
+    O.mode = m; store.set("omode", m); openingsStart(path, m);
+    if (note && m === "practice") { O.msg = { cls: "info", html: 'You have <b>' + waiting + ' learned lines</b> waiting. Practice them on your own first. Learn opens again when fewer than ' + LEARN_BLOCK + ' are waiting.' }; renderOpenings(); }
+    return;
+  }
 }
 
 function openingsRefresh() {
@@ -2264,8 +2390,11 @@ $("oside").addEventListener("click", e => {
   O.side = b.dataset.side; store.set("oside", O.side); O.bookSide = O.side; O.recent = []; O.drill = null; O.justLearned = null; startMode(O.mode, true);
 });
 $("oNext").onclick = () => {
-  if (O.status === "done") return startMode(O.mode, true);
-  openingsStart(O.drill, O.mode);   // restart the same line
+  if (O.status === "done") {
+    if (O.mode === "learn" && O.step === "watch") return openingsStart(O.drill, "learn", "memory");
+    return startMode(O.mode, true);
+  }
+  openingsStart(O.drill, O.mode, O.step);   // restart the same line (and the same step)
 };
 $("oHint").onclick = () => {
   if (O.status !== "mine" || O.mode === "learn") return;
@@ -2276,22 +2405,30 @@ $("oHint").onclick = () => {
 };
 $("omodes").addEventListener("click", e => {
   const b = e.target.closest("button[data-mode]"); if (!b || b.disabled) return;
-  closeList(); startMode(b.dataset.mode, false); toBoard();
+  startMode(b.dataset.mode, false); toBoard();
 });
 $("ocov").addEventListener("click", e => {
-  const t = e.target.closest("[data-ltoggle],[data-lfilter],[data-lgrp],[data-lline]"); if (!t) return;
-  const ui = listUI(), d = t.dataset;
+  const t = e.target.closest("[data-lsect],[data-lgrp],[data-lline]"); if (!t) return;
+  const d = t.dataset;
   if (d.lline) {
     const [gi, li] = d.lline.split(".").map(Number), l = lineGroups(O.side)[gi].lines[li]; if (!l) return;
-    // New lines open in Learn mode (moves shown); learned and practiced lines in Practice.
-    const x = lineStates(O.side, oprog.get(), ocov.get())[gi][li], mode = x.st === "new" ? "learn" : "practice";
-    closeList(); store.set("omode", mode); openingsStart(l.path, mode); toBoard();
+    // New lines open in Learn (unless lines are waiting for practice); learned and practiced ones in Practice.
+    const x = lineStates(O.side, oprog.get(), ocov.get())[gi][li];
+    if (x.st === "new" && waitingLines() >= LEARN_BLOCK) startMode("learn", false);
+    else { const mode = x.st === "new" ? "learn" : "practice"; store.set("omode", mode); openingsStart(l.path, mode); }
+    toBoard();
     return;
   }
-  if (d.ltoggle != null) ui.open = !ui.open;
-  else if (d.lfilter) ui.filter = d.lfilter;
-  else if (d.lgrp) { const g = lineGroups(O.side)[+d.lgrp], m = O.lgrp[O.side], was = m[g.key] != null ? m[g.key] : ui.filter !== "all"; m[g.key] = !was; }
-  store.set("olist", { open: ui.open, filter: ui.filter }); renderOpenings();
+  if (d.lsect != null) {
+    const m = O.lsec[O.side], info = lineInfo(O.side, O.drill);
+    const was = m[d.lsect] != null ? m[d.lsect] : !!(info && info.g.sect === d.lsect); m[d.lsect] = !was;
+  } else if (d.lgrp) { const g = lineGroups(O.side)[+d.lgrp], m = O.lgrp[O.side]; m[g.key] = !m[g.key]; }
+  renderOpenings();
+});
+$("omiss").addEventListener("click", e => {
+  const b = e.target.closest("[data-miss]"); if (!b) return;
+  const v = oprog.get().spots[b.dataset.miss], hit = v && spotLine(O.side, v); if (!hit) return;
+  store.set("omode", "practice"); openingsStart(hit.l.path, "practice"); toBoard();
 });
 // Reset asks first, in a dialog that shows what would be lost. "No" is the default button.
 $("oReset").onclick = () => {
