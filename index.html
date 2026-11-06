@@ -254,6 +254,11 @@ button { cursor: pointer; }
 .ostrip .omv { padding: 1px 3px; border-radius: 4px; }
 .omv.cur { background: rgba(217, 165, 20, .28); color: var(--ink); font-weight: 600; }
 .omv.up { color: var(--muted); opacity: .6; }
+.omodes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 560px) { .omodes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.omv.bad { background: rgba(207, 59, 44, .14); color: var(--c-blunder); font-weight: 600; }
+.ostep.warn { background: rgba(207, 59, 44, .14); color: var(--c-blunder); font-weight: 600; }
+.onote { margin-top: 8px; }
 .omisslist { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .omissrow { width: 100%; display: flex; align-items: baseline; gap: 10px; text-align: left; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; padding: 7px 10px; cursor: pointer; }
 .omissrow:hover { border-color: var(--accent); }
@@ -495,6 +500,7 @@ button { cursor: pointer; }
       <div class="panel tcard" id="oprompt"></div>
       <div class="tactions">
         <button class="btn" id="oHint" type="button">Show book move</button>
+        <button class="btn" id="oShow" type="button" hidden>Show solution</button>
         <button class="btn primary" id="oNext" type="button">Next line</button>
       </div>
       <div class="panel tsettings" id="ocov"></div>
@@ -551,7 +557,7 @@ const store = {
    saved on a device, progress is also kept in one secret gist and merged both ways.
    meta[k] = { at: last local change, ep: last reset }. A newer reset wins outright; otherwise solved
    puzzles are unioned, openings keep the copy with more lines played, and settings take the newest. */
-const SYNC_KEYS = ["oseen", "oprog", "ocov", "olearn", "oclean", "ohold", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
+const SYNC_KEYS = ["oseen", "oprog", "ocov", "olearn", "oclean", "opun", "ohold", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
 const SYNC_FILE = "pchess-progress.json", SYNC_DESC = "PChess progress (sync)";
 const sync = {
   timer: null, busy: false, again: false, state: "off", when: 0, err: "", onPulled: null,
@@ -578,6 +584,7 @@ const sync = {
     if (a.ep !== b.ep) return a.ep > b.ep ? a : b;
     const at = Math.max(a.at, b.at), ep = a.ep;
     if (k === "tprog") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) if (v[id] !== "solved") v[id] = r; return { v, at, ep }; }
+    if (k === "opun") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) if (v[id] !== "solved") v[id] = r; return { v, at, ep }; }
     if (k === "ocov" || k === "olearn") { const v = { b: [], w: [] }; for (const x of [a.v, b.v]) for (const sd of ["b", "w"]) for (const l of (x && x[sd]) || []) if (!v[sd].includes(l)) v[sd].push(l); return { v, at, ep }; }
     if (k === "oprog") { const n = x => x && x.v ? ((x.v.b && x.v.b.lines) || 0) + ((x.v.w && x.v.w.lines) || 0) : 0; const w = n(a) !== n(b) ? (n(a) > n(b) ? a : b) : (a.at >= b.at ? a : b); return { v: w.v, at, ep }; }
     return a.at >= b.at ? a : b;
@@ -1783,10 +1790,10 @@ function mergeSite(site) {
     const a = site.an[id]; if (!a || !a.e) continue;
     const cur = S.analyses[id];
     if (cur && cur.evals && cur.evals.every(Boolean) && cur.depth >= a.d) {
-      if ((a.p && JSON.stringify(cur.pv || null) !== JSON.stringify(a.p)) || (a.r && JSON.stringify(cur.ref || null) !== JSON.stringify(a.r))) { cur.pv = a.p || cur.pv; cur.ref = a.r || cur.ref; reviewed++; }
+      if ((a.p && JSON.stringify(cur.pv || null) !== JSON.stringify(a.p)) || (a.r && JSON.stringify(cur.ref || null) !== JSON.stringify(a.r)) || (a.q && JSON.stringify(cur.pq || null) !== JSON.stringify(a.q))) { cur.pv = a.p || cur.pv; cur.ref = a.r || cur.ref; cur.pq = a.q || cur.pq; reviewed++; }
       continue;
     }
-    S.analyses[id] = { depth: a.d, evals: a.e.map(expandEval), pv: a.p || null, ref: a.r || null }; reviewed++;
+    S.analyses[id] = { depth: a.d, evals: a.e.map(expandEval), pv: a.p || null, ref: a.r || null, pq: a.q || null }; reviewed++;
   }
   if (added || reviewed) { big.set("games", S.raw); big.set("analyses", S.analyses); }
   return added + reviewed;
@@ -2101,9 +2108,17 @@ function renderOpenings() {
   updateOpeningEval();
   const showing = O.mode === "learn" && O.step === "watch", want = O.status === "mine" ? wantMove() : null;
   if (showing && want) O.arrow = { from: want.from, to: want.to };   // Watch: always show the move
-  renderBoard(O.fen, O.last, O.arrow, null, { el: "oboard", flip: O.side === "b", sel: O.sel, targets: O.targets });
+  renderBoard(O.fen, O.last, O.arrow, null, { el: "oboard", flip: O.side === "b", sel: O.sel, targets: O.targets, hint: O.mode === "punish" ? O.phint : null });
   document.querySelectorAll("#oside button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === O.side)));
   const meta = REP_SIDES[O.side], info = lineInfo(O.side, O.drill);
+  $("oShow").hidden = O.mode !== "punish";
+  if (O.mode === "punish") {
+    renderPunishCard(meta);
+    $("oHint").textContent = "Hint"; $("oHint").disabled = O.status !== "solving";
+    $("oShow").disabled = !(O.status === "solving" || O.status === "wrong");
+    $("oNext").textContent = "Next drill";
+  } else {
+  $("oHint").textContent = "Show book move";
   let ask = "";
   if (O.status === "mine") ask = showing ? "Play " + plyNum(O.hist.length) + (want ? want.san : "") + "." : O.missedNow ? "Play the book move." : "Your move.";
   else if (O.status === "cpu") ask = "Opponent is thinking…";
@@ -2119,6 +2134,7 @@ function renderOpenings() {
     (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "");
   $("oHint").disabled = O.status !== "mine" || showing;
   $("oNext").textContent = O.status === "done" ? (showing ? "Play from memory" : "Next line") : "Restart line";
+  }
   const s = oprog.get()[O.side];
   const pct = s.moves ? Math.round(100 * s.first / s.moves) : null;
   $("ostats").innerHTML = '<div><b>' + s.lines + '</b>lines played</div><div><b>' + s.perfect + '</b>perfect lines</div><div><b>' + (pct == null ? "–" : pct + "%") + '</b>moves right first time</div>';
@@ -2155,7 +2171,8 @@ function renderModes(n) {
   $("omodes").innerHTML =
     btn("learn", "Learn", "Watch, then from memory", !n.new ? "All learned" : blocked ? '<span class="owarn">Practice ' + n.learn + ' waiting first</span>' : "<b>" + (n.all - n.new) + "/" + n.all + "</b> learned", !n.new) +
     btn("practice", "Practice", "Learned lines, on your own", n.learn ? "<b>" + n.learn + "</b> to practice" : "None waiting", !n.learn) +
-    btn("random", "Random practice", "Lines you’ve practiced", n.prac ? "<b>" + n.prac + "</b> line" + (n.prac === 1 ? "" : "s") : "None yet", !n.prac);
+    btn("random", "Random practice", "Lines you’ve practiced", n.prac ? "<b>" + n.prac + "</b> line" + (n.prac === 1 ? "" : "s") : "None yet", !n.prac) +
+    (pc => btn("punish", "Punish", "Their mistakes, your games", !pc.all ? "None yet" : pc.missed ? '<span class="omiss-n">' + pc.missed + ' missed chance' + (pc.missed === 1 ? "" : "s") + '</span>' : pc.left ? "<b>" + pc.left + "</b> to solve" : "All solved", !pc.all))(punishCounts());
 }
 
 // The whole book as a list you can open: every 10-move line, grouped where the opponent branches off.
@@ -2352,10 +2369,169 @@ function pickLine(mode) {
   for (const q of pool) { r -= w(q); if (r <= 0) return q.l.path; }
   return pool[pool.length - 1].l.path;
 }
+// ---------- Punish: your opponents' opening mistakes, from your own games ----------
+// Every opponent move in your first 12 moves (Caro-Kann as Black, 1.d4 as White) that lost a pawn or
+// more and left you at +0.8 or better becomes a drill, once per position. Drills you missed in a game
+// come first. The line runs until the edge is clear (trimLine), from the updater's depth-18 line ("q")
+// or, until that's in, from Stockfish in the browser.
+const PUNISH_PLIES = 24, PUNISH_TOL = 0.35;
+const opun = { get() { return store.get("opun", null) || {}; }, set(id, v) { const p = this.get(); p[id] = v; store.set("opun", p); } };
+function punishDrills(side) {
+  const by = new Map(), s = side === "w" ? 1 : -1;
+  for (const g of S.games) {
+    if (g.example || g.me !== side || !g.tokens || (g.headers && g.headers.FEN)) continue;
+    if (side === "b" ? !(g.tokens[0] === "e4" && g.tokens[1] === "c6") : g.tokens[0] !== "d4") continue;
+    const a = S.analyses[g.id]; if (!a || !a.evals) continue;
+    const ev = a.evals; let c = null, at = 0;
+    for (let j = 1; j <= Math.min(PUNISH_PLIES, g.nply - 1); j++) {
+      if (moverAt(g, j) !== g.me) continue;
+      const e0 = ev[j - 1], e1 = ev[j]; if (!e0 || !e1 || !e1.best) continue;
+      const before = s * e0.num, after = s * e1.num;
+      if (!(after - before >= 1 && after >= 0.8 && before < 4)) continue;
+      if (!c) c = new Chess();
+      while (at < j - 1) { if (!c.move(g.tokens[at])) break; at++; }
+      if (at !== j - 1) break;
+      const prevFen = c.fen(), prev = new Chess(prevFen).move(g.tokens[j - 1]); if (!prev) break;
+      const after1 = new Chess(prevFen); after1.move(g.tokens[j - 1]); const fen = after1.fen();
+      const bm = uciMove(new Chess(fen), e1.best), bestSan = bm ? bm.san : e1.best, played = g.tokens[j];
+      const kept = played === bestSan || (ev[j + 1] && s * ev[j + 1].num >= after - 0.5);
+      const id = fen.split(" ").slice(0, 4).join(" ");
+      let d = by.get(id);
+      if (!d) { d = { id, fen, prevFen, prev: { from: prev.from, to: prev.to, san: prev.san }, path: g.tokens.slice(0, j), best: e1.best, bestSan, evalNum: e1.num, pv: (a.pq && a.pq[j]) || null, games: [], missed: 0 }; by.set(id, d); }
+      if (!d.pv && a.pq && a.pq[j]) d.pv = a.pq[j];
+      d.games.push({ g, j, played, kept }); if (!kept) d.missed++;
+    }
+  }
+  const done = opun.get(), list = [...by.values()];
+  // Unsolved before solved; missed in a game before found; then the most common, then the most recent.
+  const pos = new Map(S.games.map((g, i) => [g, i])), recent = d => Math.max(...d.games.map(x => -(pos.has(x.g) ? pos.get(x.g) : 1e9)));
+  list.sort((a, b) => ((done[a.id] === "solved") - (done[b.id] === "solved")) || ((b.missed > 0) - (a.missed > 0)) || (b.games.length - a.games.length) || (recent(b) - recent(a)));
+  return list;
+}
+function punishList() { O.pzc = O.pzc || {}; return O.pzc[O.side] || (O.pzc[O.side] = punishDrills(O.side)); }
+function punishCounts() { const L = punishList(), done = opun.get(); return { all: L.length, missed: L.filter(d => d.missed && done[d.id] !== "solved").length, left: L.filter(d => done[d.id] !== "solved").length }; }
+function punishStart(id) {
+  const list = punishList();
+  if (!list.length) return startMode("learn", true);
+  const done = opun.get(), cur = O.pz ? O.pz.id : null;
+  const d = (id && list.find(x => x.id === id)) || list.find(x => done[x.id] !== "solved" && x.id !== cur) || list.find(x => x.id !== cur) || list[0];
+  O.token++; O.book = repBook(O.side); O.mode = "punish"; store.set("omode", "punish"); O.step = null; O.drill = null; O.pz = d;
+  Object.assign(O, { hist: [], mine: 0, misses: 0, missedNow: false, sel: null, targets: [], arrow: null, msg: null, phint: null, pstep: 0, ptries: 0, revealed: false, plast: null });
+  O.pline = d.pv ? trimLine(d.fen, d.pv) : [];
+  O.fen = d.prevFen; O.last = null; O.status = "intro"; renderOpenings();
+  const t = O.token;
+  if (!O.pline.length) {
+    if (engine.ready) engine.analyse(d.fen, 16).then(r => {
+      if (t !== O.token) return;
+      d.pv = r.pv && r.pv.length ? r.pv : [d.best]; O.pline = trimLine(d.fen, d.pv); if (!O.pline.length) O.pline = [d.best];
+      if (O.status === "loading") O.status = "solving"; renderOpenings();
+    }).catch(() => { if (t === O.token) { O.pline = [d.best]; if (O.status === "loading") O.status = "solving"; renderOpenings(); } });
+    else O.pline = [d.best];
+  }
+  // Show the position one move earlier, then play your opponent's mistake after a second.
+  setTimeout(() => {
+    if (t !== O.token) return;
+    O.fen = d.fen; O.last = { from: d.prev.from, to: d.prev.to }; sound.play(d.prev.san);
+    O.status = O.pline.length ? "solving" : "loading"; renderOpenings();
+  }, 1000);
+}
+function punishSolved(lead) {
+  const d = O.pz; O.status = "done"; O.phint = null;
+  if (!O.revealed) { opun.set(d.id, "solved"); confetti(); $("oboard").classList.add("flash-good"); setTimeout(() => $("oboard").classList.remove("flash-good"), 700); }
+  O.msg = { cls: "good", html: lead + " " + punishWhy(d) };
+  renderOpenings();
+}
+function punishWhy(d) {
+  const sol = describeLine(d.fen, d.pv && d.pv.length ? d.pv : O.pline, null); if (!sol) return "";
+  const s = O.side === "w" ? 1 : -1, adv = signedEval(s * d.evalNum);
+  let t;
+  if (sol.mate) t = sol.plies === 1 ? "<b>" + esc(sol.first) + "</b> is checkmate." : "<b>" + esc(sol.first) + "</b> starts a forced checkmate: <b>" + esc(sol.line) + "</b>.";
+  else if (sol.what) t = "<b>" + esc(sol.first) + "</b> lets you " + sol.what + (sol.plies > 1 ? ": <b>" + esc(sol.line) + "</b>" : "") + ".";
+  else t = "<b>" + esc(sol.first) + "</b> makes the most of it: you’re " + adv + " after it" + (sol.plies > 1 ? ". The idea: <b>" + esc(sol.line) + "</b>" : "") + ".";
+  if (sol.fork) t += " " + esc(sol.fork) + ".";
+  return t;
+}
+async function punishTry(from, to) {
+  const d = O.pz; if (!d || O.status !== "solving") return;
+  const c = new Chess(O.fen); const m = c.move({ from, to, promotion: "q" });
+  O.sel = null; O.targets = [];
+  if (!m) { renderOpenings(); return; }
+  sound.play(m.san);
+  const uci = m.from + m.to + (m.promotion || ""), startFen = O.fen, t = O.token;
+  const show = () => { O.fen = c.fen(); O.last = { from: m.from, to: m.to }; };
+  const reject = html => {
+    O.ptries++; show(); O.status = "wrong"; renderOpenings(); $("oboard").classList.add("flash-bad");
+    setTimeout(() => { if (t !== O.token) return; $("oboard").classList.remove("flash-bad"); O.fen = startFen; O.last = O.plast || { from: d.prev.from, to: d.prev.to }; O.status = "solving"; O.msg = { cls: "bad", html: html + " Try again." }; renderOpenings(); }, 650);
+  };
+  if (uci === O.pline[O.pstep] || c.in_checkmate()) {
+    show(); O.phint = null; O.hist.push({ san: m.san, by: "me", ok: !O.ptries }); O.pstep++;
+    if (c.in_checkmate() || O.pstep >= O.pline.length) return punishSolved(c.in_checkmate() ? "<b>" + esc(m.san) + "</b> is checkmate." : "Right.");
+    const reply = O.pline[O.pstep]; O.status = "replying"; O.msg = { cls: "good", html: "<b>" + esc(m.san) + "</b> is right. Keep going." }; renderOpenings();
+    setTimeout(() => {
+      if (t !== O.token) return;
+      const r = uciMove(c, reply); O.pstep++; if (r) { sound.play(r.san); O.hist.push({ san: r.san, by: "cpu", ok: true }); }
+      O.fen = c.fen(); O.last = r ? { from: r.from, to: r.to } : null; O.plast = O.last; O.status = "solving";
+      O.msg = { cls: "good", html: "<b>" + esc(m.san) + "</b> is right. Your opponent answered <b>" + esc(r ? r.san : reply) + "</b>. Keep going." }; renderOpenings();
+    }, 550);
+    return;
+  }
+  const inGame = O.pstep === 0 && d.games.find(x => !x.kept && x.played === m.san);
+  if (inGame) return reject("<b>" + esc(m.san) + "</b> is what you played in the game, and the advantage slipped away.");
+  if (engine.ready) {
+    O.status = "checking"; show(); O.msg = { cls: "info", html: "Checking <b>" + esc(m.san) + "</b> with Stockfish…" }; renderOpenings();
+    const r = toEval(c.fen(), await engine.analyse(c.fen(), Math.max(12, S.depth)));
+    if (t !== O.token) return;
+    const s = O.side === "w" ? 1 : -1, lost = s * d.evalNum - s * r.num;
+    if (lost < PUNISH_TOL) { O.hist.push({ san: m.san, by: "me", ok: !O.ptries }); return punishSolved("<b>" + esc(m.san) + "</b> works too. Stockfish preferred <b>" + esc(sanOf(startFen, O.pline[O.pstep])) + "</b>."); }
+    O.fen = startFen; O.status = "solving";
+    return reject("<b>" + esc(m.san) + "</b> isn’t it. It gives back about " + Math.min(10, lost).toFixed(1) + " pawns of your edge.");
+  }
+  reject("<b>" + esc(m.san) + "</b> isn’t the move Stockfish found.");
+}
+function punishShow() {
+  const d = O.pz; if (!d || !(O.status === "solving" || O.status === "wrong")) return;
+  O.revealed = true; if (opun.get()[d.id] !== "solved") opun.set(d.id, "missed");
+  O.status = "replying"; O.phint = null; const t = O.token; const c = new Chess(O.fen);
+  const stepOn = () => {
+    if (t !== O.token) return;
+    if (O.pstep >= O.pline.length) return punishSolved("Here’s how to punish it.");
+    const m = uciMove(c, O.pline[O.pstep]); O.pstep++; if (!m) return punishSolved("Here’s how to punish it.");
+    sound.play(m.san); O.hist.push({ san: m.san, by: m.color === O.side ? "me" : "cpu", ok: false });
+    O.fen = c.fen(); O.last = { from: m.from, to: m.to }; renderOpenings(); setTimeout(stepOn, 700);
+  };
+  stepOn();
+}
+function renderPunishCard(meta) {
+  const d = O.pz, list = punishList(), k = d ? list.findIndex(x => x.id === d.id) : -1;
+  if (!d) { $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + '</div><p class="ask">No drills yet.</p>'; return; }
+  const turnNum = plyNum(d.path.length - 1) + d.prev.san;
+  let ask = "";
+  if (O.status === "intro") ask = "Your opponent is about to move…";
+  else if (O.status === "loading") ask = "Finding the line…";
+  else if (O.status === "done") ask = O.revealed ? "Here’s how to punish it." : "Punished!";
+  else if (O.pstep === 0) ask = "Your opponent just played " + turnNum + ". Punish it.";
+  else ask = "Keep going.";
+  const strip = d.path.map((san, i) => (i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "") +
+      (i === d.path.length - 1 && O.status !== "intro" ? '<span class="omv bad">' + esc(san) + '?</span>' : i === d.path.length - 1 ? '<span class="omv up">·</span>' : '<span class="omv cpu">' + esc(san) + '</span>')).join(" ") + " " +
+    O.hist.map((x, j) => { const i = d.path.length + j; return (i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "") + '<span class="omv ' + (x.by === "me" ? (x.ok ? "me ok" : "me miss") : "cpu") + '">' + esc(x.san) + '</span>'; }).join(" ") +
+    (O.status === "solving" || O.status === "wrong" ? ' <span class="omv cur">?</span>' : "");
+  const miss = d.games.filter(x => !x.kept), found = d.games.length - miss.length;
+  const note = miss.length ? "In the game you played " + [...new Set(miss.map(x => plyNum(x.j) + x.played))].map(x => "<b>" + esc(x) + "</b>").join(" and ") + " and the advantage slipped away." + (found ? " You found it " + found + " other time" + (found === 1 ? "" : "s") + "." : "")
+    : "You found it in the game" + (d.games.length > 1 ? " every time (" + d.games.length + ")" : "") + ". Make sure it sticks.";
+  const solved = opun.get()[d.id] === "solved";
+  $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + '</div>' +
+    '<div class="onow"><div class="onow-t"><b>Punish</b><span> · happened in ' + d.games.length + ' of your game' + (d.games.length === 1 ? "" : "s") + '</span></div><div class="onow-n">Drill ' + (k + 1) + ' of ' + list.length + '</div></div>' +
+    '<div class="osteps"><span class="ostep ' + (miss.length ? "warn" : "on") + '">' + (miss.length ? "Missed in your game" : "Found in your game") + '</span>' + (solved ? '<span class="ostep done">✓ Solved here</span>' : "") + '</div>' +
+    '<p class="ask">' + esc(ask) + '</p>' +
+    '<div class="ostrip">' + strip + '</div>' +
+    (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "") +
+    '<div class="ctx onote">' + note + '</div>';
+}
 function waitingLines() { return lineStates(O.side, oprog.get(), ocov.get()).flat().filter(x => x.st === "learn").length; }
 // Start a line in a mode. With fallback, a mode with nothing to serve hands over to the next one.
 // While LEARN_BLOCK or more learned lines wait for practice, Learn sends you to Practice and says why.
 function startMode(mode, fallback) {
+  if (mode === "punish") return punishStart();
   const waiting = waitingLines(), blocked = waiting >= LEARN_BLOCK;
   let order = [mode].concat(fallback ? ["practice", "learn", "random"].filter(m => m !== mode) : []), note = false;
   if (blocked) {
@@ -2377,9 +2553,10 @@ function openingsRefresh() {
 }
 
 $("oboard").addEventListener("click", e => {
-  const el = e.target.closest(".sq[data-sq]"); if (!el || O.status !== "mine") return;
+  const can = O.mode === "punish" ? O.status === "solving" : O.status === "mine";
+  const el = e.target.closest(".sq[data-sq]"); if (!el || !can) return;
   const sq = el.dataset.sq; const c = new Chess(O.fen);
-  if (O.sel && O.targets.includes(sq)) { oTryMove(O.sel, sq); return; }
+  if (O.sel && O.targets.includes(sq)) { (O.mode === "punish" ? punishTry : oTryMove)(O.sel, sq); return; }
   const pc = c.get(sq);
   if (pc && pc.color === c.turn()) { O.sel = sq; O.targets = c.moves({ square: sq, verbose: true }).map(m => m.to); }
   else { O.sel = null; O.targets = []; }
@@ -2389,7 +2566,9 @@ $("oside").addEventListener("click", e => {
   const b = e.target.closest("button[data-side]"); if (!b || b.dataset.side === O.side) return;
   O.side = b.dataset.side; store.set("oside", O.side); O.bookSide = O.side; O.recent = []; O.drill = null; O.justLearned = null; startMode(O.mode, true);
 });
+$("oShow").onclick = () => punishShow();
 $("oNext").onclick = () => {
+  if (O.mode === "punish") return punishStart();
   if (O.status === "done") {
     if (O.mode === "learn" && O.step === "watch") return openingsStart(O.drill, "learn", "memory");
     return startMode(O.mode, true);
@@ -2397,7 +2576,13 @@ $("oNext").onclick = () => {
   openingsStart(O.drill, O.mode, O.step);   // restart the same line (and the same step)
 };
 $("oHint").onclick = () => {
-  if (O.status !== "mine" || O.mode === "learn") return;
+  if (O.mode === "punish") {
+    if (O.status !== "solving") return;
+    const u = O.pline[O.pstep]; if (!u) return;
+    O.phint = u.slice(0, 2); const pc = new Chess(O.fen).get(O.phint);
+    O.msg = { cls: "info", html: "Hint: move your " + (pc ? PNAME[pc.type] : "piece") + " on <b>" + O.phint + "</b>." }; renderOpenings(); return;
+  }
+  if (O.status !== "mine" || (O.mode === "learn" && O.step === "watch")) return;
   const w = wantMove() || (mainMove() && new Chess(O.fen).move(mainMove())); if (!w) return;
   O.arrow = { from: w.from, to: w.to }; O.missedNow = true;
   O.msg = { cls: "info", html: 'The book move is <b>' + esc(w.san) + '</b>. Play it to continue (this one counts as missed).' };
@@ -2486,7 +2671,7 @@ $("resetYes").onclick = () => {
     const keep = id && S.games.find(g => g.id === id);
     if (keep) { S.sel = keep; renderList(); if (view === "review") renderReview(); else S.reviewStale = true; } else select(S.games[0]);
     savedNote();
-    O.books = {};                                     // re-read your real opponents' moves
+    O.books = {}; O.pzc = {};                         // re-read your real opponents' moves and mistakes
     if (view === "trainer") trainerRefresh(); else if (view === "openings") openingsRefresh();
     loader.done();
   });
@@ -2494,7 +2679,7 @@ $("resetYes").onclick = () => {
   // Sync wiring
   sync.onPulled = changed => {
     if (changed.includes("tprog") && view === "trainer") trainerRefresh();
-    if ((changed.includes("oprog") || changed.includes("ocov") || changed.includes("olearn") || changed.includes("oclean") || changed.includes("ohold")) && view === "openings" && O.book) renderOpenings();
+    if ((changed.includes("oprog") || changed.includes("ocov") || changed.includes("olearn") || changed.includes("oclean") || changed.includes("opun") || changed.includes("ohold")) && view === "openings" && O.book) renderOpenings();
   };
   $("syncBtn").onclick = () => { sync.label(); $("syncDlg").showModal(); };
   $("syncDlg").addEventListener("click", e => { if (e.target.closest("[data-close]")) $("syncDlg").close(); });

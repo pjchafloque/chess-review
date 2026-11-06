@@ -26,6 +26,8 @@ DEPTH = int(os.environ.get("DEPTH", "14"))
 MAX_MINUTES = float(os.environ.get("MAX_MINUTES", "40"))
 PUZZLE_DEPTH = int(os.environ.get("PUZZLE_DEPTH", "18"))
 PUZZLE_VERSION = 2
+PUNISH_VERSION = 1
+PUNISH_PLIES = 24      # opponent mistakes in the first 12 moves
 DATA = "data"
 GAMES_FILE = os.path.join(DATA, "games.json")
 ANALYSIS_FILE = os.path.join(DATA, "analysis.json")
@@ -196,15 +198,45 @@ def puzzle_lines(pgn: str, evals: list, engine) -> tuple:
     return out, refs
 
 
+def punish_lines(pgn: str, evals: list, engine) -> dict:
+    """For each opponent move in the opening that lost a pawn or more and left the user clearly
+    better (+0.8), store Stockfish's main line from the position after it, searched deeper:
+    the "punish it" drills on the Openings page. Keyed by the ply of the user's reply."""
+    game = chess.pgn.read_game(io.StringIO(pgn))
+    white = game.headers.get("White", "").lower()
+    black = game.headers.get("Black", "").lower()
+    me = chess.WHITE if white == USER else chess.BLACK if black == USER else None
+    if me is None:
+        return {}
+    s = 1 if me == chess.WHITE else -1
+    board = game.board()
+    out = {}
+    for i, move in enumerate(game.mainline_moves()):
+        if i >= PUNISH_PLIES or i + 1 >= len(evals):
+            break
+        mover = board.turn
+        board.push(move)
+        if mover == me or board.is_game_over():
+            continue
+        before, after = s * num(evals[i]), s * num(evals[i + 1])
+        if after - before >= 1 and after >= 0.8 and before < 4:
+            info = engine.analyse(board, chess.engine.Limit(depth=PUZZLE_DEPTH))
+            pv = [m.uci() for m in (info.get("pv") or [])[:12]]
+            if pv:
+                out[str(i + 1)] = pv
+    return out
+
+
 def run_reviews(store, analysis, shard=0, shards=1):
     """Review unreviewed games and add puzzle lines. With shards > 1, this machine only
     takes every shards-th game. Returns the ids it changed."""
     by_id = {g["id"]: g for g in store["games"]}
     todo = [g["id"] for g in store["games"] if g["id"] not in analysis]
     need_lines = sorted(gid for gid, a in analysis.items() if a.get("e") and a.get("pz") != PUZZLE_VERSION and gid in by_id)
-    work = [("lines", gid) for gid in need_lines] + [("review", gid) for gid in todo]
+    need_punish = sorted(gid for gid, a in analysis.items() if a.get("e") and a.get("qz") != PUNISH_VERSION and gid in by_id and gid not in need_lines)
+    work = [("lines", gid) for gid in need_lines] + [("punish", gid) for gid in need_punish] + [("review", gid) for gid in todo]
     work = work[shard::shards]
-    print(f"Shard {shard + 1}/{shards}: {len(work)} jobs ({len(todo)} unreviewed and {len(need_lines)} missing puzzle lines overall)")
+    print(f"Shard {shard + 1}/{shards}: {len(work)} jobs ({len(todo)} unreviewed, {len(need_lines)} missing puzzle lines, {len(need_punish)} missing punish lines overall)")
     changed = set()
     if not work:
         return changed
@@ -219,6 +251,16 @@ def run_reviews(store, analysis, shard=0, shards=1):
             print("No puzzle lines for", gid, e)
             a["p"], a["r"] = {}, {}
         a["pz"] = PUZZLE_VERSION
+        add_punish(gid)
+
+    def add_punish(gid):
+        a = analysis[gid]
+        try:
+            a["q"] = punish_lines(by_id[gid]["pgn"], a["e"], engine)
+        except Exception as e:
+            print("No punish lines for", gid, e)
+            a["q"] = {}
+        a["qz"] = PUNISH_VERSION
 
     done = 0
     try:
@@ -232,6 +274,8 @@ def run_reviews(store, analysis, shard=0, shards=1):
                 except Exception as e:
                     print("Skipped", gid, e)
                     analysis[gid] = {"d": DEPTH, "e": None}
+            elif kind == "punish":
+                add_punish(gid)
             else:
                 add_lines(gid)
             changed.add(gid)
