@@ -212,6 +212,42 @@ button { cursor: pointer; }
 .ocovtop b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .ocovbar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
 .ocovbar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s; }
+.ostack { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; display: flex; }
+.ostack i { display: block; height: 100%; transition: width .4s; }
+.st-done { background: var(--accent); } .st-todo { background: var(--c-blunder); } .st-new { background: var(--line); }
+.olegend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 7px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.olegend span { display: inline-flex; align-items: center; gap: 6px; }
+.odot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.olist-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 10px 12px; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; margin: 4px 0 10px; }
+.olist-toggle:hover, .ogrp-head:hover, .oline:hover { border-color: var(--accent); }
+.ochev { color: var(--muted); font-size: 12px; }
+.ofilters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.ofilters button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+.ofilters button span { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 2px; }
+.ofilters button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.ofilters button[aria-pressed="true"] span { color: inherit; opacity: .75; }
+.ogroups { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.ogrp { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.ogrp-head { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--ink); font: inherit; padding: 8px 10px; cursor: pointer; }
+.ogrp-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ogrp-nm { font-weight: 600; font-size: 13.5px; }
+.ogrp-n { font-size: 12px; color: var(--muted); text-align: right; display: flex; flex-direction: column; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ogrp-n b { color: var(--ink); }
+.osect { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; margin: 8px 2px 0; }
+.osect:first-child { margin-top: 0; }
+.ogrp-n em { font-style: normal; color: var(--c-blunder); }
+.olines { list-style: none; margin: 0; padding: 0 6px 6px; display: flex; flex-direction: column; gap: 4px; }
+.oline { width: 100%; display: flex; align-items: flex-start; gap: 9px; text-align: left; border: 1px solid transparent; border-radius: 6px; background: var(--surface-2); color: var(--ink); font: inherit; padding: 7px 9px; cursor: pointer; }
+.oline .odot { margin-top: 5px; }
+.oline.now { border-color: var(--accent); }
+.oline-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.oline .onm { font-weight: 600; font-size: 13px; }
+.oline .ost { font-size: 12px; color: var(--muted); }
+.oline.st-todo .ost { color: var(--c-blunder); }
+.oline.st-done .ost { color: var(--accent); }
+.ogrp .opath, .oline .opath { font-family: var(--f-mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.oline .opath b { color: var(--c-best); }
+.ogrp .onum, .oline .onum { color: var(--muted); opacity: .8; }
 .ospots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ospot { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
 .ospot:hover { border-color: var(--accent); }
@@ -411,7 +447,6 @@ button { cursor: pointer; }
       </div>
       <div class="panel tstats" id="ostats"></div>
       <div class="panel tsettings" id="ocov"></div>
-      <div class="panel tsettings" id="ospots"></div>
       <div><button class="btn small" id="oReset" type="button">Reset my openings progress</button></div>
     </div>
   </section>
@@ -2014,22 +2049,116 @@ function renderOpenings() {
   const p = oprog.get(), s = p[O.side];
   const pct = s.moves ? Math.round(100 * s.first / s.moves) : null;
   $("ostats").innerHTML = '<div><b>' + s.level + '</b>moves per line now</div><div><b>' + s.lines + '</b>lines played</div><div><b>' + s.perfect + '</b>perfect lines</div><div><b>' + (pct == null ? "–" : pct + "%") + '</b>moves right first time</div>';
-  const cl = coverage(O.side, s.level), cf = s.level === OPEN_MAX_MOVES ? cl : coverage(O.side, OPEN_MAX_MOVES);
-  const bar = (label, c) => { const pc = c.total ? Math.floor(100 * c.done / c.total) : 0;
-    return '<div class="ocovrow"><div class="ocovtop"><span>' + label + '</span><span><b>' + pc + '%</b> · ' + c.done + ' of ' + c.total + ' lines</span></div><div class="ocovbar"><i style="width:' + pc + '%"></i></div></div>'; };
-  const holdOn = !!(store.get("ohold", {}) || {})[O.side];
-  $("ocov").innerHTML = '<div class="section-label">' + esc(meta.title) + ' lines covered</div>' +
-    (s.level < OPEN_MAX_MOVES ? '<label for="oHold"><input type="checkbox" id="oHold"' + (holdOn ? " checked" : "") + '> Cover every ' + s.level + '-move line before going deeper</label>' : "") +
-    (s.level < OPEN_MAX_MOVES ? bar("At your level (" + s.level + " moves)", cl) : "") + bar("Whole book (" + OPEN_MAX_MOVES + " moves)", cf) +
-    (cf.done >= cf.total ? '<div class="omuted">You\u2019ve played every ' + esc(meta.title) + ' line in the book. Time to add more.</div>' : '<div class="omuted">A line counts once you\u2019ve played it through. Next line picks lines you haven\u2019t covered yet.</div>');
-  // One card per variation: spots on the same line (one a continuation of another) are merged.
-  O.vars = varGroups(p, O.side).slice(0, 8);
-  $("ospots").innerHTML = '<div class="section-label">Variations to learn</div>' + (O.vars.length
-    ? '<ul class="ospots">' + O.vars.map((g, gi) => {
-      const moves = g.line.map((san, i) => (i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "") + (g.missAt.has(i) ? '<b>' + esc(san) + '</b>' : esc(san))).join(" ");
-      return '<li><button type="button" class="ospot" data-var="' + gi + '"><span class="onm">' + esc(g.name || "Opening") + '</span><span class="opath">' + moves + '</span><span class="omiss">missed ' + g.miss + '× · practice this line</span></button></li>';
-    }).join("") + '</ul><div class="omuted">The green moves are the ones you missed. Next line plays these first. A variation leaves the list once you play it through with no misses.</div>'
-    : '<div class="omuted">None yet. Lines where you miss a move show up here, one card per variation.</div>');
+  renderLineList(meta, s);
+}
+
+// The whole book as a list you can open: every 10-move line, grouped where the opponent branches off.
+// A line is "learned" once you've played it through and no move you missed on it is still on your
+// list, "to practice" while one is, and "not played" before you've played it through.
+function lineGroups(side) {
+  const book = repBook(side);
+  if (book.groups) return book.groups;
+  const nodes = book.nodes, groups = [];
+  const nameAt = path => { let at = 0, nm = ""; for (const san of path) { at = nodes[at].moves.get(san); if (at == null) break; if (nodes[at].name) nm = nodes[at].name; } return nm; };
+  const strip = n => side === "b" ? n.replace(/^Caro-Kann Defense:?\s*/, "") : n;
+  // Split a bunch of lines at the first opponent move where they differ, until each group is small
+  // enough to scan. Replies with fewer than 3 lines go together in an "Other … moves" group.
+  (function split(ls, from, branch) {
+    let c = from; while (ls.every(l => l.path.length > c && l.path[c] === ls[0].path[c])) c++;
+    const prefix = ls[0].path.slice(0, c);
+    if (ls.length <= 16) { groups.push({ prefix, lines: ls, branch }); return; }
+    const by = new Map(); for (const l of ls) { const k = l.path[c] || ""; if (!by.has(k)) by.set(k, []); by.get(k).push(l); }
+    const rest = [];
+    for (const part of by.values()) { if (part.length < 3) rest.push(...part); else split(part, c + 1, c); }
+    if (rest.length) groups.push({ prefix, lines: rest, branch: c, other: true });
+  })(bookLines(side, OPEN_MAX_MOVES, true), 0, 0);
+  const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
+  for (const g of groups) {
+    g.key = g.prefix.join(" ") + (g.other ? " +" : "");
+    // Queen's Gambit has many groups: sort them under Black's first move.
+    g.sect = side === "w" ? (g.other && g.branch <= 1 ? "Other first moves" : "Against 1..." + g.lines[0].path[1]) : "";
+    // Name a group after what most of its lines become (transpositions included), else its starting position.
+    const most = cut => { const fam = new Map(); for (const l of g.lines) { const f = cut(strip(nameAt(l.path))).trim(); if (f) fam.set(f, (fam.get(f) || 0) + 1); }
+      let top = ""; for (const [f, k] of fam) if (k >= .6 * g.lines.length && (!top || k > fam.get(top))) top = f; return top; };
+    const top = most(n => n.split(",")[0]) || most(n => n.split(":")[0]);
+    g.title = g.other ? "Other " + ord(Math.floor(g.branch / 2) + 1) + " moves for " + (g.branch % 2 ? "Black" : "White")
+      : top || strip(nameAt(g.prefix)) || g.prefix.slice(g.branch).map((m, j) => { const i = g.branch + j; return (i % 2 === 0 ? (i / 2 + 1) + "." : j === 0 ? Math.floor(i / 2 + 1) + "..." : "") + m; }).join(" ");
+    for (const l of g.lines) {
+      let nm = strip(nameAt(l.path));
+      if (!g.other && g.title && nm.startsWith(g.title)) nm = nm.slice(g.title.length).replace(/^[,:]\s*/, "");
+      l.title = nm || "Main line";
+    }
+  }
+  return (book.groups = groups);
+}
+// Moves from ply `from` on, numbered ("3.e5 Bf5 4.Nf3" or "3...Bf5 4.Nf3"); plies in `mark` in bold.
+function sanLine(path, from, mark) {
+  let out = [];
+  for (let i = from || 0; i < path.length; i++) {
+    const num = i % 2 === 0 ? (i / 2 + 1) + "." : i === (from || 0) ? Math.floor(i / 2 + 1) + "..." : "";
+    const san = esc(path[i]);
+    out.push('<span class="onum">' + num + '</span>' + (mark && mark.has(i) ? "<b>" + san + "</b>" : san));
+  }
+  return out.join(" ");
+}
+function lineStates(side, p, c) {
+  const spots = varGroups(p, side);
+  return lineGroups(side).map(g => g.lines.map(l => {
+    const hit = spots.filter(sp => sp.line.length <= l.path.length && sp.line.every((m, i) => l.path[i] === m));
+    const missAt = new Set(); for (const sp of hit) for (const i of sp.missAt) missAt.add(i);
+    return { st: hit.length ? "todo" : ocov.has(side, l.path, c) ? "done" : "new", miss: hit.reduce((a, sp) => a + sp.miss, 0), missAt };
+  }));
+}
+// Open/closed state of the list (and filter) is per device: it's only about what's on screen.
+function listUI() {
+  if (!O.lui) { O.lui = store.get("olist", null) || {}; O.lui.filter = O.lui.filter || "all"; O.lgrp = { b: {}, w: {} }; }
+  return O.lui;
+}
+function renderLineList(meta, s) {
+  const side = O.side, ui = listUI(), p = oprog.get(), c = ocov.get(), groups = lineGroups(side), st = lineStates(side, p, c);
+  const n = { all: 0, todo: 0, done: 0, new: 0 }; for (const g of st) for (const x of g) { n.all++; n[x.st]++; }
+  const pc = k => n.all ? (100 * n[k] / n.all).toFixed(2) : 0;
+  const holdOn = !!(store.get("ohold", {}) || {})[side];
+  let h = '<div class="section-label">' + esc(meta.title) + ' lines</div>';
+  if (s.level < OPEN_MAX_MOVES) {
+    const cl = coverage(side, s.level), lp = cl.total ? Math.floor(100 * cl.done / cl.total) : 0;
+    h += '<label for="oHold"><input type="checkbox" id="oHold"' + (holdOn ? " checked" : "") + '> Cover every ' + s.level + '-move line before going deeper</label>' +
+      '<div class="ocovrow"><div class="ocovtop"><span>At your level (' + s.level + ' moves)</span><span><b>' + lp + '%</b> · ' + cl.done + ' of ' + cl.total + ' played</span></div><div class="ocovbar"><i style="width:' + lp + '%"></i></div></div>';
+  }
+  h += '<div class="ocovrow"><div class="ocovtop"><span>Whole book (' + OPEN_MAX_MOVES + ' moves)</span><span><b>' + n.done + '</b> of ' + n.all + ' learned</span></div>' +
+    '<div class="ostack"><i class="st-done" style="width:' + pc("done") + '%"></i><i class="st-todo" style="width:' + pc("todo") + '%"></i></div>' +
+    '<div class="olegend"><span><i class="odot st-done"></i>' + n.done + ' learned</span><span><i class="odot st-todo"></i>' + n.todo + ' to practice</span><span><i class="odot st-new"></i>' + n.new + ' not played</span></div></div>';
+  h += '<button type="button" class="olist-toggle" data-ltoggle aria-expanded="' + !!ui.open + '"><span>' + (ui.open ? "Hide the lines" : "See all " + n.all + " lines") + '</span><span class="ochev" aria-hidden="true">' + (ui.open ? "▴" : "▾") + '</span></button>';
+  if (ui.open) {
+    const f = ui.filter, labels = { all: "All", todo: "To practice", done: "Learned", new: "Not played" };
+    h += '<div class="ofilters" role="group" aria-label="Show lines">' + Object.keys(labels).map(k =>
+      '<button type="button" data-lfilter="' + k + '" aria-pressed="' + (f === k) + '">' + labels[k] + ' <span>' + n[k] + '</span></button>').join("") + '</div>';
+    const cur = O.drill ? O.drill.join(" ") : pathSan().join(" ");
+    let body = "", sect = "";
+    groups.forEach((g, gi) => {
+      const rows = g.lines.map((l, li) => ({ l, li, x: st[gi][li] })).filter(r => f === "all" || r.x.st === f);
+      if (!rows.length) return;
+      const done = st[gi].filter(x => x.st === "done").length, todo = st[gi].filter(x => x.st === "todo").length;
+      const set = O.lgrp[side][g.key], open = set != null ? set : f !== "all";
+      if (g.sect && g.sect !== sect) { sect = g.sect; body += '<div class="osect">' + esc(sect) + '</div>'; }
+      body += '<div class="ogrp' + (open ? " open" : "") + '"><button type="button" class="ogrp-head" data-lgrp="' + gi + '" aria-expanded="' + open + '">' +
+        '<span class="ogrp-t"><span class="ogrp-nm">' + esc(g.title) + '</span><span class="opath">' + sanLine(g.prefix, 0) + (g.other ? " …" : "") + '</span></span>' +
+        '<span class="ogrp-n"><span><b>' + done + '/' + g.lines.length + '</b> learned</span>' + (todo ? '<em>' + todo + ' to practice</em>' : "") + '</span>' +
+        '<span class="ochev" aria-hidden="true">' + (open ? "▴" : "▾") + '</span></button>';
+      if (open) body += '<ul class="olines">' + rows.map(({ l, li, x }) =>
+        '<li><button type="button" class="oline st-' + x.st + (l.path.join(" ") === cur ? " now" : "") + '" data-lline="' + gi + '.' + li + '">' +
+        '<i class="odot st-' + x.st + '"></i><span class="oline-t"><span class="onm">' + esc(l.title) + '</span>' +
+        '<span class="opath">' + sanLine(l.path, g.prefix.length, x.missAt) + '</span>' +
+        '<span class="ost">' + (x.st === "todo" ? "Missed " + x.miss + "× · practice this line" : x.st === "done" ? "Learned" : "Not played yet") + '</span></span></button></li>').join("") + '</ul>';
+      body += '</div>';
+    });
+    h += body ? '<div class="ogroups">' + body + '</div>' : '<div class="omuted">' + ({ todo: "Nothing to practice right now. Every move you missed has been fixed.", done: "No lines learned yet. Play a line through with no misses and it shows up here.", new: "You've played every line in the book." })[f] + '</div>';
+    h += '<div class="omuted">Tap a line to practice it. Green moves are the ones you missed. Next line brings back lines to practice first, then lines you haven’t played.</div>';
+  } else {
+    h += '<div class="omuted">' + (n.done >= n.all ? 'You’ve learned every ' + esc(meta.title) + ' line in the book. Time to add more.'
+      : n.todo ? 'Next line brings back the ' + n.todo + ' line' + (n.todo === 1 ? "" : "s") + ' to practice first, then lines you haven’t played.' : 'A line counts as learned once you play it through with no misses.') + '</div>';
+  }
+  $("ocov").innerHTML = h;
 }
 
 // One card per variation: spots on the same line (one a continuation of another) are merged.
@@ -2087,10 +2216,19 @@ $("oHint").onclick = () => {
   O.msg = { cls: "info", html: 'The book move is <b>' + esc(main) + '</b>. Play it to continue (this one counts as missed).' };
   renderOpenings();
 };
-$("ospots").addEventListener("click", e => {
-  const b = e.target.closest("[data-var]"); if (!b) return;
-  const g = O.vars && O.vars[+b.dataset.var]; if (!g) return;
-  openingsStart(g.line);
+$("ocov").addEventListener("click", e => {
+  const t = e.target.closest("[data-ltoggle],[data-lfilter],[data-lgrp],[data-lline]"); if (!t) return;
+  const ui = listUI(), d = t.dataset;
+  if (d.lline) {
+    const [gi, li] = d.lline.split(".").map(Number), l = lineGroups(O.side)[gi].lines[li]; if (!l) return;
+    openingsStart(l.path);
+    const top = $("oboard").getBoundingClientRect().top; if (top < 0 || top > innerHeight * .6) $("oboard").scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (d.ltoggle != null) ui.open = !ui.open;
+  else if (d.lfilter) ui.filter = d.lfilter;
+  else if (d.lgrp) { const g = lineGroups(O.side)[+d.lgrp], m = O.lgrp[O.side], was = m[g.key] != null ? m[g.key] : ui.filter !== "all"; m[g.key] = !was; }
+  store.set("olist", { open: ui.open, filter: ui.filter }); renderOpenings();
 });
 // Reset asks first, in a dialog that shows what would be lost. "No" is the default button.
 $("ocov").addEventListener("change", e => {
