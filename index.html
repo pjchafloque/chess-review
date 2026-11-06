@@ -226,7 +226,8 @@ button { cursor: pointer; }
 .ofilters button span { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 2px; }
 .ofilters button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .ofilters button[aria-pressed="true"] span { color: inherit; opacity: .75; }
-.ogroups { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.ogroups { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; max-height: min(440px, 60vh); overflow-y: auto; overscroll-behavior: contain; padding: 2px 6px 2px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-top: 8px; padding-bottom: 8px; }
+.ogroups .ogrp { flex: none; }
 .ogrp { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .ogrp-head { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--ink); font: inherit; padding: 8px 10px; cursor: pointer; }
 .ogrp-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -235,6 +236,7 @@ button { cursor: pointer; }
 .ogrp-n b { color: var(--ink); }
 .osect { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; margin: 8px 2px 0; }
 .osect:first-child { margin-top: 0; }
+.ogroups .osect { position: sticky; top: -8px; z-index: 1; background: var(--surface); padding: 6px 2px 4px; margin: 2px 0 0; }
 .ogrp-n em { font-style: normal; color: var(--c-blunder); }
 .olines { list-style: none; margin: 0; padding: 0 6px 6px; display: flex; flex-direction: column; gap: 4px; }
 .oline { width: 100%; display: flex; align-items: flex-start; gap: 9px; text-align: left; border: 1px solid transparent; border-radius: 6px; background: var(--surface-2); color: var(--ink); font: inherit; padding: 7px 9px; cursor: pointer; }
@@ -2158,7 +2160,11 @@ function renderLineList(meta, s) {
     h += '<div class="omuted">' + (n.done >= n.all ? 'You’ve learned every ' + esc(meta.title) + ' line in the book. Time to add more.'
       : n.todo ? 'Next line brings back the ' + n.todo + ' line' + (n.todo === 1 ? "" : "s") + ' to practice first, then lines you haven’t played.' : 'A line counts as learned once you play it through with no misses.') + '</div>';
   }
+  // The list scrolls inside its own box; keep its scroll position when the panel redraws after a move or tap.
+  const old = $("ocov").querySelector(".ogroups"), keep = old && O.lscroll === side + ui.filter ? old.scrollTop : 0;
   $("ocov").innerHTML = h;
+  const box = $("ocov").querySelector(".ogroups"); if (box) box.scrollTop = keep;
+  O.lscroll = side + ui.filter;
 }
 
 // One card per variation: spots on the same line (one a continuation of another) are merged.
