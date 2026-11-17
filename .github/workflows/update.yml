@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "17 */3 * * *"   # every 3 hours
   workflow_dispatch:         # "Run workflow" button on the Actions tab
+    inputs:
+      minutes:
+        description: "Minutes each machine keeps reviewing (raise it to redo many games in one run, max 330)"
+        default: "45"
 
 permissions:
   contents: write
@@ -15,8 +19,8 @@ concurrency:
 env:
   CHESS_USER: chaflox
   DEPTH: "18"          # Stockfish 19, two best lines per position
-  PUZZLE_DEPTH: "20"
-  SHARDS: "20"
+  PUZZLE_DEPTH: "18"
+  SHARDS: "19"         # GitHub's free plan runs 20 jobs at once; one stays free for Pages deploys
 
 jobs:
   fetch:
@@ -43,11 +47,11 @@ jobs:
     name: Review games (machine ${{ matrix.shard }})
     needs: fetch
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -63,6 +67,7 @@ jobs:
           path: ~/stockfish19
           key: stockfish-19-linux-x86-64-universal
       - name: Install Stockfish 19 and python-chess
+        timeout-minutes: 10
         run: |
           # The official release binary (picks the fastest code for this CPU by itself).
           if [ ! -x ~/stockfish19/stockfish ]; then
@@ -79,7 +84,7 @@ jobs:
         env:
           MODE: review
           SHARD: ${{ matrix.shard }}
-          MAX_MINUTES: "45"
+          MAX_MINUTES: ${{ github.event.inputs.minutes || '45' }}
           OUT: part-${{ matrix.shard }}.json
         run: python scripts/update.py
       - uses: actions/upload-artifact@v4
