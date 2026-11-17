@@ -20,7 +20,8 @@ env:
   CHESS_USER: chaflox
   DEPTH: "18"          # Stockfish 19, two best lines per position
   PUZZLE_DEPTH: "18"
-  SHARDS: "19"         # GitHub's free plan runs 20 jobs at once; one stays free for Pages deploys
+  SHARDS: "19"
+  PYTHONUNBUFFERED: "1"  # show progress in the logs as it happens (a stopped machine keeps its log)         # GitHub's free plan runs 20 jobs at once; one stays free for Pages deploys
 
 jobs:
   fetch:
@@ -82,6 +83,9 @@ jobs:
             chmod +x ~/stockfish19/stockfish
           fi
           echo quit | ~/stockfish19/stockfish | head -n 1
+          # Runner speed varies a lot (some machines were ~5x slower): log the CPU and Stockfish's speed.
+          lscpu | grep -E "^Model name|^CPU\(s\)" || true
+          ~/stockfish19/stockfish bench 16 1 12 2>&1 | grep -E "Nodes/second|Total time" || true
           echo "STOCKFISH=$HOME/stockfish19/stockfish" >> "$GITHUB_ENV"
           pip install chess==1.11.2
       - name: Review this machine's share
