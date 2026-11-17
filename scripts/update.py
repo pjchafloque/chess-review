@@ -325,9 +325,10 @@ def stale(a) -> bool:
     return (a or {}).get("v", 1) < ANALYSIS_VERSION
 
 
-def run_reviews(store, analysis, shard=0, shards=1):
+def run_reviews(store, analysis, shard=0, shards=1, checkpoint=None):
     """Review games and add puzzle lines. With shards > 1, this machine only takes every
-    shards-th job. Returns the ids it changed."""
+    shards-th job. Returns the ids it changed. checkpoint(changed) is called after every job,
+    so a machine that gets stopped keeps what it finished."""
     by_id = {g["id"]: g for g in store["games"]}
     order = [g["id"] for g in store["games"]]          # newest first
     new = [gid for gid in order if gid not in analysis]
@@ -393,6 +394,8 @@ def run_reviews(store, analysis, shard=0, shards=1):
                 add_lines(gid)
             changed.add(gid)
             done += 1
+            if checkpoint:
+                checkpoint(changed)
             if done % 10 == 0:
                 print(f"  {done}/{len(work)} done ({(time.time() - START) / 60:.1f} min)")
     finally:
@@ -418,10 +421,15 @@ def main():
     if mode == "review":
         # One of several machines working in parallel; writes only what it changed.
         shard, shards = int(os.environ["SHARD"]), int(os.environ["SHARDS"])
-        changed = run_reviews(store, analysis, shard, shards)
         out = os.environ.get("OUT", f"part-{shard}.json")
-        with open(out, "w", encoding="utf-8") as f:
-            json.dump({gid: analysis[gid] for gid in changed}, f, separators=(",", ":"))
+
+        def write_part(changed):
+            tmp = out + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({gid: analysis[gid] for gid in changed}, f, separators=(",", ":"))
+            os.replace(tmp, out)
+
+        write_part(run_reviews(store, analysis, shard, shards, checkpoint=write_part))
         return
 
     if mode == "merge":
