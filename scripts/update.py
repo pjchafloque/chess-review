@@ -4,11 +4,28 @@ Runs on GitHub Actions (see .github/workflows/update.yml). Writes:
   data/games.json     every game as PGN
   data/analysis.json  Stockfish evaluation of every position, same format the page uses
 
-Each run downloads new games first, then reviews unreviewed games (newest first)
-until MAX_MINUTES is used up. Whatever is left gets picked up on the next run.
+Each run downloads new games first, then reviews games (new ones first, then games reviewed by an
+older version of this script, newest first) until MAX_MINUTES is used up. Whatever is left gets
+picked up on the next run.
+
+analysis.json, one entry per game (version 2):
+  v   analysis version: 2 = Stockfish 19, the engine's two best moves in every position
+  d   search depth
+  e   one entry per position, always from White's side:
+        ["c", cp, best, second]    centipawns; second is the engine's second line as ["c"|"m", value, move]
+        ["m", mate, best, second]  mate in N (positive: White mates)
+        ["x", winner]              checkmate on the board (1: White won, -1: Black won)
+        ["d"]                      stalemate or a dead draw
+      (second is left out when there is only one legal move)
+  b   book plies: how many moves from the start follow known opening theory
+  bn  {ply: opening name} for the book plies where the name changes
+  p   puzzle lines (Stockfish's line before each of the user's mistakes), r refutation lines
+  q   punish lines (after each opponent mistake in the opening), pz / qz their versions
 """
+import csv
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -22,15 +39,18 @@ import chess.engine
 import chess.pgn
 
 USER = os.environ.get("CHESS_USER", "chaflox").strip().lower()
-DEPTH = int(os.environ.get("DEPTH", "14"))
+DEPTH = int(os.environ.get("DEPTH", "18"))
+MULTIPV = 2
 MAX_MINUTES = float(os.environ.get("MAX_MINUTES", "40"))
-PUZZLE_DEPTH = int(os.environ.get("PUZZLE_DEPTH", "18"))
-PUZZLE_VERSION = 2
+PUZZLE_DEPTH = int(os.environ.get("PUZZLE_DEPTH", "20"))
+ANALYSIS_VERSION = 2
+PUZZLE_VERSION = 3     # 3: puzzles for every move that lost 0.10 expected points or more
 PUNISH_VERSION = 1
 PUNISH_PLIES = 24      # opponent mistakes in the first 12 moves
 DATA = "data"
 GAMES_FILE = os.path.join(DATA, "games.json")
 ANALYSIS_FILE = os.path.join(DATA, "analysis.json")
+BOOK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "openings.tsv")
 UA = "chess-review/1.0 (personal game review; github.com/pjchafloque/chess-review)"
 START = time.time()
 
@@ -122,35 +142,70 @@ def fetch_games(store):
 
 
 def engine_path():
-    for p in (shutil.which("stockfish"), "/usr/games/stockfish", "/usr/bin/stockfish"):
+    for p in (os.environ.get("STOCKFISH"), shutil.which("stockfish"), "/usr/games/stockfish", "/usr/bin/stockfish"):
         if p and os.path.exists(p):
             return p
     raise SystemExit("Stockfish not found")
 
 
-def review(pgn: str, engine) -> list:
+# ---------- opening book ----------
+# Every position on a named line of the Lichess opening list (CC0) or eco.json (MIT), merged into
+# scripts/openings.tsv. A game is "in book" for as long as each move reaches one of these positions,
+# so transpositions count too.
+_BOOK = None
+
+
+def epd(board) -> str:
+    return " ".join(board.fen().split(" ")[:4])
+
+
+def book():
+    global _BOOK
+    if _BOOK is None:
+        _BOOK = {}
+        with open(BOOK_FILE, encoding="utf-8") as f:
+            for row in csv.DictReader(f, delimiter="\t"):
+                b = chess.Board()
+                try:
+                    for tok in row["pgn"].split():
+                        if not tok[0].isdigit():
+                            b.push_san(tok)
+                            _BOOK.setdefault(epd(b), "")
+                except ValueError:
+                    continue
+                _BOOK[epd(b)] = row["name"]
+    return _BOOK
+
+
+def book_info(pgn: str):
+    """How many plies from the start are book moves, and the opening's name where it changes."""
     game = chess.pgn.read_game(io.StringIO(pgn))
-    board = game.board()
-    boards = [board.copy()]
+    if game.headers.get("FEN"):
+        return 0, {}
+    bk, board, plies, names, last = book(), game.board(), 0, {}, ""
     for move in game.mainline_moves():
         board.push(move)
-        boards.append(board.copy())
-    evals = []
-    for b in boards:
-        if b.is_checkmate():
-            evals.append(["x", -1 if b.turn == chess.WHITE else 1])
-        elif b.is_stalemate() or b.is_insufficient_material():
-            evals.append(["d"])
-        else:
-            info = engine.analyse(b, chess.engine.Limit(depth=DEPTH))
-            score = info["score"].white()
-            pv = info.get("pv") or []
-            best = pv[0].uci() if pv else None
-            if score.is_mate():
-                evals.append(["m", score.mate(), best])
-            else:
-                evals.append(["c", score.score(), best])
-    return evals
+        k = epd(board)
+        if k not in bk:
+            break
+        plies += 1
+        if bk[k] and bk[k] != last:
+            names[str(plies)] = last = bk[k]
+    return plies, names
+
+
+# ---------- expected points ----------
+# Chance of winning (draws count half) from Stockfish's evaluation, with Lichess's published curve.
+# The page uses the same numbers to grade moves.
+K = 0.00368208
+
+
+def ep_white(e) -> float:
+    if e[0] == "c":
+        return 1 / (1 + math.exp(-K * max(-4000, min(4000, e[1]))))
+    if e[0] in ("m", "x"):
+        return 1.0 if e[1] > 0 else 0.0
+    return 0.5
 
 
 def num(e):
@@ -164,25 +219,65 @@ def num(e):
     return 0.0
 
 
-def puzzle_lines(pgn: str, evals: list, engine) -> tuple:
-    """For each of the user's mistakes and blunders, store Stockfish's main line from the
-    position before it (the puzzle) and from the position after the game move (what the
-    opponent could do about it), both searched deeper. The page decides how much to use."""
+def entry(infos) -> list:
+    """One stored position from Stockfish's lines: best line first, then the second line."""
+    out = None
+    for info in infos:
+        pv, sc = info.get("pv"), info.get("score")
+        if not pv or sc is None:
+            continue
+        w = sc.white()
+        e = ["m", w.mate()] if w.is_mate() else ["c", w.score()]
+        if out is None:
+            out = e + [pv[0].uci()]
+        else:
+            out.append(e + [pv[0].uci()])
+            break
+    return out or ["c", 0, None]
+
+
+def review(pgn: str, engine, gid: str) -> list:
     game = chess.pgn.read_game(io.StringIO(pgn))
+    board = game.board()
+    boards = [board.copy()]
+    for move in game.mainline_moves():
+        board.push(move)
+        boards.append(board.copy())
+    evals = []
+    for b in boards:
+        if b.is_checkmate():
+            evals.append(["x", -1 if b.turn == chess.WHITE else 1])
+        elif b.is_stalemate() or b.is_insufficient_material():
+            evals.append(["d"])
+        else:
+            infos = engine.analyse(b, chess.engine.Limit(depth=DEPTH), multipv=MULTIPV, game=gid)
+            evals.append(entry(infos))
+    return evals
+
+
+def user_side(game):
     white = game.headers.get("White", "").lower()
     black = game.headers.get("Black", "").lower()
-    me = chess.WHITE if white == USER else chess.BLACK if black == USER else None
+    return chess.WHITE if white == USER else chess.BLACK if black == USER else None
+
+
+def puzzle_lines(pgn: str, evals: list, engine) -> tuple:
+    """For each of the user's moves that lost 0.10 expected points or more (a mistake, miss or
+    blunder on the page), store Stockfish's main line from the position before it (the puzzle) and
+    from the position after the game move (what the opponent could do about it), both searched
+    deeper. The page decides how much to use."""
+    game = chess.pgn.read_game(io.StringIO(pgn))
+    me = user_side(game)
     if me is None:
         return {}, {}
     board = game.board()
     out, refs = {}, {}
     for i, move in enumerate(game.mainline_moves()):
         if board.turn == me and i + 1 < len(evals):
-            s = 1 if me == chess.WHITE else -1
-            before, after = s * num(evals[i]), s * num(evals[i + 1])
-            decided = (before >= 4 and after >= 4) or (before <= -4 and after <= -4)
+            mine = (lambda e: ep_white(e)) if me == chess.WHITE else (lambda e: 1 - ep_white(e))
+            lost = mine(evals[i]) - mine(evals[i + 1])
             best = evals[i][2] if len(evals[i]) > 2 else None
-            if before - after >= 1 and not decided and best and best != move.uci():
+            if lost >= 0.10 and best and best != move.uci():
                 info = engine.analyse(board, chess.engine.Limit(depth=PUZZLE_DEPTH))
                 pv = [m.uci() for m in (info.get("pv") or [])[:12]]
                 if pv:
@@ -203,9 +298,7 @@ def punish_lines(pgn: str, evals: list, engine) -> dict:
     better (+0.8), store Stockfish's main line from the position after it, searched deeper:
     the "punish it" drills on the Openings page. Keyed by the ply of the user's reply."""
     game = chess.pgn.read_game(io.StringIO(pgn))
-    white = game.headers.get("White", "").lower()
-    black = game.headers.get("Black", "").lower()
-    me = chess.WHITE if white == USER else chess.BLACK if black == USER else None
+    me = user_side(game)
     if me is None:
         return {}
     s = 1 if me == chess.WHITE else -1
@@ -227,21 +320,32 @@ def punish_lines(pgn: str, evals: list, engine) -> dict:
     return out
 
 
+def stale(a) -> bool:
+    """Reviewed by an older version of this script (Stockfish 16, one line per position)."""
+    return (a or {}).get("v", 1) < ANALYSIS_VERSION
+
+
 def run_reviews(store, analysis, shard=0, shards=1):
-    """Review unreviewed games and add puzzle lines. With shards > 1, this machine only
-    takes every shards-th game. Returns the ids it changed."""
+    """Review games and add puzzle lines. With shards > 1, this machine only takes every
+    shards-th job. Returns the ids it changed."""
     by_id = {g["id"]: g for g in store["games"]}
-    todo = [g["id"] for g in store["games"] if g["id"] not in analysis]
-    need_lines = sorted(gid for gid, a in analysis.items() if a.get("e") and a.get("pz") != PUZZLE_VERSION and gid in by_id)
-    need_punish = sorted(gid for gid, a in analysis.items() if a.get("e") and a.get("qz") != PUNISH_VERSION and gid in by_id and gid not in need_lines)
-    work = [("lines", gid) for gid in need_lines] + [("punish", gid) for gid in need_punish] + [("review", gid) for gid in todo]
+    order = [g["id"] for g in store["games"]]          # newest first
+    new = [gid for gid in order if gid not in analysis]
+    old = [gid for gid in order if gid in analysis and stale(analysis[gid])]
+    fresh = [gid for gid in order if gid in analysis and not stale(analysis[gid]) and analysis[gid].get("e")]
+    need_lines = [gid for gid in fresh if analysis[gid].get("pz") != PUZZLE_VERSION]
+    need_punish = [gid for gid in fresh if analysis[gid].get("qz") != PUNISH_VERSION and gid not in need_lines]
+    work = [("review", gid) for gid in new] + [("lines", gid) for gid in need_lines] + \
+           [("punish", gid) for gid in need_punish] + [("review", gid) for gid in old]
     work = work[shard::shards]
-    print(f"Shard {shard + 1}/{shards}: {len(work)} jobs ({len(todo)} unreviewed, {len(need_lines)} missing puzzle lines, {len(need_punish)} missing punish lines overall)")
+    print(f"Shard {shard + 1}/{shards}: {len(work)} jobs ({len(new)} new games, {len(old)} to re-review, "
+          f"{len(need_lines)} missing puzzle lines, {len(need_punish)} missing punish lines overall)")
     changed = set()
     if not work:
         return changed
     engine = chess.engine.SimpleEngine.popen_uci(engine_path())
-    engine.configure({"Threads": os.cpu_count() or 2, "Hash": 256})
+    engine.configure({"Threads": os.cpu_count() or 2, "Hash": 512})
+    print("Engine:", engine.id.get("name", "?"), "| depth", DEPTH, "| threads", os.cpu_count())
 
     def add_lines(gid):
         a = analysis[gid]
@@ -268,20 +372,29 @@ def run_reviews(store, analysis, shard=0, shards=1):
             if time.time() - START > MAX_MINUTES * 60:
                 break
             if kind == "review":
+                pgn = by_id[gid]["pgn"]
                 try:
-                    analysis[gid] = {"d": DEPTH, "e": review(by_id[gid]["pgn"], engine)}
+                    a = {"v": ANALYSIS_VERSION, "d": DEPTH, "e": review(pgn, engine, gid)}
+                    try:
+                        a["b"], a["bn"] = book_info(pgn)
+                    except Exception as e:
+                        print("No book info for", gid, e)
+                    analysis[gid] = a
                     add_lines(gid)
                 except Exception as e:
                     print("Skipped", gid, e)
-                    analysis[gid] = {"d": DEPTH, "e": None}
+                    if gid not in analysis:
+                        analysis[gid] = {"v": ANALYSIS_VERSION, "d": DEPTH, "e": None}
+                    else:
+                        continue
             elif kind == "punish":
                 add_punish(gid)
             else:
                 add_lines(gid)
             changed.add(gid)
             done += 1
-            if done % 25 == 0:
-                print(f"  {done}/{len(work)} done")
+            if done % 10 == 0:
+                print(f"  {done}/{len(work)} done ({(time.time() - START) / 60:.1f} min)")
     finally:
         engine.quit()
     print(f"Shard {shard + 1}/{shards}: finished {done} of {len(work)}")
@@ -319,8 +432,11 @@ def main():
             analysis.update(part)
             n += len(part)
         save(ANALYSIS_FILE, analysis)
-        reviewed = sum(1 for g in store["games"] if (analysis.get(g["id"]) or {}).get("e"))
-        print(f"Merged {n} results from {len(parts)} machines; {reviewed}/{len(store['games'])} games reviewed")
+        games = store["games"]
+        reviewed = sum(1 for g in games if (analysis.get(g["id"]) or {}).get("e"))
+        current = sum(1 for g in games if (analysis.get(g["id"]) or {}).get("e") and not stale(analysis[g["id"]]))
+        print(f"Merged {n} results from {len(parts)} machines; {reviewed}/{len(games)} games reviewed, "
+              f"{current} with Stockfish 19")
         return
 
     run_reviews(store, analysis)

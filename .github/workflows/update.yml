@@ -14,9 +14,9 @@ concurrency:
 
 env:
   CHESS_USER: chaflox
-  DEPTH: "14"
-  PUZZLE_DEPTH: "18"
-  SHARDS: "10"
+  DEPTH: "18"          # Stockfish 19, two best lines per position
+  PUZZLE_DEPTH: "20"
+  SHARDS: "20"
 
 jobs:
   fetch:
@@ -47,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -57,10 +57,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install Stockfish and python-chess
+      - name: Cache Stockfish 19
+        uses: actions/cache@v4
+        with:
+          path: ~/stockfish19
+          key: stockfish-19-linux-x86-64-universal
+      - name: Install Stockfish 19 and python-chess
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq stockfish
+          # The official release binary (picks the fastest code for this CPU by itself).
+          if [ ! -x ~/stockfish19/stockfish ]; then
+            mkdir -p ~/stockfish19
+            curl -fsSL --retry 3 -o /tmp/sf.tar.gz https://github.com/official-stockfish/Stockfish/releases/download/sf_19/stockfish-linux-x86-64-universal.tar.gz
+            tar -xzf /tmp/sf.tar.gz -C /tmp
+            cp /tmp/stockfish/stockfish-linux-x86-64-universal ~/stockfish19/stockfish
+            chmod +x ~/stockfish19/stockfish
+          fi
+          echo quit | ~/stockfish19/stockfish | head -n 1
+          echo "STOCKFISH=$HOME/stockfish19/stockfish" >> "$GITHUB_ENV"
           pip install chess==1.11.2
       - name: Review this machine's share
         env:

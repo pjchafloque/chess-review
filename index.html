@@ -53,6 +53,14 @@
   --c-inacc: #ffcc00;
   --c-mistake: #f56300;
   --c-blunder: #ff3b30;
+  --c-brilliant: #1bada6;
+  --c-great: #5b8ac7;
+  --c-excellent: #67b85a;
+  --c-miss: #e3506f;
+  --c-forced: #aeaeb2;
+  --t-brilliant: #0f857f;
+  --t-great: #3d6ea8;
+  --t-miss: #c23557;
   --t-best: #248a3d;
   --t-bad: #e30000;
   --t-warn: #b25000;
@@ -78,6 +86,7 @@
     --nav-bg: rgba(22, 22, 23, .8); --nav-line: rgba(255, 255, 255, .1);
     --sq-dot: rgba(29, 29, 31, .3); --arrow: #2997ff; --graph-white: #f5f5f7; --graph-black: #000000;
     --c-book: #ac8e68; --c-good: #8e8e93; --t-best: #30d158; --t-bad: #ff453a; --t-warn: #ffd60a; --t-inacc: #ffd60a; --draw: #8e8e93;
+    --c-brilliant: #30c9c1; --c-great: #7aa7e0; --c-excellent: #7fd06c; --c-miss: #ff6b8b; --t-brilliant: #3fd6cd; --t-great: #8db5ea; --t-miss: #ff7d99;
     --board-shadow: rgba(0, 0, 0, .6) 3px 5px 30px 0;
     color-scheme: dark;
   }
@@ -90,6 +99,7 @@
   --nav-bg: rgba(22, 22, 23, .8); --nav-line: rgba(255, 255, 255, .1);
   --sq-dot: rgba(29, 29, 31, .3); --arrow: #2997ff; --graph-white: #f5f5f7; --graph-black: #000000;
   --c-book: #ac8e68; --c-good: #8e8e93; --t-best: #30d158; --t-bad: #ff453a; --t-warn: #ffd60a; --t-inacc: #ffd60a; --draw: #8e8e93;
+  --c-brilliant: #30c9c1; --c-great: #7aa7e0; --c-excellent: #7fd06c; --c-miss: #ff6b8b; --t-brilliant: #3fd6cd; --t-great: #8db5ea; --t-miss: #ff7d99;
   --board-shadow: rgba(0, 0, 0, .6) 3px 5px 30px 0;
   color-scheme: dark;
 }
@@ -456,6 +466,7 @@ a { color: var(--link); text-decoration: none; }
 .counts li span:last-child { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
 .k { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .k.book { background: var(--c-book); } .k.best { background: var(--c-best); } .k.good { background: var(--c-good); } .k.inacc { background: var(--c-inacc); } .k.mistake { background: var(--c-mistake); } .k.blunder { background: var(--c-blunder); }
+.k.brilliant { background: var(--c-brilliant); } .k.great { background: var(--c-great); } .k.excellent { background: var(--c-excellent); } .k.miss { background: var(--c-miss); } .k.forced { background: var(--c-forced); }
 
 .graphwrap { border-radius: var(--radius-sm); overflow: hidden; }
 .graph { display: block; width: 100%; height: 86px; cursor: pointer; }
@@ -470,9 +481,94 @@ a { color: var(--link); text-decoration: none; }
 .mv .sym.inacc { color: var(--t-inacc); } .mv .sym.mistake { color: var(--c-mistake); } .mv .sym.blunder { color: var(--t-bad); }
 .mv[aria-current="true"] .sym { color: inherit; }
 
-.legend { font-size: 12px; line-height: 1.5; letter-spacing: -.01em; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: center; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
 .empty { padding: 32px 16px; color: var(--muted); font-size: 17px; text-align: center; }
+/* Move grade icons: a colored disc with a glyph, used in the move list, the summary, the coach and on the board. */
+.ki { flex: none; width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: -.03em; line-height: 1; background: var(--muted); }
+.ki svg { width: 72%; height: 72%; display: block; }
+.ki.brilliant, .badge.brilliant, .insight .ico.brilliant { background: var(--c-brilliant); } .ki.great, .badge.great, .insight .ico.great { background: var(--c-great); }
+.ki.best, .badge.best, .insight .ico.best { background: var(--c-best); } .ki.excellent, .badge.excellent, .insight .ico.excellent { background: var(--c-excellent); }
+.ki.good, .badge.good, .insight .ico.good { background: var(--c-good); } .ki.book, .badge.book, .insight .ico.book { background: var(--c-book); }
+.ki.inacc, .badge.inacc, .insight .ico.inacc { background: var(--c-inacc); color: #1d1d1f; } .ki.mistake, .badge.mistake, .insight .ico.mistake { background: var(--c-mistake); }
+.ki.miss, .badge.miss, .insight .ico.miss { background: var(--c-miss); } .ki.blunder, .badge.blunder, .insight .ico.blunder { background: var(--c-blunder); }
+.ki.forced, .badge.forced, .insight .ico.forced { background: var(--c-forced); }
+.badge svg { width: 70%; height: 70%; display: block; }
+.insight .ico svg { width: 60%; height: 60%; display: block; }
+.mv .ki { width: 16px; height: 16px; font-size: 9.5px; }
+.mv .ki.none { background: transparent; }
+.mv .sym.brilliant { color: var(--t-brilliant); } .mv .sym.great { color: var(--t-great); } .mv .sym.miss { color: var(--t-miss); }
+.mv[aria-current="true"] .ki { box-shadow: 0 0 0 1.5px #fff; }
+.mv[aria-current="true"] .sym.sym { color: inherit; }
+
+/* Coach card */
+.insight { flex-wrap: wrap; }
+.insight .txt { flex: 1 1 200px; }
+.insight .say { font-size: 15px; letter-spacing: -.02em; line-height: 1.45; margin-top: 8px; color: var(--ink); }
+.insight .say b { font-weight: 600; }
+.insight .say .wait { color: var(--muted); }
+.insight .acts { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+.insight .feedback { flex: 1 1 100%; margin: 0; font-size: 15px; padding: 10px 14px; background: var(--surface); }
+.insight .feedback.good { background: color-mix(in srgb, var(--c-best) 13%, var(--surface)); }
+.insight .feedback.bad { background: color-mix(in srgb, var(--c-blunder) 10%, var(--surface)); }
+.insight .feedback .why { margin-top: 8px; padding-top: 8px; }
+.insight.retry { box-shadow: inset 0 0 0 2px var(--focus); }
+.chance { white-space: nowrap; }
+
+/* Player cards: each grade row jumps to that player's next move with that grade. */
+.counts .crow { width: calc(100% + 12px); display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: inherit; font: inherit; padding: 2px 6px; margin: 0 -6px; border-radius: 6px; text-align: left; cursor: pointer; }
+.counts .crow:disabled { cursor: default; opacity: .45; }
+@media (hover: hover) { .counts .crow:not(:disabled):hover { background: var(--surface-3); } }
+.counts .crow span:last-child { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
+.counts .ki { width: 16px; height: 16px; font-size: 9.5px; }
+.phases { grid-column: 1 / -1; border-radius: var(--radius); background: var(--surface-2); padding: 12px 18px; display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr)); gap: 4px 8px; font-size: 14px; letter-spacing: -.016em; align-items: baseline; }
+.phases .t { grid-column: 1 / -1; font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.phases .h { font-size: 12px; color: var(--muted); letter-spacing: -.01em; }
+.phases .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phases b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.phases .na { color: var(--muted); }
+
+/* Key moments */
+.keys { display: flex; flex-direction: column; gap: 8px; }
+.keys .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.kchip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--chip-line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 11px 4px 5px; font: inherit; font-size: 14px; letter-spacing: -.016em; cursor: pointer; font-variant-numeric: tabular-nums; }
+.kchip[aria-current="true"] { border-color: var(--focus); box-shadow: inset 0 0 0 1px var(--focus); }
+.keys .none { font-size: 14px; color: var(--muted); }
+
+/* Evaluation graph */
+.graphwrap { position: relative; overflow: visible; }
+.graph { border-radius: var(--radius-sm); }
+.gtip { position: absolute; top: -30px; transform: translateX(-50%); background: var(--ink); color: var(--bg); border-radius: 8px; padding: 3px 8px; font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 2; font-variant-numeric: tabular-nums; }
+
+.gdot { position: absolute; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; box-shadow: 0 0 0 1.5px #fff; pointer-events: none; font-size: 0; }
+.gdot svg { display: none; }
+
+/* Exploring the board, and Retry */
+.board.free .sq { cursor: pointer; }
+.xpanel { border-radius: var(--radius); background: var(--surface-2); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.xhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.xhead .t { font-weight: 600; font-size: 15px; }
+.xhead .t span { color: var(--muted); font-weight: 400; }
+.xmoves { font-size: 15px; font-variant-numeric: tabular-nums; line-height: 1.6; }
+.xmoves .n { color: var(--muted); }
+.xmoves .cur { background: var(--accent-tint); color: var(--link); border-radius: 5px; padding: 0 4px; font-weight: 600; }
+.xlines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.xline { width: 100%; display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 8px; align-items: baseline; text-align: left; border: 1px solid transparent; background: var(--surface); color: var(--ink); border-radius: var(--radius-sm); padding: 6px 10px; font: inherit; font-size: 14px; letter-spacing: -.016em; cursor: pointer; }
+@media (hover: hover) { .xline:hover { border-color: var(--chip-line); } }
+.xline .ev { font-weight: 600; font-variant-numeric: tabular-nums; }
+.xline .pv { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.xline .pv b { color: var(--ink); font-weight: 600; }
+.xdepth { font-size: 12px; color: var(--muted); }
+.xbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+.tryhint { font-size: 12px; line-height: 1.5; letter-spacing: -.01em; color: var(--muted); text-align: center; margin-top: -8px; }
+
+/* What the labels mean */
+details.legend { font-size: 14px; letter-spacing: -.016em; color: var(--muted); display: block; }
+details.legend summary { cursor: pointer; text-align: center; list-style: none; color: var(--link); }
+details.legend summary::-webkit-details-marker { display: none; }
+.lgrid { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px 10px; margin-top: 12px; align-items: start; text-align: left; }
+.lgrid .ki { margin-top: 1px; }
+.lgrid b { color: var(--ink); font-weight: 600; }
+.lnote { margin: 12px 0 0; font-size: 12px; line-height: 1.5; }
+
 @media (prefers-reduced-motion: reduce) { .evalfill { transition-duration: .25s; } .bar i { transition: none; } .btn, .tabs a, .oside button, .omode, .filters button { transition: none; } .btn:active, .tabs a:active, .oside button:active, .omode:active, .filters button:active { transform: none; } }
 
 /* Smaller screens: Apple's headline steps (40 → 34 → 28). */
@@ -572,7 +668,7 @@ a { color: var(--link); text-decoration: none; }
       <div class="boardcol">
         <div class="boardwrap">
           <div class="evalbar" id="evalbar"><div class="evalfill" id="evalfill"></div><span id="evaltxt"></span></div>
-          <div class="board" id="board"></div>
+          <div class="board free" id="board"></div>
         </div>
         <div class="controls">
           <button class="btn" id="bStart" type="button" aria-label="First move" title="First move"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 5.5v13"/><path d="M18 6.2 9.6 12l8.4 5.8z" fill="currentColor"/></svg></button>
@@ -581,22 +677,22 @@ a { color: var(--link); text-decoration: none; }
           <button class="btn" id="bEnd" type="button" aria-label="Last move" title="Last move"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 5.5v13"/><path d="M6 6.2 14.4 12 6 17.8z" fill="currentColor"/></svg></button>
           <button class="btn" id="bSound" type="button" aria-pressed="true" aria-label="Sound" title="Sound on"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a7.6 7.6 0 0 1 0 11"/></svg></button>
         </div>
-        <div class="legend">
-          <span><i class="k book"></i>Book: known opening theory</span>
-          <span><i class="k best"></i>Best: engine's top move</span>
-          <span><i class="k good"></i>Good: loses under 0.5</span>
-          <span><i class="k inacc"></i>Inaccuracy ?!: 0.5–1</span>
-          <span><i class="k mistake"></i>Mistake ?: 1–2</span>
-          <span><i class="k blunder"></i>Blunder ??: 2+ pawns</span>
-        </div>
+        <div class="tryhint" id="tryhint">Tip: move any piece on the board to try your own ideas with the engine.</div>
+        <details class="legend" id="legend">
+          <summary>What the move labels mean</summary>
+          <div class="lgrid" id="lgrid"></div>
+          <p class="lnote">Moves are graded by expected points: your chance of winning (a draw counts half) before and after the move, worked out from Stockfish's evaluation. Losing two pawns matters a lot in an equal position and hardly at all when you're already a rook up, so the grades follow what the move does to the result, like chess.com's Game Review.</p>
+        </details>
       </div>
       <div class="side">
-        <div class="insight" id="insight"></div>
+        <div class="insight" id="insight" aria-live="polite"></div>
+        <div class="xpanel" id="xpanel" hidden></div>
         <div class="progress" id="progress" hidden><span id="progText"></span><div class="bar"><i id="progBar"></i></div></div>
         <div class="summary" id="summary"></div>
+        <div class="keys" id="keys" hidden></div>
         <div>
           <div class="section-label" style="margin-bottom:6px">Evaluation over the game</div>
-          <div class="graphwrap"><svg class="graph" id="graph" viewBox="0 0 600 86" preserveAspectRatio="none" role="img" aria-label="Evaluation graph"></svg></div>
+          <div class="graphwrap"><svg class="graph" id="graph" viewBox="0 0 600 86" preserveAspectRatio="none" role="img" aria-label="Evaluation graph"></svg><div class="gtip" id="gtip" hidden></div></div>
         </div>
         <div class="moves" id="moves"></div>
       </div>
@@ -656,6 +752,7 @@ a { color: var(--link); text-decoration: none; }
 (function () {
 "use strict";
 
+// Fallback engine (Stockfish 10, asm.js) for browsers that can't run the WebAssembly one in engine/.
 const SF_URLS = [
   "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js",
   "https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.js",
@@ -673,15 +770,33 @@ const EXAMPLE_PGN = `[Event "Paris Opera"]
 8. Nc3 c6 9. Bg5 b5 10. Nxb5 cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rxd7 Rxd7
 14. Rd1 Qe6 15. Bxd7+ Nxd7 16. Qb8+ Nxb8 17. Rd8# 1-0`;
 
-const CLS = {
-  book:    { label: "Book move",  sym: "B",  color: "var(--c-book)" },
-  best:    { label: "Best move",  sym: "★",  color: "var(--c-best)" },
-  good:    { label: "Good move",  sym: "✓",  color: "var(--c-good)" },
-  inacc:   { label: "Inaccuracy", sym: "?!", color: "var(--c-inacc)" },
-  mistake: { label: "Mistake",    sym: "?",  color: "var(--c-mistake)" },
-  blunder: { label: "Blunder",    sym: "??", color: "var(--c-blunder)" }
+// Move grades, in the order the player cards list them. sym = the annotation shown after the move.
+const SVG = {
+  star: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.8l2.75 5.6 6.15.9-4.45 4.34 1.05 6.12L12 16.87 6.5 19.76l1.05-6.12L3.1 9.3l6.15-.9z"/></svg>',
+  thumb: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 10h3.6v10.5H3zM8.4 20.5V10.1l4.1-6.6c1.5-.3 2.6.8 2.4 2.4l-.6 3.6h5.1c1.3 0 2.2 1.2 1.9 2.4l-1.7 6.7a2.6 2.6 0 0 1-2.5 1.9z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" d="M5 12.6l4.4 4.4L19 7.4"/></svg>',
+  book: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.5 5.3C5.7 4.2 8.8 4.5 11.2 6.4v13.4C8.8 18 5.7 17.7 2.5 18.8zM21.5 5.3c-3.2-1.1-6.3-.8-8.7 1.1v13.4c2.4-1.8 5.5-2.1 8.7-1z"/></svg>',
+  x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h14m-5.5-6 6 6-6 6"/></svg>'
 };
-const ORDER = ["book", "best", "good", "inacc", "mistake", "blunder"];
+const CLS = {
+  brilliant: { label: "Brilliant",  sym: "!!", glyph: "!!",          say: "brilliant",       about: "A sound sacrifice: the best move (or nearly), giving up a piece or the exchange, when you weren't already winning without it." },
+  great:     { label: "Great",      sym: "!",  glyph: "!",           say: "a great move",    about: "The only good move: every other move was clearly worse. Recaptures, free material and other reflex moves don't count." },
+  best:      { label: "Best",       sym: "",   glyph: SVG.star,      say: "the best move",   about: "Stockfish's top move." },
+  excellent: { label: "Excellent",  sym: "",   glyph: SVG.thumb,     say: "excellent",       about: "Almost as good as the best move." },
+  good:      { label: "Good",       sym: "",   glyph: SVG.check,     say: "a good move",     about: "A decent move that gives away a little." },
+  book:      { label: "Book",       sym: "",   glyph: SVG.book,      say: "a book move",     about: "Known opening theory." },
+  inacc:     { label: "Inaccuracy", sym: "?!", glyph: "?!",          say: "an inaccuracy",   about: "A small slip: there was clearly something better." },
+  mistake:   { label: "Mistake",    sym: "?",  glyph: "?",           say: "a mistake",       about: "Gives away a real part of your winning chances." },
+  miss:      { label: "Miss",       sym: "",   glyph: SVG.x,         say: "a miss",          about: "Your opponent's last move was a mistake and this lets the chance go, though you're no worse than before it." },
+  blunder:   { label: "Blunder",    sym: "??", glyph: "??",          say: "a blunder",       about: "Throws away a big part of your winning chances, often the game." },
+  forced:    { label: "Forced",     sym: "",   glyph: SVG.arrow,     say: "forced",          about: "The only legal move." }
+};
+const ORDER = ["brilliant", "great", "best", "excellent", "good", "book", "inacc", "mistake", "miss", "blunder"];
+const KEY_CLS = ["brilliant", "great", "miss", "mistake", "blunder"];
+const kIcon = (cls, extra) => '<span class="ki ' + cls + (extra ? " " + extra : "") + '" aria-hidden="true">' + (CLS[cls] ? CLS[cls].glyph : "") + '</span>';
+// This page's own opening lines (Caro-Kann and Queen's Pawn, from the Lichess opening list), used for games
+// the website hasn't reviewed yet; the website's reviews come with book moves from a much larger list.
 const BOOK = [["A40","Queen's Pawn Game","1. d4"],["A40","Queen's Pawn Game: Anglo-Slav Opening","1. d4 c6 2. c4 d6"],["A40","Queen's Pawn Game: Modern Defense","1. d4 g6"],["A41","Queen's Pawn Game","1. d4 d6"],["A41","Queen's Pawn Game: Rossolimo Variation","1. d4 d6 2. Nf3 g6"],["A43","Queen's Pawn Game: Liedmann Gambit","1. d4 c5 2. c4 cxd4 3. e3"],["A45","Queen's Pawn Game: Chigorin Variation","1. d4 Nf6 2. Nc3 d5"],["A45","Queen's Pawn Game: Veresov, Richter Attack","1. d4 Nf6 2. f3 d5 3. Nc3"],["A46","Queen's Pawn Game: Torre Attack, Breyer Variation","1. d4 Nf6 2. Nf3 e6 3. Bg5 d5 4. e3 c5 5. c3 Qb6"],["A46","Queen's Pawn Game: Veresov Attack, Classical Defense","1. d4 Nf6 2. Nf3 e6 3. Nc3 d5 4. Bg5"],["A48","London System","1. d4 Nf6 2. Nf3 g6 3. Bf4"],["A48","London System","1. d4 Nf6 2. Nf3 g6 3. Bf4 Bg7 4. e3"],["A48","London System","1. d4 Nf6 2. Nf3 g6 3. Bf4 Bg7 4. e3 d6"],["A48","London System, with Bd3","1. d4 Nf6 2. Nf3 g6 3. Bf4 Bg7 4. e3 d6 5. Bd3"],["A48","London System, with Be2","1. d4 Nf6 2. Nf3 g6 3. Bf4 Bg7 4. e3 d6 5. Be2"],["A48","London System, with Be2","1. d4 Nf6 2. Nf3 g6 3. Bf4 Bg7 4. e3 d6 5. Be2 O-O"],["A48","London System, with Be2","1. d4 Nf6 2. Nf3 g6 3. Bf4 Bg7 4. e3 d6 5. h3 c5 6. Be2"],["A48","Queen's Pawn Game: Barry Attack","1. d4 Nf6 2. Nf3 g6 3. Nc3 d5 4. Bf4"],["A48","Queen's Pawn Game: Barry Attack","1. d4 Nf6 2. Nf3 g6 3. Nc3 d5 4. Bf4 Bg7"],["A48","Queen's Pawn Game: Barry Attack, Grünfeld Variation","1. d4 Nf6 2. Nf3 g6 3. Nc3 d5 4. Bf4 Bg7 5. e3 O-O 6. Be2"],["A48","Queen's Pawn Game: Barry Attack, Tarzan Attack","1. d4 Nf6 2. Nf3 g6 3. Nc3 d5 4. Bf4 Bg7 5. Qd2"],["A48","Queen's Pawn Game: Torre Attack, Grünfeld Variation, Main Line","1. d4 Nf6 2. Nf3 g6 3. Bg5 Bg7 4. Nbd2 d5 5. e3 O-O"],["A80","Queen's Pawn Game: Veresov Attack, Dutch System","1. d4 f5 2. Nc3 d5"],["B10","Caro-Kann Defense","1. e4 c6"],["B10","Caro-Kann Defense","1. e4 c6 2. Nc3"],["B10","Caro-Kann Defense","1. e4 c6 2. Nc3 d5"],["B10","Caro-Kann Defense: Accelerated Panov Attack","1. e4 c6 2. c4"],["B10","Caro-Kann Defense: Accelerated Panov Attack","1. e4 c6 2. c4 d5"],["B10","Caro-Kann Defense: Accelerated Panov Attack, Modern Variation","1. e4 c6 2. c4 d5 3. exd5 cxd5 4. cxd5 Nf6"],["B10","Caro-Kann Defense: Accelerated Panov Attack, Open Variation","1. e4 c6 2. c4 e5"],["B10","Caro-Kann Defense: Accelerated Panov Attack, Pseudo-Scandinavian","1. e4 c6 2. c4 d5 3. exd5 cxd5 4. cxd5 Qxd5"],["B10","Caro-Kann Defense: Accelerated Panov Attack, Van Weersel Attack","1. e4 c6 2. c4 d5 3. cxd5 cxd5 4. Qb3"],["B10","Caro-Kann Defense: Apocalypse Attack","1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. Ne5"],["B10","Caro-Kann Defense: Breyer Variation","1. e4 c6 2. d3"],["B10","Caro-Kann Defense: Breyer Variation, Stein Attack","1. e4 c6 2. d3 d5 3. Nd2 g6 4. Ngf3 Bg7 5. g3 e5 6. Bg2 Ne7 7. O-O O-O 8. b4"],["B10","Caro-Kann Defense: Dinic Gambit","1. e4 c6 2. Nf3 d5 3. d3 dxe4 4. Ng5"],["B10","Caro-Kann Defense: Endgame Offer","1. e4 c6 2. Nf3 d5 3. d3"],["B10","Caro-Kann Defense: Endgame Variation","1. e4 c6 2. Nf3 d5 3. d3 dxe4 4. dxe4 Qxd1+ 5. Kxd1"],["B10","Caro-Kann Defense: Euwe Attack","1. e4 c6 2. b3"],["B10","Caro-Kann Defense: Goldman Variation","1. e4 c6 2. Nc3 d5 3. Qf3"],["B10","Caro-Kann Defense: Hector Gambit","1. e4 c6 2. Nc3 d5 3. Nf3 dxe4 4. Ng5"],["B10","Caro-Kann Defense: Hillbilly Attack","1. e4 c6 2. Bc4"],["B10","Caro-Kann Defense: Hillbilly Attack, Schaeffer Gambit","1. e4 c6 2. Bc4 d5 3. Bb3 dxe4 4. Qh5"],["B10","Caro-Kann Defense: Labahn Attack","1. e4 c6 2. b4"],["B10","Caro-Kann Defense: Labahn Attack, Double Gambit","1. e4 c6 2. b4 d5 3. b5"],["B10","Caro-Kann Defense: Labahn Attack, Polish Variation","1. e4 c6 2. b4 e5 3. Bb2"],["B10","Caro-Kann Defense: Scorpion-Horus Gambit","1. e4 c6 2. Nc3 d5 3. d3 dxe4 4. Bg5"],["B10","Caro-Kann Defense: Spike Variation","1. e4 c6 2. g4"],["B10","Caro-Kann Defense: Spike Variation, Scorpion-Grob Gambit","1. e4 c6 2. g4 d5 3. Nc3 dxe4 4. d3"],["B10","Caro-Kann Defense: St. Patrick's Attack","1. e4 c6 2. Nc3 d5 3. h3"],["B10","Caro-Kann Defense: Toikkanen Gambit","1. e4 c6 2. c4 d5 3. e5"],["B10","Caro-Kann Defense: Two Knights Attack","1. e4 c6 2. Nc3 d5 3. Nf3"],["B11","Caro-Kann Defense: Two Knights Attack, Mindeno Variation","1. e4 c6 2. Nc3 d5 3. Nf3 Bg4"],["B11","Caro-Kann Defense: Two Knights Attack, Mindeno Variation, Exchange Line","1. e4 c6 2. Nc3 d5 3. Nf3 Bg4 4. h3 Bxf3"],["B11","Caro-Kann Defense: Two Knights Attack, Mindeno Variation, Retreat Line","1. e4 c6 2. Nc3 d5 3. Nf3 Bg4 4. h3 Bh5"],["B12","Caro-Kann Defense","1. e4 c6 2. d4"],["B12","Caro-Kann Defense","1. e4 c6 2. d4 d5"],["B12","Caro-Kann Defense: Advance Variation","1. e4 c6 2. d4 d5 3. e5"],["B12","Caro-Kann Defense: Advance Variation, Bayonet Attack","1. e4 c6 2. d4 d5 3. e5 Bf5 4. g4"],["B12","Caro-Kann Defense: Advance Variation, Botvinnik-Carls Defense","1. e4 c6 2. d4 d5 3. e5 c5"],["B12","Caro-Kann Defense: Advance Variation, Bronstein Variation","1. e4 c6 2. d4 d5 3. e5 Bf5 4. Ne2"],["B12","Caro-Kann Defense: Advance Variation, Prins Attack","1. e4 c6 2. d4 d5 3. e5 Bf5 4. b4"],["B12","Caro-Kann Defense: Advance Variation, Short Variation","1. e4 c6 2. d4 d5 3. e5 Bf5 4. Nf3"],["B12","Caro-Kann Defense: Advance Variation, Tal Variation","1. e4 c6 2. d4 d5 3. e5 Bf5 4. h4"],["B12","Caro-Kann Defense: Advance Variation, Van der Wiel Attack","1. e4 c6 2. d4 d5 3. e5 Bf5 4. Nc3"],["B12","Caro-Kann Defense: Advance Variation, Van der Wiel Attack","1. e4 c6 2. d4 d5 3. e5 Bf5 4. Nc3 e6 5. g4 Bg6 6. Nge2 c5 7. h4"],["B12","Caro-Kann Defense: Advance Variation, Van der Wiel Attack, Dreyev Defense","1. e4 c6 2. d4 d5 3. e5 Bf5 4. Nc3 Qb6"],["B12","Caro-Kann Defense: Advance, Short Variation","1. e4 c6 2. d4 d5 3. e5 Bf5 4. c3 e6 5. Be2"],["B12","Caro-Kann Defense: De Bruycker Defense","1. e4 c6 2. d4 Na6"],["B12","Caro-Kann Defense: De Bruycker Defense","1. e4 c6 2. d4 Na6 3. Nc3 Nc7"],["B12","Caro-Kann Defense: Edinburgh Variation","1. e4 c6 2. d4 d5 3. Nd2 Qb6"],["B12","Caro-Kann Defense: Maróczy Variation","1. e4 c6 2. d4 d5 3. f3"],["B12","Caro-Kann Defense: Maróczy Variation, Maróczy Gambit","1. e4 c6 2. d4 d5 3. f3 dxe4 4. fxe4 e5 5. Nf3 exd4 6. Bc4"],["B12","Caro-Kann Defense: Masi Variation","1. e4 c6 2. d4 Nf6"],["B12","Caro-Kann Defense: Massachusetts Defense","1. e4 c6 2. d4 f5"],["B12","Caro-Kann Defense: Mieses Attack, Landau Gambit","1. e4 c6 2. d4 d5 3. Bd3 Nf6 4. e5 Nfd7 5. e6"],["B12","Caro-Kann Defense: Mieses Gambit","1. e4 c6 2. d4 d5 3. Be3"],["B12","Caro-Kann Defense: Modern Variation","1. e4 c6 2. d4 d5 3. Nd2"],["B12","Caro-Kann Defense: Ulysses Gambit","1. e4 c6 2. d4 d5 3. Nf3 dxe4 4. Ng5"],["B13","Caro-Kann Defense: Exchange Variation","1. e4 c6 2. d4 d5 3. exd5"],["B13","Caro-Kann Defense: Exchange Variation","1. e4 c6 2. d4 d5 3. exd5 cxd5"],["B13","Caro-Kann Defense: Exchange Variation","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. Bf4"],["B13","Caro-Kann Defense: Exchange Variation","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. Nf3 Nc6"],["B13","Caro-Kann Defense: Exchange Variation, Bulla Attack","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. g4"],["B13","Caro-Kann Defense: Exchange Variation, Rubinstein Variation","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. Bd3 Nc6 5. c3 Nf6 6. Bf4"],["B13","Caro-Kann Defense: Panov Attack","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4"],["B13","Caro-Kann Defense: Panov Attack","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3"],["B13","Caro-Kann Defense: Panov Attack, Gunderam Attack","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. c5"],["B13","Caro-Kann Defense: Panov Attack, Modern Defense","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 Nc6"],["B13","Caro-Kann Defense: Panov Attack, Modern Defense, Carlsbad Line","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 Nc6 6. Bg5 e6"],["B13","Caro-Kann Defense: Panov Attack, Modern Defense, Czerniak Line","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 Nc6 6. Bg5 Qa5"],["B13","Caro-Kann Defense: Panov Attack, Modern Defense, Mieses Line","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 Nc6 6. Nf3 Bg4"],["B13","Caro-Kann Defense: Panov Attack, Modern Defense, Reifir-Spielmann Line","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 Nc6 6. Bg5 Qb6"],["B13","Caro-Kann Defense: Panov-Botvinnik, Herzog Defense","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 Nc6 6. Bg5 dxc4 7. d5 Na5"],["B14","Caro-Kann Defense: Panov Attack","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 e6"],["B14","Caro-Kann Defense: Panov Attack","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nc6 5. Nc3 Nf6 6. Nf3 e6 7. cxd5 exd5 8. Bb5 Bg4"],["B14","Caro-Kann Defense: Panov Attack","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nc6 5. Nc3 Nf6 6. Nf3 e6 7. cxd5 exd5 8. Bb5 Bd6 9. Bg5 O-O 10. O-O"],["B14","Caro-Kann Defense: Panov Attack","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 Nc6 6. Nf3 e6 7. c5"],["B14","Caro-Kann Defense: Panov Attack, Fianchetto Defense","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 g6"],["B14","Caro-Kann Defense: Panov Attack, Fianchetto Defense, Fianchetto Gambit","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 g6 6. cxd5 Bg7"],["B14","Caro-Kann Defense: Panov Attack, Main Line","1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 e6 6. Nf3 Bb4"],["B15","Caro-Kann Defense","1. e4 c6 2. d4 d5 3. Nc3"],["B15","Caro-Kann Defense","1. e4 c6 2. d4 d5 3. Nc3 dxe4"],["B15","Caro-Kann Defense: Alekhine Gambit","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Bd3"],["B15","Caro-Kann Defense: Alien Gambit","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7"],["B15","Caro-Kann Defense: Campomanes Attack","1. e4 c6 2. d4 d5 3. Nc3 Nf6"],["B15","Caro-Kann Defense: Forgacs Variation","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. Bc4"],["B15","Caro-Kann Defense: Gurgenidze Counterattack","1. e4 c6 2. d4 d5 3. Nc3 b5"],["B15","Caro-Kann Defense: Gurgenidze System","1. e4 c6 2. d4 d5 3. Nc3 g6"],["B15","Caro-Kann Defense: Main Line","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4"],["B15","Caro-Kann Defense: Rasa-Studier Gambit","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. f3"],["B15","Caro-Kann Defense: Tartakower Variation","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6"],["B15","Caro-Kann Defense: Tartakower Variation, Perlis Line","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. c3 Bd6 7. Bd3 O-O 8. Qc2 h6"],["B15","Caro-Kann Defense: von Hennig Gambit","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Bc4"],["B16","Caro-Kann Defense: Bronstein-Larsen Variation","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ gxf6"],["B16","Caro-Kann Defense: Finnish Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 h6"],["B17","Caro-Kann Defense: Karpov Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nd7"],["B17","Caro-Kann Defense: Karpov Variation, Modern Main Line","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nd7 5. Ng5 Ngf6 6. Bd3 e6 7. N1f3 Bd6 8. Qe2 h6 9. Ne4 Nxe4 10. Qxe4"],["B17","Caro-Kann Defense: Karpov Variation, Modern Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nd7 5. Ng5"],["B17","Caro-Kann Defense: Karpov Variation, Modern Variation, Ivanchuk Defense","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nd7 5. Ng5 Ndf6"],["B17","Caro-Kann Defense: Karpov Variation, Modern Variation, Kasparov Attack","1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nd7 5. Nf3 Ngf6 6. Ng3"],["B17","Caro-Kann Defense: Karpov Variation, Smyslov Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nd7 5. Bc4 Ngf6 6. Ng5 e6 7. Qe2 Nb6"],["B17","Caro-Kann Defense: Karpov Variation, Smyslov Variation, Main Line","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nd7 5. Bc4 Ngf6 6. Ng5 e6 7. Qe2 Nb6 8. Bb3"],["B17","Caro-Kann Defense: Karpov Variation, Tiviakov-Fischer Attack","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nd7 5. Bc4 Ngf6 6. Nxf6+ Nxf6"],["B18","Caro-Kann Defense: Classical Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5"],["B18","Caro-Kann Defense: Classical Variation, Flohr Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5 5. Ng3 Bg6 6. Nh3"],["B18","Caro-Kann Defense: Classical Variation, Main Line","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5 5. Ng3 Bg6 6. h4"],["B18","Caro-Kann Defense: Classical Variation, Maróczy Attack","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5 5. Ng3 Bg6 6. f4"],["B18","Caro-Kann Defense: Martian Gambit","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5 5. Ng5 Bg6 6. N1f3 h6 7. Ne6"],["B19","Caro-Kann Defense: Classical Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5 5. Ng3 Bg6 6. h4 h6 7. Nf3 Nd7"],["B19","Caro-Kann Defense: Classical Variation, Lobron System","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5 5. Ng3 Bg6 6. h4 h6 7. Nf3 Nd7 8. h5 Bh7 9. Bd3 Bxd3 10. Qxd3 e6 11. Bd2 Ngf6 12. O-O-O Be7"],["B19","Caro-Kann Defense: Classical Variation, Seirawan Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5 5. Ng3 Bg6 6. h4 h6 7. Nf3 Nd7 8. h5 Bh7 9. Bd3 Bxd3 10. Qxd3 Ngf6 11. Bd2 e6 12. O-O-O Bd6"],["B19","Caro-Kann Defense: Classical Variation, Spassky Variation","1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Bf5 5. Ng3 Bg6 6. h4 h6 7. Nf3 Nd7 8. h5"],["D00","Amazon Attack","1. d4 d5 2. Qd3"],["D00","Blackmar-Diemer Gambit","1. d4 d5 2. e4"],["D00","Blackmar-Diemer Gambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6"],["D00","Blackmar-Diemer Gambit Accepted","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3"],["D00","Blackmar-Diemer Gambit Accepted: Bogoljubow Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 g6"],["D00","Blackmar-Diemer Gambit Accepted: Bogoljubow Defense, Kloss Attack","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 g6 6. Bc4 Bg7 7. O-O O-O 8. Kh1"],["D00","Blackmar-Diemer Gambit Accepted: Bogoljubow Defense, Mad Dog Attack","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 g6 6. Bc4 Bg7 7. h4"],["D00","Blackmar-Diemer Gambit Accepted: Bogoljubow Defense, Nimzowitsch Attack","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 g6 6. Bc4 Bg7 7. Ne5"],["D00","Blackmar-Diemer Gambit Accepted: Bogoljubow Defense, Studier Attack","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 g6 6. Bc4 Bg7 7. O-O O-O 8. Qe1"],["D00","Blackmar-Diemer Gambit Accepted: Euwe Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 e6"],["D00","Blackmar-Diemer Gambit Accepted: Euwe Defense, Duthilleul Gambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 e6 6. Bd3"],["D00","Blackmar-Diemer Gambit Accepted: Euwe Defense, Zilbermints Gambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 e6 6. Bg5 Be7 7. Bd3 Nc6 8. O-O Nxd4 9. Kh1"],["D00","Blackmar-Diemer Gambit Accepted: Gunderam Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Bf5"],["D00","Blackmar-Diemer Gambit Accepted: Gunderam Defense, Stader Variation","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Bf5 6. Ne5 e6 7. g4 Be4"],["D00","Blackmar-Diemer Gambit Accepted: Holwell Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Qd6"],["D00","Blackmar-Diemer Gambit Accepted: Kaulich Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 c5"],["D00","Blackmar-Diemer Gambit Accepted: Pietrowsky Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Nc6"],["D00","Blackmar-Diemer Gambit Accepted: Ritter Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 b6"],["D00","Blackmar-Diemer Gambit Accepted: Ryder Gambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Qxf3"],["D00","Blackmar-Diemer Gambit Accepted: Schlutter Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Nbd7"],["D00","Blackmar-Diemer Gambit Accepted: Teichmann Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Bg4"],["D00","Blackmar-Diemer Gambit Accepted: Teichmann Defense, Ciesielski Variation","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Bg4 6. h3 Bxf3 7. Qxf3 c6 8. Qf2"],["D00","Blackmar-Diemer Gambit Accepted: Teichmann Defense, Classical Variation","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Bg4 6. h3 Bxf3 7. Qxf3 c6 8. Be3"],["D00","Blackmar-Diemer Gambit Accepted: Teichmann Defense, Seidel-Hall Attack","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 Bg4 6. h3 Bxf3 7. Qxf3 c6 8. g4"],["D00","Blackmar-Diemer Gambit Accepted: Ziegler Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 c6"],["D00","Blackmar-Diemer Gambit Declined: Brombacher Countergambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 c5"],["D00","Blackmar-Diemer Gambit Declined: Elbert Countergambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 e5"],["D00","Blackmar-Diemer Gambit Declined: Gedult Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 a6"],["D00","Blackmar-Diemer Gambit Declined: Lamb Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 Nc6"],["D00","Blackmar-Diemer Gambit Declined: Langeheinicke Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 e3"],["D00","Blackmar-Diemer Gambit Declined: O'Kelly Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 c6"],["D00","Blackmar-Diemer Gambit Declined: Vienna Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 Bf5"],["D00","Blackmar-Diemer Gambit Declined: Weinsbach Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 e6"],["D00","Blackmar-Diemer Gambit Declined: Weinsbach Defense, Pfrang Gambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 e6 5. fxe4"],["D00","Blackmar-Diemer Gambit: Blackmar Gambit","1. d4 d5 2. e4 dxe4 3. f3"],["D00","Blackmar-Diemer Gambit: Diemer-Rosenberg Attack","1. d4 d5 2. e4 dxe4 3. Be3"],["D00","Blackmar-Diemer Gambit: Fritz Attack","1. d4 d5 2. e4 dxe4 3. Bc4"],["D00","Blackmar-Diemer Gambit: Lemberger Countergambit","1. d4 d5 2. e4 dxe4 3. Nc3 e5"],["D00","Blackmar-Diemer Gambit: Lemberger Countergambit, Endgame Variation","1. d4 d5 2. e4 dxe4 3. Nc3 e5 4. dxe5"],["D00","Blackmar-Diemer Gambit: Lemberger Countergambit, Lange Gambit","1. d4 d5 2. e4 dxe4 3. Nc3 e5 4. Nxe4"],["D00","Blackmar-Diemer Gambit: Lemberger Countergambit, Rasmussen Attack","1. d4 d5 2. e4 dxe4 3. Nc3 e5 4. Nge2"],["D00","Blackmar-Diemer Gambit: Lemberger Countergambit, Sneiders Attack","1. d4 d5 2. e4 dxe4 3. Nc3 e5 4. Qh5"],["D00","Blackmar-Diemer Gambit: Lemberger Countergambit, Soller Attack","1. d4 d5 2. e4 dxe4 3. Nc3 e5 4. Be3"],["D00","Blackmar-Diemer Gambit: Netherlands Variation","1. d4 d5 2. e4 dxe4 3. Nc3 f5"],["D00","Blackmar-Diemer Gambit: Rasa-Studier Gambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. Be3"],["D00","Blackmar-Diemer Gambit: Reversed Albin Countergambit","1. d4 d5 2. e4 dxe4 3. Nc3 c5"],["D00","Blackmar-Diemer Gambit: Zeller Defense","1. d4 d5 2. e4 dxe4 3. Nc3 Bf5"],["D00","Blackmar-Diemer Gambit: Zeller Defense, Soller Attack","1. d4 d5 2. e4 dxe4 3. Nc3 Bf5 4. f3 Nf6 5. Bc4"],["D00","Blackmar-Diemer Gambit: von Popiel Gambit","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. Bg5"],["D00","Blackmar-Diemer Gambit: von Popiel Gambit, Zilbermints Variation","1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. Bg5 Bf5 5. Bxf6 exf6 6. g4 Bg6 7. Qe2 Bb4 8. Qb5+"],["D00","Queen's Pawn Game","1. d4 d5"],["D00","Queen's Pawn Game","1. d4 d5 2. e3"],["D00","Queen's Pawn Game","1. d4 d5 2. e3 Nf6"],["D00","Queen's Pawn Game: Accelerated London System","1. d4 d5 2. Bf4"],["D00","Queen's Pawn Game: Accelerated London System, Steinitz Countergambit","1. d4 d5 2. Bf4 c5"],["D00","Queen's Pawn Game: Accelerated London System, Steinitz Countergambit Accepted","1. d4 d5 2. Bf4 c5 3. dxc5"],["D00","Queen's Pawn Game: Accelerated London System, Steinitz Countergambit, Morris Countergambit","1. d4 d5 2. Bf4 c5 3. e4"],["D00","Queen's Pawn Game: Accelerated London System, Steinitz Countergambit, Morris Countergambit Accepted","1. d4 d5 2. Bf4 c5 3. e4 dxe4"],["D00","Queen's Pawn Game: Chigorin Variation","1. d4 d5 2. Nc3"],["D00","Queen's Pawn Game: Chigorin Variation","1. d4 d5 2. Nc3 e6"],["D00","Queen's Pawn Game: Chigorin Variation, Alburt Defense","1. d4 d5 2. Nc3 Bf5"],["D00","Queen's Pawn Game: Chigorin Variation, Anti-Veresov","1. d4 d5 2. Nc3 Bg4"],["D00","Queen's Pawn Game: Chigorin Variation, Fianchetto Defense","1. d4 g6 2. Nf3 Bg7 3. Nc3 d5"],["D00","Queen's Pawn Game: Chigorin Variation, Irish Gambit","1. d4 d5 2. Nc3 c5"],["D00","Queen's Pawn Game: Chigorin Variation, Shaviliuk Gambit","1. d4 d5 2. Nc3 e5"],["D00","Queen's Pawn Game: Chigorin Variation, Shropshire Defense","1. d4 d5 2. Nc3 h5"],["D00","Queen's Pawn Game: Hübsch Gambit","1. d4 Nf6 2. Nc3 d5 3. e4"],["D00","Queen's Pawn Game: Levitsky Attack","1. d4 d5 2. Bg5"],["D00","Queen's Pawn Game: Levitsky Attack, Welling Variation","1. d4 d5 2. Bg5 Bg4"],["D00","Queen's Pawn Game: Mason Attack","1. d4 d5 2. f4"],["D00","Queen's Pawn Game: Stonewall Attack","1. d4 d5 2. e3 Nf6 3. Bd3"],["D00","Queen's Pawn Game: Zurich Gambit","1. d4 d5 2. g4"],["D01","Rapport-Jobava System","1. d4 d5 2. Nc3 Nf6 3. Bf4"],["D01","Rapport-Jobava System","1. d4 d5 2. Nc3 Nf6 3. Bf4 e6"],["D01","Rapport-Jobava System","1. d4 d5 2. Nc3 Nf6 3. Bf4 g6"],["D01","Rapport-Jobava System, with e6","1. d4 d5 2. Nc3 e6 3. Bf4"],["D02","London System: Poisoned Pawn Variation","1. d4 Nf6 2. Nf3 d5 3. Bf4 c5 4. e3 Qb6 5. Nc3"],["D02","Queen's Gambit Declined: Baltic Defense, Pseudo-Slav","1. d4 d5 2. Nf3 Bf5 3. c4 e6 4. Nc3 c6"],["D02","Queen's Pawn Game: Anti-Torre","1. Nf3 d5 2. d4 Bg4"],["D02","Queen's Pawn Game: Chandler Gambit","1. d4 d5 2. Nf3 c5 3. g3 cxd4 4. Bg2"],["D02","Queen's Pawn Game: Chigorin Variation","1. d4 d5 2. Nf3 Nc6"],["D02","Queen's Pawn Game: Krause Variation","1. d4 d5 2. Nf3 c5"],["D02","Queen's Pawn Game: Levitsky Attack, Euwe Variation, Modern Line","1. d4 d5 2. Nf3 c6 3. Bg5 h6 4. Bh4 Qb6"],["D02","Queen's Pawn Game: London System","1. d4 d5 2. Nf3 Nf6 3. Bf4"],["D02","Queen's Pawn Game: London System","1. d4 d5 2. Nf3 Nf6 3. Bf4 c5 4. e3"],["D02","Queen's Pawn Game: London System","1. d4 d5 2. Nf3 Nf6 3. Bf4 c5 4. e3 Nc6 5. Nbd2"],["D02","Queen's Pawn Game: London System","1. d4 d5 2. Nf3 Nf6 3. Bf4 c5 4. e3 Nc6 5. Nbd2 e6 6. c3"],["D02","Queen's Pawn Game: London System, Pterodactyl Variation","1. d4 g6 2. Nf3 Bg7 3. Bf4 c5 4. c3 cxd4 5. cxd4 Qa5+"],["D02","Queen's Pawn Game: London System, with e6","1. d4 d5 2. Nf3 e6 3. Bf4"],["D02","Queen's Pawn Game: London System, with e6","1. d4 d5 2. Nf3 e6 3. Bf4 Nf6"],["D02","Queen's Pawn Game: Symmetrical Variation","1. d4 d5 2. Nf3 Nf6"],["D02","Queen's Pawn Game: Symmetrical Variation, Pseudo-Catalan","1. d4 d5 2. Nf3 Nf6 3. g3"],["D02","Queen's Pawn Game: Symmetrical Variation, Pseudo-Catalan","1. d4 d5 2. Nf3 Nf6 3. g3 c6 4. Bg2 Bg4"],["D02","Queen's Pawn Game: Symmetrical Variation, Pseudo-Catalan","1. Nf3 d5 2. g3 c6 3. Bg2 Nf6 4. O-O Bg4 5. d4 e6"],["D02","Queen's Pawn Game: Zilbermints Countergambit","1. d4 d5 2. Nf3 Nf6 3. c4 b5"],["D02","Queen's Pawn Game: Zukertort Variation","1. d4 d5 2. Nf3"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 c5 5. Nbd2"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 c5 5. Nbd2 Nc6 6. c3"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 c5 5. c3 Nbd7"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 c5 5. c3 Nbd7 6. Nbd2"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 c5 5. c3 Nbd7 6. Nbd2 Bd6"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 c5 5. c3 Nbd7 6. Nbd2 Be7"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 c5 5. c3 Nc6"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 c5 5. c3 Nc6 6. Bd3"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. e3 Nbd7 5. Bd3"],["D03","Queen's Pawn Game: Torre Attack","1. d4 d5 2. Nf3 Nf6 3. Bg5 e6 4. Nbd2 Be7 5. c3 Nbd7 6. e3"],["D03","Queen's Pawn Game: Torre Attack, Gossip Variation","1. d4 d5 2. Nf3 Nf6 3. Bg5 Ne4"],["D03","Queen's Pawn Game: Torre Attack, Grünfeld Variation","1. d4 d5 2. Nf3 Nf6 3. Bg5 g6"],["D03","Queen's Pawn Game: Torre Attack, Grünfeld Variation","1. d4 d5 2. Nf3 Nf6 3. Bg5 g6 4. e3"],["D04","Queen's Pawn Game: Colle System","1. d4 d5 2. Nf3 Nf6 3. e3"],["D04","Queen's Pawn Game: Colle System, Anti-Colle","1. d4 d5 2. Nf3 Nf6 3. e3 Bf5"],["D04","Queen's Pawn Game: Colle System, Grünfeld Formation","1. d4 d5 2. Nf3 Nf6 3. e3 g6 4. Bd3 Bg7"],["D05","Queen's Pawn Game: Colle System","1. d4 d5 2. Nf3 Nf6 3. e3 e6"],["D05","Queen's Pawn Game: Colle System","1. d4 d5 2. Nf3 Nf6 3. e3 e6 4. Bd3"],["D05","Queen's Pawn Game: Colle System","1. d4 d5 2. Nf3 Nf6 3. e3 e6 4. b3"],["D05","Queen's Pawn Game: Colle System","1. d4 d5 2. Nf3 Nf6 3. e3 e6 4. b3 c5 5. Bb2 Nc6"],["D05","Queen's Pawn Game: Colle System","1. d4 d5 2. Nf3 Nf6 3. e3 e6 4. b3 c5 5. Bb2 Nc6 6. Bd3"],["D05","Queen's Pawn Game: Colle System","1. d4 d5 2. Nf3 Nf6 3. e3 e6 4. b3 c5 5. Bb2 Nc6 6. Nbd2"],["D05","Queen's Pawn Game: Colle System","1. d4 Nf6 2. Nf3 e6 3. e3 b6 4. Bd3 Bb7 5. O-O c5 6. b3 Be7 7. Bb2 O-O 8. Nbd2 d5"],["D05","Queen's Pawn Game: Colle System, Traditional Colle","1. d4 Nf6 2. Nf3 e6 3. e3 c5 4. Bd3 d5 5. c3"],["D05","Queen's Pawn Game: Zukertort Variation","1. d4 d5 2. Nf3 c5 3. e3 Nf6 4. Nbd2 e6 5. b3"],["D05","Rubinstein Opening: Semi-Slav Defense","1. d4 d5 2. Nf3 Nf6 3. e3 e6 4. Bd3 Bd6 5. O-O O-O 6. b3 Nbd7 7. Bb2"],["D05","Rubinstein Opening: Semi-Slav Defense","1. d4 d5 2. Nf3 Nf6 3. e3 e6 4. Bd3 Bd6 5. O-O O-O 6. b3 Nbd7 7. Bb2 c6"],["D05","Rubinstein Opening: Semi-Slav Defense","1. d4 d5 2. Nf3 Nf6 3. e3 e6 4. Bd3 Bd6 5. O-O O-O 6. b3 Nbd7 7. Bb2 c6 8. Nbd2"],["D06","Queen's Gambit","1. d4 d5 2. c4"],["D06","Queen's Gambit Declined: Austrian Attack, Salvio Countergambit","1. d4 d5 2. c4 c5 3. dxc5 d4"],["D06","Queen's Gambit Declined: Austrian Defense","1. d4 d5 2. c4 c5"],["D06","Queen's Gambit Declined: Austrian Defense, Gusev Countergambit","1. d4 d5 2. c4 c5 3. cxd5 Nf6"],["D06","Queen's Gambit Declined: Austrian Defense, Haberditz Variation","1. d4 d5 2. c4 c5 3. cxd5 Nf6 4. e4 Nxe4 5. dxc5 Qa5+"],["D06","Queen's Gambit Declined: Baltic Defense","1. d4 d5 2. c4 Bf5"],["D06","Queen's Gambit Declined: Baltic Defense, Argentinian Gambit","1. d4 d5 2. c4 Bf5 3. cxd5 Bxb1 4. Qa4+ c6 5. dxc6 Nxc6"],["D06","Queen's Gambit Declined: Baltic Defense, Pseudo-Chigorin","1. d4 d5 2. c4 Bf5 3. Nc3 e6 4. Nf3 Nc6"],["D06","Queen's Gambit Declined: Baltic Defense, Queen Attack","1. d4 d5 2. c4 Bf5 3. Qb3"],["D06","Queen's Gambit Declined: Baltic Defense, Queen Attack Deferred","1. d4 d5 2. c4 Bf5 3. Nc3 e6 4. Qb3"],["D06","Queen's Gambit Declined: Marshall Defense","1. d4 d5 2. c4 Nf6"],["D06","Queen's Gambit Declined: Marshall Defense, Tan Gambit","1. d4 d5 2. c4 Nf6 3. cxd5 c6"],["D06","Queen's Gambit Declined: Zilbermints Gambit","1. d4 d5 2. c4 b5"],["D07","Queen's Gambit Declined: Chigorin Defense","1. d4 d5 2. c4 Nc6"],["D07","Queen's Gambit Declined: Chigorin Defense","1. d4 d5 2. c4 Nc6 3. Nc3"],["D07","Queen's Gambit Declined: Chigorin Defense","1. d4 d5 2. c4 Nc6 3. Nc3 dxc4"],["D07","Queen's Gambit Declined: Chigorin Defense","1. d4 d5 2. c4 Nc6 3. Nc3 e6 4. Nf3 Nf6"],["D07","Queen's Gambit Declined: Chigorin Defense","1. d4 d5 2. c4 Nc6 3. Nc3 e6 4. Nf3 Nf6 5. a3"],["D07","Queen's Gambit Declined: Chigorin Defense, Exchange Variation","1. d4 d5 2. c4 Nc6 3. cxd5 Qxd5"],["D07","Queen's Gambit Declined: Chigorin Defense, Exchange Variation, Costa's Line","1. d4 d5 2. c4 Nc6 3. cxd5 Qxd5 4. e3 e5 5. Nc3 Bb4 6. Bd2 Bxc3 7. Bxc3 exd4 8. Ne2"],["D07","Queen's Gambit Declined: Chigorin Defense, Janowski Variation","1. d4 d5 2. c4 Nc6 3. Nc3 dxc4 4. Nf3"],["D07","Queen's Gambit Declined: Chigorin Defense, Lazard Gambit","1. d4 d5 2. c4 Nc6 3. Nf3 e5"],["D07","Queen's Gambit Declined: Chigorin Defense, Main Line","1. d4 d5 2. c4 Nc6 3. Nf3 Bg4"],["D07","Queen's Gambit Declined: Chigorin Defense, Main Line, Alekhine Variation","1. d4 d5 2. c4 Nc6 3. Nf3 Bg4 4. Qa4"],["D07","Queen's Gambit Declined: Chigorin Defense, Modern Gambit","1. d4 d5 2. c4 Nc6 3. Nc3 dxc4 4. Nf3 Nf6"],["D07","Queen's Gambit Declined: Chigorin Defense, Tartakower Gambit","1. d4 d5 2. c4 Nc6 3. Nc3 e5"],["D08","Queen's Gambit Declined: Albin Countergambit","1. d4 d5 2. c4 e5"],["D08","Queen's Gambit Declined: Albin Countergambit, Balogh Variation","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 Nc6 5. Nbd2 Qe7"],["D08","Queen's Gambit Declined: Albin Countergambit, Janowski Variation","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 Nc6 5. Nbd2 f6"],["D08","Queen's Gambit Declined: Albin Countergambit, Krenosz Variation","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 Nc6 5. Nbd2 Bg4 6. h3 Bxf3 7. Nxf3 Bb4+ 8. Bd2 Qe7"],["D08","Queen's Gambit Declined: Albin Countergambit, Lasker Trap","1. d4 d5 2. c4 e5 3. dxe5 d4 4. e3 Bb4+ 5. Bd2 dxe3"],["D08","Queen's Gambit Declined: Albin Countergambit, Modern Line","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 Nc6 5. Nbd2"],["D08","Queen's Gambit Declined: Albin Countergambit, Normal Line","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3"],["D08","Queen's Gambit Declined: Albin Countergambit, Spassky Variation","1. d4 d5 2. c4 e5 3. dxe5 d4 4. e4"],["D08","Queen's Gambit Declined: Albin Countergambit, Tartakower Defense","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 c5"],["D09","Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 Nc6 5. g3"],["D09","Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation, Be6 Line","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 Nc6 5. g3 Be6"],["D09","Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation, Bf5 Line","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 Nc6 5. g3 Bf5"],["D09","Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation, Bg4 Line","1. d4 d5 2. c4 e5 3. dxe5 d4 4. Nf3 Nc6 5. g3 Bg4"],["D10","Slav Defense","1. d4 d5 2. c4 c6"],["D10","Slav Defense","1. d4 d5 2. c4 c6 3. Nc3"],["D10","Slav Defense","1. d4 d5 2. c4 c6 3. Nc3 dxc4"],["D10","Slav Defense: Diemer Gambit","1. d4 d5 2. c4 c6 3. e4"],["D10","Slav Defense: Exchange Variation","1. d4 d5 2. c4 c6 3. cxd5"],["D10","Slav Defense: Exchange Variation, Boor Attack","1. d4 d5 2. c4 c6 3. cxd5 cxd5 4. Nc3 Nf6 5. f3"],["D10","Slav Defense: Slav Gambit, Alekhine Attack","1. d4 d5 2. c4 c6 3. Nc3 dxc4 4. e4"],["D10","Slav Defense: Winawer Countergambit","1. d4 d5 2. c4 c6 3. Nc3 e5"],["D10","Slav Defense: Winawer Countergambit, Anti-Winawer Gambit","1. d4 d5 2. c4 c6 3. Nc3 e5 4. e4"],["D11","Slav Defense: Bonet Gambit","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Bg5"],["D11","Slav Defense: Breyer Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nbd2"],["D11","Slav Defense: Modern Line","1. d4 d5 2. c4 c6 3. Nf3"],["D11","Slav Defense: Modern Line","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. g3 dxc4 5. Bg2 g6"],["D11","Slav Defense: Modern Line","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. g3 Bg4 5. Bg2 e6 6. O-O"],["D11","Slav Defense: Modern Line","1. d4 d5 2. Nf3 Nf6 3. g3 c6 4. Bg2 Bg4 5. O-O Nbd7 6. c4"],["D11","Slav Defense: Quiet Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3"],["D11","Slav Defense: Quiet Variation, Pin Defense","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 Bg4"],["D12","Slav Defense: Quiet Variation, Amsterdam Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 Bf5 5. cxd5 cxd5 6. Nc3 e6 7. Ne5 Nfd7"],["D12","Slav Defense: Quiet Variation, Landau Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 Bf5 5. cxd5 cxd5 6. Qb3 Qc8 7. Bd2 e6 8. Na3"],["D12","Slav Defense: Quiet Variation, Schallopp Defense","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 Bf5"],["D12","Slav Defense: Quiet Variation, Schallopp Defense","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 Bf5 5. Nc3 e6"],["D13","Slav Defense: Exchange Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. cxd5 cxd5"],["D13","Slav Defense: Exchange Variation, Schallopp Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 Bf5 5. cxd5 cxd5 6. Nc3"],["D14","Slav Defense: Exchange Variation, Symmetrical Line","1. d4 d5 2. c4 c6 3. cxd5 cxd5 4. Nc3 Nf6 5. Nf3 Nc6 6. Bf4 Bf5"],["D14","Slav Defense: Exchange Variation, Trifunovic Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. cxd5 cxd5 5. Nc3 Nc6 6. Bf4 Bf5 7. e3 e6 8. Qb3 Bb4"],["D15","Slav Defense: Alekhine Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. e3"],["D15","Slav Defense: Chebanenko Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 a6"],["D15","Slav Defense: Chebanenko Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 a6 5. e3 Bf5"],["D15","Slav Defense: Chebanenko Variation, Advance System","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 a6 5. c5"],["D15","Slav Defense: Geller Gambit","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. e4"],["D15","Slav Defense: Geller Gambit","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. e4 b5 6. e5"],["D15","Slav Defense: Schlechter Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 g6"],["D15","Slav Defense: Süchting Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 Qb6"],["D15","Slav Defense: Three Knights Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3"],["D15","Slav Defense: Two Knights Attack","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4"],["D16","Slav Defense: Alapin Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4"],["D16","Slav Defense: Smyslov Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Na6"],["D16","Slav Defense: Soultanbeieff Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 e6"],["D16","Slav Defense: Steiner Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bg4"],["D17","Slav Defense: Czech Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5"],["D17","Slav Defense: Czech Variation, Bled Attack","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. Nh4"],["D17","Slav Defense: Czech Variation, Carlsbad Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. Ne5 Nbd7 7. Nxc4 Qc7 8. g3 e5"],["D17","Slav Defense: Czech Variation, Carlsbad Variation, Morozevich Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. Ne5 Nbd7 7. Nxc4 Qc7 8. g3 e5 9. dxe5 Nxe5 10. Bf4 Nfd7 11. Bg2 g5"],["D17","Slav Defense: Czech Variation, Krause Attack","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. Ne5"],["D17","Slav Defense: Czech Variation, Krause Attack, Fazekas Gambit","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. Ne5 Na6 7. e4"],["D17","Slav Defense: Czech Variation, Wiesbaden Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. Ne5 e6"],["D17","Slav Defense: Czech Variation, Wiesbaden Variation, Sharp Line","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. Ne5 e6 7. f3 Bb4 8. e4"],["D18","Slav Defense: Czech Variation, Classical System","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. e3"],["D18","Slav Defense: Czech Variation, Lasker Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. e3 Na6"],["D19","Slav Defense: Czech Variation, Classical System, Main Line","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. e3 e6 7. Bxc4 Bb4 8. O-O O-O 9. Qe2"],["D19","Slav Defense: Czech Variation, Dutch Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. e3 e6 7. Bxc4 Bb4 8. O-O"],["D19","Slav Defense: Czech Variation, Dutch Variation, Sämisch Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 5. a4 Bf5 6. e3 e6 7. Bxc4 Bb4 8. O-O O-O 9. Qe2 Ne4 10. g4"],["D20","Queen's Gambit Accepted","1. d4 d5 2. c4 dxc4"],["D20","Queen's Gambit Accepted: Accelerated Mannheim Variation","1. d4 d5 2. c4 dxc4 3. Qa4+"],["D20","Queen's Gambit Accepted: Central Variation, Alekhine System","1. d4 d5 2. c4 dxc4 3. e4 Nf6"],["D20","Queen's Gambit Accepted: Central Variation, Greco Variation","1. d4 d5 2. c4 dxc4 3. e4 b5"],["D20","Queen's Gambit Accepted: Central Variation, McDonnell Defense","1. d4 d5 2. c4 dxc4 3. e4 e5"],["D20","Queen's Gambit Accepted: Central Variation, McDonnell Defense, Somov Gambit","1. d4 d5 2. c4 dxc4 3. e4 e5 4. Bxc4"],["D20","Queen's Gambit Accepted: Central Variation, Modern Defense","1. d4 d5 2. c4 dxc4 3. e4 Nc6"],["D20","Queen's Gambit Accepted: Central Variation, Rubinstein Defense","1. d4 d5 2. c4 dxc4 3. e4 c5"],["D20","Queen's Gambit Accepted: Central Variation, Rubinstein Defense, Yefimov Gambit","1. d4 d5 2. c4 dxc4 3. e4 c5 4. d5 b5"],["D20","Queen's Gambit Accepted: Linares Variation","1. d4 d5 2. c4 dxc4 3. e4 c5 4. d5 Nf6 5. Nc3 b5"],["D20","Queen's Gambit Accepted: Old Variation","1. d4 d5 2. c4 dxc4 3. e3"],["D20","Queen's Gambit Accepted: Old Variation, Billinger Gambit","1. d4 d5 2. c4 dxc4 3. e3 e5 4. Bxc4 exd4 5. Qb3 Qe7 6. a3"],["D20","Queen's Gambit Accepted: Old Variation, Christensen Gambit","1. d4 d5 2. c4 dxc4 3. e3 e5 4. Bxc4 exd4 5. Qb3 Qe7 6. Nf3"],["D20","Queen's Gambit Accepted: Old Variation, Korchnoi Gambit","1. d4 d5 2. c4 dxc4 3. e3 e5 4. Bxc4 exd4 5. Qb3 Qe7 6. Kf1"],["D20","Queen's Gambit Accepted: Old Variation, Novikov Gambit","1. d4 d5 2. c4 dxc4 3. e3 e5 4. Bxc4 exd4 5. Qb3 Qe7 6. Nd2"],["D20","Queen's Gambit Accepted: Saduleto Variation","1. d4 d5 2. c4 dxc4 3. e4"],["D20","Queen's Gambit Accepted: Schwartz Defense","1. d4 d5 2. c4 dxc4 3. e4 f5"],["D21","Queen's Gambit Accepted: Alekhine Defense, Borisenko-Furman Variation","1. d4 d5 2. c4 dxc4 3. Nf3 a6 4. e4"],["D21","Queen's Gambit Accepted: Godes Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nd7"],["D21","Queen's Gambit Accepted: Gunsberg Defense","1. d4 d5 2. c4 dxc4 3. Nf3 c5"],["D21","Queen's Gambit Accepted: Normal Variation","1. d4 d5 2. c4 dxc4 3. Nf3"],["D21","Queen's Gambit Accepted: Rosenthal Variation","1. d4 d5 2. c4 dxc4 3. Nf3 e6"],["D21","Queen's Gambit Accepted: Slav Gambit","1. d4 d5 2. c4 dxc4 3. Nf3 b5"],["D22","Queen's Gambit Accepted: Alekhine Defense","1. d4 d5 2. c4 dxc4 3. Nf3 a6"],["D22","Queen's Gambit Accepted: Alekhine Defense, Alatortsev Variation","1. d4 d5 2. c4 dxc4 3. Nf3 a6 4. e3 Bg4 5. Bxc4 e6 6. d5"],["D22","Queen's Gambit Accepted: Alekhine Defense, Haberditz Variation","1. d4 d5 2. c4 dxc4 3. Nf3 a6 4. e3 b5"],["D23","Queen's Gambit Accepted","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6"],["D23","Queen's Gambit Accepted: Mannheim Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. Qa4+"],["D23","Queen's Gambit Accepted: Mannheim Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. Qa4+ c6 5. Qxc4"],["D23","Queen's Gambit Accepted: Mannheim Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. Qa4+ c6 5. Qxc4 e6 6. Qc2"],["D24","Queen's Gambit Accepted","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 dxc4 5. e4"],["D24","Queen's Gambit Accepted","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 dxc4 5. Bg5"],["D24","Queen's Gambit Accepted: Bogoljubow Defense","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. Nc3 a6 5. e4"],["D24","Queen's Gambit Accepted: Gunsberg Defense, Prianishenmo Gambit","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. Nc3 c5 5. d5 e6 6. e4 exd5 7. e5"],["D24","Queen's Gambit Accepted: Showalter Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. Nc3"],["D25","Queen's Gambit Accepted: Janowski-Larsen Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 Bg4"],["D25","Queen's Gambit Accepted: Normal Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3"],["D25","Queen's Gambit Accepted: Smyslov Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 g6"],["D25","Queen's Gambit Accepted: Winawer Defense","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 Be6"],["D26","Queen's Gambit Accepted: Classical Defense","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5"],["D26","Queen's Gambit Accepted: Classical Defense, Normal Line","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O"],["D26","Queen's Gambit Accepted: Classical Defense, Steinitz Variation, Development Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O Nc6"],["D26","Queen's Gambit Accepted: Classical Defense, Steinitz Variation, Exchange Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O cxd4"],["D26","Queen's Gambit Accepted: Classical, Furman Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. Qe2 a6 7. dxc5 Bxc5 8. O-O Nc6 9. e4 b5 10. e5"],["D26","Queen's Gambit Accepted: Normal Variation, .. a6 Sideline","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 a6 6. Nc3 b5"],["D26","Queen's Gambit Accepted: Normal Variation, .. a6 Sideline","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 a6 6. Nc3 b5 7. Bb3 Bb7 8. O-O"],["D26","Queen's Gambit Accepted: Normal Variation, Traditional System","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6"],["D26","Queen's Gambit Accepted: Normal Variation, Traditional System","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 Be7 6. O-O a6"],["D26","Queen's Gambit Accepted: Normal Variation, Traditional System","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 Be7 6. O-O O-O"],["D26","Queen's Gambit Accepted: Normal Variation, Traditional System","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 Be7 6. O-O O-O 7. Nc3"],["D27","Queen's Gambit Accepted: Classical Defense, Main Line","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6"],["D27","Queen's Gambit Accepted: Classical Defense, Main Line","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. Nc3"],["D27","Queen's Gambit Accepted: Classical Defense, Main Line","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 a6 6. Nc3 b5 7. Bb3 Bb7 8. O-O c5"],["D27","Queen's Gambit Accepted: Classical Defense, Rubinstein Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. a4"],["D27","Queen's Gambit Accepted: Classical Defense, Rubinstein Variation","1. d4 d5 2. c4 dxc4 3. Nf3 e6 4. e3 Nf6 5. Bxc4 Be7 6. O-O O-O 7. Nc3 a6 8. a4 c5"],["D27","Queen's Gambit Accepted: Classical Defense, Russian Gambit","1. d4 d5 2. c4 dxc4 3. e3 Nf6 4. Bxc4 e6 5. Nf3 c5 6. O-O a6 7. e4"],["D27","Queen's Gambit Accepted: Furman Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. dxc5 Bxc5"],["D28","Queen's Gambit Accepted: Classical Defense, Alekhine System","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. Qe2"],["D28","Queen's Gambit Accepted: Classical Defense, Alekhine System","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. Qe2 b5"],["D28","Queen's Gambit Accepted: Classical, Flohr Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. Qe2 b5 8. Bb3 Nc6 9. Rd1 c4 10. Bc2 Nb4 11. Nc3 Nxc2 12. Qxc2 Bb7 13. d5 Qc7"],["D29","Queen's Gambit Accepted: Classical Defense, Alekhine System, Main Line","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. Qe2 b5 8. Bb3 Bb7"],["D29","Queen's Gambit Accepted: Classical Defense, Alekhine System, Main Line","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. Qe2 b5 8. Bb3 Bb7 9. Nc3"],["D29","Queen's Gambit Accepted: Classical Defense, Alekhine System, Smyslov Variation","1. d4 d5 2. c4 dxc4 3. Nf3 Nf6 4. e3 e6 5. Bxc4 c5 6. O-O a6 7. Qe2 b5 8. Bb3 Bb7 9. Rd1 Nbd7 10. Nc3 Bd6"],["D30","Queen's Gambit Declined","1. d4 d5 2. c4 e6"],["D30","Queen's Gambit Declined","1. d4 d5 2. c4 e6 3. Nf3 c6 4. Qc2 dxc4 5. Qxc4 Nf6 6. g3"],["D30","Queen's Gambit Declined: Semmering Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 e6 5. Nbd2 Nbd7 6. Bd3 c5"],["D30","Queen's Gambit Declined: Spielmann Variation","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. e3 c6 5. Nbd2 g6"],["D30","Queen's Gambit Declined: Stonewall Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 e6 5. Nbd2 Ne4 6. Bd3 f5"],["D30","Queen's Gambit Declined: Tarrasch Defense, Pseudo-Tarrasch","1. d4 d5 2. c4 e6 3. Nf3 c5"],["D30","Queen's Gambit Declined: Tarrasch Defense, Pseudo-Tarrasch Bishop Attack","1. d4 d5 2. c4 e6 3. Nf3 c5 4. cxd5 exd5 5. Bg5"],["D30","Semi-Slav Defense: Quiet Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 e6 5. Nbd2"],["D30","Semi-Slav Defense: Quiet Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. e3 e6 5. Nbd2 Nbd7"],["D31","Queen's Gambit Declined: Charousek Variation","1. d4 d5 2. c4 e6 3. Nc3 Be7"],["D31","Queen's Gambit Declined: Charousek Variation, Miladinovic Gambit","1. d4 d5 2. c4 e6 3. Nc3 Be7 4. e4 dxe4 5. f3"],["D31","Queen's Gambit Declined: Janowski Variation","1. d4 d5 2. c4 e6 3. Nc3 a6"],["D31","Queen's Gambit Declined: Queen's Knight Variation","1. d4 d5 2. c4 e6 3. Nc3"],["D31","Queen's Gambit Declined: Semi-Slav, Abrahams Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 dxc4 5. a4 Bb4 6. e3 b5 7. Bd2 a5"],["D31","Queen's Gambit Declined: Semi-Slav, Junge Variation","1. d4 d5 2. c4 e6 3. Nf3 c6 4. Nc3 dxc4 5. a4 Bb4 6. e3 b5 7. Bd2 Qb6"],["D31","Queen's Gambit Declined: Semi-Slav, Koomen Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 dxc4 5. e3 b5 6. a4 Bb4 7. Bd2 Qe7"],["D31","Semi-Slav Defense: Accelerated Move Order","1. d4 d5 2. c4 e6 3. Nc3 c6"],["D31","Semi-Slav Defense: Anti-Noteboom, Stonewall Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e3 f5"],["D31","Semi-Slav Defense: Anti-Noteboom, Stonewall Variation, Portisch Gambit","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e3 f5 5. g4"],["D31","Semi-Slav Defense: Gunderam Gambit","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e4 dxe4 5. f3"],["D31","Semi-Slav Defense: Marshall Gambit","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e4"],["D31","Semi-Slav Defense: Marshall Gambit, Forgotten Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e4 dxe4 5. Nxe4 Bb4+ 6. Nc3"],["D31","Semi-Slav Defense: Marshall Gambit, Main Line","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e4 dxe4 5. Nxe4 Bb4+ 6. Bd2"],["D31","Semi-Slav Defense: Marshall Gambit, Tolush Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e4 dxe4 5. Nxe4 Bb4+ 6. Bd2 Qxd4 7. Bxb4 Qxe4+ 8. Be2 c5 9. Bxc5 Qxg2"],["D31","Semi-Slav Defense: Noteboom Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 dxc4"],["D31","Semi-Slav Defense: Noteboom Variation, Abrahams Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 dxc4 5. a4 Bb4 6. e3 Bxc3+ 7. bxc3 b5 8. axb5 cxb5"],["D31","Semi-Slav Defense: Noteboom Variation, Anti-Noteboom Gambit","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 dxc4 5. g3"],["D31","Semi-Slav Defense: Noteboom Variation, Anti-Noteboom Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 dxc4 5. Bg5"],["D31","Semi-Slav Defense: Noteboom Variation, Anti-Noteboom Variation, Belyavsky Line","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 dxc4 5. Bg5 f6"],["D32","Queen's Gambit Declined: Tarrasch Defense","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5"],["D32","Queen's Gambit Declined: Tarrasch Defense","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. Bg5 Be7"],["D32","Queen's Gambit Declined: Tarrasch Defense","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. Bg5 Be7 7. Bxe7 Ngxe7"],["D32","Tarrasch Defense","1. d4 d5 2. c4 e6 3. Nc3 c5"],["D32","Tarrasch Defense: Grünfeld Gambit","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. dxc5 d4 7. Na4 b5"],["D32","Tarrasch Defense: Marshall Gambit","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. e4"],["D32","Tarrasch Defense: Schara Gambit","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 cxd4"],["D32","Tarrasch Defense: Symmetrical Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. e3 Nf6 5. Nf3 Nc6"],["D32","Tarrasch Defense: Tarrasch Gambit","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. dxc5 d4 6. Na4 b5"],["D32","Tarrasch Defense: Two Knights Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3"],["D32","Tarrasch Defense: von Hennig Gambit","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 cxd4 5. Qxd4 Nc6 6. Qd1 exd5 7. Qxd5 Be6"],["D33","Tarrasch Defense: Dubov Tarrasch","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 cxd4 8. Nxd4 Bc5"],["D33","Tarrasch Defense: Prague Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6"],["D33","Tarrasch Defense: Rubinstein System","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3"],["D33","Tarrasch Defense: Swedish Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 c4"],["D33","Tarrasch Defense: Swedish Variation, Central Break","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 c4 7. e4"],["D33","Tarrasch Defense: Wagner Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Bg4"],["D34","Queen's Gambit Declined: Tarrasch Defense, Stoltz Variation","1. d4 d5 2. c4 e6 3. Nf3 c5 4. cxd5 exd5 5. g3 Nc6 6. Bg2 Nf6 7. O-O Be7 8. Nc3 O-O 9. Bg5 Be6 10. Rc1 b6"],["D34","Tarrasch Defense: Classical Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O"],["D34","Tarrasch Defense: Classical Variation, Advance Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. Bg5 c4"],["D34","Tarrasch Defense: Classical Variation, Carlsbad Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. Bg5"],["D34","Tarrasch Defense: Classical Variation, Chandler Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. Bg5 cxd4 10. Nxd4 h6 11. Be3 Re8 12. Rc1 Be6"],["D34","Tarrasch Defense: Classical Variation, Classical Tarrasch Gambit","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. dxc5 d4"],["D34","Tarrasch Defense: Classical Variation, Endgame Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. Bg5 Be6"],["D34","Tarrasch Defense: Classical Variation, Main Line","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. Bg5 cxd4 10. Nxd4 h6 11. Be3 Re8"],["D34","Tarrasch Defense: Classical Variation, Petursson Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. Bg5 cxd4 10. Nxd4 Re8"],["D34","Tarrasch Defense: Classical Variation, Réti Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. dxc5 Bxc5 10. Na4"],["D34","Tarrasch Defense: Classical Variation, Spassky Variation","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. Bg5 cxd4 10. Nxd4 h6 11. Be3 Bg4"],["D34","Tarrasch Defense: Prague Variation, Main Line","1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7"],["D35","Queen's Gambit Declined: Exchange Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. e3 Be7 5. cxd5 exd5 6. Bd3 O-O 7. Nf3 c6"],["D35","Queen's Gambit Declined: Exchange Variation","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 Nc6 5. cxd5 exd5 6. Bg5 Be7 7. e3"],["D35","Queen's Gambit Declined: Harrwitz Attack","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bf4"],["D35","Queen's Gambit Declined: Normal Defense","1. d4 d5 2. c4 e6 3. Nc3 Nf6"],["D36","Queen's Gambit Declined: Exchange Variation, Reshevsky Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5 5. Bg5 c6 6. e3 Be7 7. Bd3 Nbd7 8. Nge2 O-O 9. O-O Re8 10. Qc2"],["D36","Queen's Gambit Declined: Exchange Variation, Reshevsky Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5 5. Bg5 c6 6. e3 Be7 7. Bd3 Nbd7 8. Nge2 O-O 9. O-O Re8 10. Qc2 Nf8"],["D37","Queen's Gambit Declined: Harrwitz Attack, Fianchetto Defense","1. d4 d5 2. c4 e6 3. Nc3 Be7 4. Nf3 Nf6 5. Bf4 O-O 6. e3 b6"],["D37","Queen's Gambit Declined: Harrwitz Attack, Orthodox Defense","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 Be7 5. Bf4 O-O 6. e3 c6"],["D37","Queen's Gambit Declined: Three Knights Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 Be7 5. e3 O-O"],["D40","Queen's Gambit Declined: Semi-Tarrasch Defense","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 c5 5. e3 Nc6 6. a3 cxd4 7. exd4 Bd6"],["D40","Queen's Gambit Declined: Semi-Tarrasch Defense, Levenfish Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 c5 5. e3 Nc6 6. Bd3 Bd6 7. O-O O-O 8. Qe2 Qe7 9. dxc5 Bxc5 10. e4"],["D40","Queen's Gambit Declined: Semi-Tarrasch Defense, Pillsbury Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 c5 5. Bg5"],["D40","Queen's Gambit Declined: Semi-Tarrasch Defense, Symmetrical Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 c5 5. e3 Nc6 6. Bd3 Bd6 7. O-O O-O"],["D40","Queen's Gambit Declined: Semi-Tarrasch Defense, with e3","1. d4 d5 2. c4 c5 3. Nf3 Nf6 4. Nc3 e6 5. e3 Nc6 6. Bd3"],["D41","Queen's Gambit Declined: Semi-Tarrasch Defense, Kmoch Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 c5 5. cxd5 Nxd5 6. e4 Nxc3 7. bxc3 cxd4 8. cxd4 Bb4+ 9. Bd2 Bxd2+ 10. Qxd2 O-O 11. Bb5"],["D41","Queen's Gambit Declined: Semi-Tarrasch Defense, San Sebastian Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 Nxd5 5. e4 Nxc3 6. bxc3 c5 7. Nf3 cxd4 8. cxd4 Bb4+ 9. Bd2 Qa5"],["D43","Semi-Slav Defense","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6"],["D43","Semi-Slav Defense: Anti-Moscow Gambit","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 h6 6. Bh4"],["D43","Semi-Slav Defense: Hastings Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 h6 6. Bxf6 Qxf6 7. Qb3"],["D43","Semi-Slav Defense: Moscow Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 h6 6. Bxf6 Qxf6"],["D44","Semi-Slav Defense Accepted","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 dxc4"],["D44","Semi-Slav Defense: Botvinnik Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 dxc4 6. e4"],["D44","Semi-Slav Defense: Botvinnik Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 dxc4 6. e4 b5 7. e5 h6 8. Bh4 g5 9. Nxg5"],["D44","Semi-Slav Defense: Botvinnik Variation, Ekstrom Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 dxc4 6. e4 b5 7. e5 h6 8. Bh4 g5 9. exf6 gxh4 10. Ne5"],["D44","Semi-Slav Defense: Botvinnik Variation, Lilienthal Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 dxc4 6. e4 b5 7. e5 h6 8. Bh4 g5 9. Nxg5 hxg5 10. Bxg5 Nbd7 11. g3"],["D45","Semi-Slav Defense: Accelerated Meran Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 a6"],["D45","Semi-Slav Defense: Main Line","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3"],["D45","Semi-Slav Defense: Normal Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7"],["D45","Semi-Slav Defense: Normal Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 Nf6 5. e3 Nbd7 6. b3 Bd6 7. Bb2 O-O 8. Be2"],["D45","Semi-Slav Defense: Rubinstein System","1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 Nf6 5. e3 Nbd7 6. Ne5"],["D45","Semi-Slav Defense: Stoltz Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Qc2"],["D45","Semi-Slav Defense: Stoltz Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Qc2 b6 7. b3"],["D45","Semi-Slav Defense: Stoltz Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Qc2 b6 7. b3 Bb7"],["D45","Semi-Slav Defense: Stoltz Variation","1. d4 d5 2. Nf3 Nf6 3. c4 c6 4. e3 e6 5. Nc3 Nbd7 6. Qc2 Bd6 7. b3"],["D45","Semi-Slav Defense: Stoltz Variation","1. d4 d5 2. Nf3 Nf6 3. c4 c6 4. e3 e6 5. Nc3 Nbd7 6. Qc2 Bd6 7. b3 O-O 8. Bb2"],["D45","Semi-Slav Defense: Stoltz Variation, Center Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. e3 Nbd7 6. Qc2 Bd6 7. e4"],["D45","Semi-Slav Defense: Stoltz Variation, Center Variation, Mikhalchishin Line","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. e3 Nbd7 6. Qc2 Bd6 7. e4 dxe4 8. Nxe4 Nxe4 9. Qxe4 e5 10. dxe5"],["D45","Semi-Slav Defense: Stoltz Variation, Shabalov Attack","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. e3 Nbd7 6. Qc2 Bd6 7. g4"],["D45","Semi-Slav Defense: Stonewall Defense","1. d4 d5 2. Nf3 Nf6 3. c4 c6 4. Nc3 e6 5. e3 Ne4 6. Bd3 f5"],["D46","Semi-Slav Defense: Bogoljubow Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 Be7"],["D46","Semi-Slav Defense: Chigorin Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 Bd6"],["D46","Semi-Slav Defense: Chigorin Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 Bd6 7. Qc2"],["D46","Semi-Slav Defense: Chigorin Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. b3 Bd6 7. Bb2 O-O 8. Bd3"],["D46","Semi-Slav Defense: Chigorin Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Qc2 b6 7. b3 Bb7 8. Bd3"],["D46","Semi-Slav Defense: Chigorin Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Qc2 Bd6 7. b3 O-O 8. Bb2 Re8 9. Bd3"],["D46","Semi-Slav Defense: Chigorin Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Qc2 Bd6 7. b3 O-O 8. Bb2 Qe7 9. Bd3"],["D46","Semi-Slav Defense: Chigorin Defense","1. d4 d5 2. c4 c6 3. Nf3 e6 4. e3 Nf6 5. Nc3 Bd6 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 Nbd7 9. O-O O-O 10. Qc2"],["D46","Semi-Slav Defense: Chigorin Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 Bd6 9. O-O Bb7 10. a3 O-O 11. Qc2"],["D46","Semi-Slav Defense: Main Line","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3"],["D46","Semi-Slav Defense: Main Line","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Qc2 b6 7. b3 Bb7 8. Bd3 Be7 9. O-O O-O 10. Bb2"],["D46","Semi-Slav Defense: Romih Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 Bb4"],["D47","Semi-Slav Defense: Meran Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5"],["D47","Semi-Slav Defense: Meran Variation, Lundin Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. e3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 b4"],["D47","Semi-Slav Defense: Meran Variation, Wade Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 Bb7"],["D47","Semi-Slav Defense: Meran Variation, Wade Variation, Kaidanov Gambit","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 Bb7 9. e4 b4 10. Na4 c5 11. e5 Nd5 12. O-O cxd4 13. Nxd4"],["D47","Semi-Slav Defense: Meran Variation, Wade Variation, Larsen Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 Bb7 9. e4 b4 10. Na4 c5 11. e5 Nd5"],["D47","Semi-Slav Defense: Semi-Meran Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4"],["D48","Semi-Slav Defense: Meran Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6"],["D48","Semi-Slav Defense: Meran Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5"],["D48","Semi-Slav Defense: Meran Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e3 Nf6 5. Nf3 a6 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 c5 9. O-O Bb7 10. Qe2"],["D48","Semi-Slav Defense: Meran Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e3 Nf6 5. Nf3 a6 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 c5 9. O-O Bb7 10. Qe2 Nbd7"],["D48","Semi-Slav Defense: Meran Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e3 Nf6 5. Nf3 a6 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 c5 9. a4"],["D48","Semi-Slav Defense: Meran Variation, Old Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5 10. e5"],["D48","Semi-Slav Defense: Meran Variation, Pirc Variation","1. d4 d5 2. c4 e6 3. Nc3 c6 4. e3 Nf6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 b4"],["D48","Semi-Slav Defense: Meran Variation, Reynolds' Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. e3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5 10. d5"],["D49","Semi-Slav Defense: Meran Variation, Blumenfeld Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5 10. e5 cxd4 11. Nxb5"],["D49","Semi-Slav Defense: Meran Variation, Rabinovich Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5 10. e5 cxd4 11. Nxb5 Ng4"],["D49","Semi-Slav Defense: Meran Variation, Rellstab Attack","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. Nf3 e6 5. e3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5 10. e5 cxd4 11. Nxb5 Nxe5 12. Nxe5 axb5 13. O-O Qd5 14. Qe2 Ba6 15. Bg5"],["D49","Semi-Slav Defense: Meran Variation, Sozin Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. e3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5 10. e5 cxd4 11. Nxb5 Nxe5"],["D49","Semi-Slav Defense: Meran Variation, Sozin Variation","1. d4 d5 2. Nf3 Nf6 3. c4 c6 4. Nc3 e6 5. e3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5 10. e5 cxd4 11. Nxb5 Nxe5 12. Nxe5 axb5 13. O-O"],["D49","Semi-Slav Defense: Meran Variation, Stahlberg Variation","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 e6 5. Nf3 Nbd7 6. Bd3 dxc4 7. Bxc4 b5 8. Bd3 a6 9. e4 c5 10. e5 cxd4 11. Nxb5 Nxe5 12. Nxe5 axb5 13. Qf3"],["D50","Queen's Gambit Declined: Been-Koomen Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 c5"],["D50","Queen's Gambit Declined: Modern Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5"],["D50","Queen's Gambit Declined: Pseudo-Tarrasch Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 c5 5. cxd5"],["D50","Queen's Gambit Declined: Pseudo-Tarrasch Variation, Canal Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 c5 5. cxd5 Qb6"],["D50","Queen's Gambit Declined: Pseudo-Tarrasch Variation, Primitive Pillsbury Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 c5 5. Nf3 cxd4 6. Qxd4"],["D50","Queen's Gambit Declined: Semi-Tarrasch Defense, Krause Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 c5 5. Nf3 cxd4 6. Nxd4 e5 7. Ndb5 a6 8. Qa4"],["D51","Queen's Gambit Declined: Alekhine Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. Nf3 c6 6. e4"],["D51","Queen's Gambit Declined: Capablanca Variation, Anti-Cambridge Springs Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. e3 c6 6. a3"],["D51","Queen's Gambit Declined: Manhattan Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. e3 Bb4"],["D51","Queen's Gambit Declined: Modern Variation, Knight Defense","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7"],["D51","Queen's Gambit Declined: Modern Variation, Knight Defense","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. e3"],["D51","Queen's Gambit Declined: Modern Variation, Knight Defense","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. e3 c6"],["D51","Queen's Gambit Declined: Rochlin Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. Nf3 c6 6. Rc1 Qa5 7. Bd2"],["D52","Queen's Gambit Declined","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 Nbd7 6. e3"],["D52","Queen's Gambit Declined: Cambridge Springs Defense","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 Nbd7 6. e3 Qa5"],["D52","Queen's Gambit Declined: Cambridge Springs Defense","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 Nbd7 6. e3 Qa5 7. cxd5"],["D52","Queen's Gambit Declined: Cambridge Springs Defense, Argentine Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. e3 c6 6. Nf3 Qa5 7. Nd2 Bb4 8. Qc2 O-O 9. Bh4"],["D52","Queen's Gambit Declined: Cambridge Springs Defense, Bogoljubow Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 Nbd7 6. e3 Qa5 7. Nd2 Bb4 8. Qc2"],["D52","Queen's Gambit Declined: Cambridge Springs Defense, Capablanca Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. e3 c6 6. Nf3 Qa5 7. Bxf6"],["D52","Queen's Gambit Declined: Cambridge Springs Defense, Rubinstein Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 Nbd7 6. e3 Qa5 7. Nd2 dxc4"],["D52","Queen's Gambit Declined: Cambridge Springs Defense, Yugoslav Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 e6 5. Bg5 Nbd7 6. e3 Qa5 7. cxd5 Nxd5"],["D53","Queen's Gambit Declined","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7"],["D53","Queen's Gambit Declined","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. Nf3"],["D53","Queen's Gambit Declined","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. Nf3 c6 6. e3 dxc4 7. Bxc4"],["D53","Queen's Gambit Declined","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 dxc4 5. Bg5 Be7"],["D53","Queen's Gambit Declined","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 dxc4 5. Bg5 Be7 6. e4"],["D53","Queen's Gambit Declined","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 Nc6 5. Bg5 Be7 6. e3 O-O"],["D53","Queen's Gambit Declined: Modern Variation, Heral Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. Bxf6"],["D53","Queen's Gambit Declined: Uhlmann Variation","1. d4 d5 2. c4 e6 3. Nc3 Be7 4. Nf3 Nf6 5. Bg5 h6 6. Bh4 O-O 7. Rc1 dxc4"],["D56","Queen's Gambit Declined","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 Nc6 5. Bg5 Be7 6. e3 O-O 7. Rc1 h6 8. Bh4"],["D56","Queen's Gambit Declined: Lasker Defense","1. d4 d5 2. c4 e6 3. Nc3 Be7 4. Nf3 Nf6 5. Bg5 h6 6. Bh4 O-O 7. e3 Ne4"],["D56","Queen's Gambit Declined: Lasker Defense","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 Nc6 5. Bg5 Be7 6. e3 O-O 7. Rc1 h6 8. Bh4 Ne4"],["D56","Queen's Gambit Declined: Lasker Defense, Russian Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 h6 7. Bh4 Ne4 8. Bxe7 Qxe7 9. Qc2 Nf6 10. Bd3 dxc4 11. Bxc4 c5 12. O-O Nc6 13. Rfd1 Bd7"],["D57","Queen's Gambit Declined: Lasker Defense, Bernstein Variation, Mar del Plata Gambit","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 h6 7. Bh4 Ne4 8. Bxe7 Qxe7 9. cxd5 Nxc3 10. bxc3 exd5 11. Qb3 Rd8 12. c4 Be6"],["D57","Queen's Gambit Declined: Lasker Defense, Main Line","1. d4 d5 2. c4 e6 3. Nc3 Be7 4. Nf3 Nf6 5. Bg5 h6 6. Bh4 O-O 7. e3 Ne4 8. Bxe7 Qxe7 9. cxd5 Nxc3 10. bxc3"],["D58","Queen's Gambit Declined: Tartakower Defense, Exchange Variation","1. d4 d5 2. c4 e6 3. Nc3 Be7 4. Nf3 Nf6 5. Bg5 h6 6. Bh4 O-O 7. e3 b6 8. cxd5 exd5"],["D59","Queen's Gambit Declined: Tartakower Defense","1. d4 d5 2. c4 e6 3. Nc3 Be7 4. Nf3 Nf6 5. Bg5 h6 6. Bh4 O-O 7. e3 b6 8. cxd5 Nxd5 9. Bxe7 Qxe7 10. Nxd5 exd5 11. Rc1 Be6"],["D59","Queen's Gambit Declined: Tartakower Defense, Makogonov Exchange Variation","1. d4 d5 2. c4 e6 3. Nc3 Be7 4. Nf3 Nf6 5. Bg5 h6 6. Bh4 O-O 7. e3 b6 8. cxd5 Nxd5"],["D60","Queen's Gambit Declined: Orthodox Defense, Rauzer Variation","1. d4 d5 2. Nf3 Nf6 3. c4 e6 4. Nc3 Be7 5. Bg5 O-O 6. e3 Nbd7 7. Qb3"],["D61","Queen's Gambit Declined: Orthodox Defense, Rubinstein Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Qc2"],["D61","Queen's Gambit Declined: Orthodox Defense, Rubinstein Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Qc2 c5"],["D61","Queen's Gambit Declined: Orthodox Defense, Rubinstein Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Qc2 c6"],["D61","Queen's Gambit Declined: Orthodox Defense, Rubinstein Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Qc2 c6 8. a3"],["D61","Queen's Gambit Declined: Orthodox Defense, Rubinstein Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Qc2 a6 8. cxd5 exd5 9. Bd3 Re8"],["D61","Queen's Gambit Declined: Orthodox Defense, Rubinstein Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Qc2 c6 8. Rd1 a6"],["D63","Queen's Gambit Declined: Orthodox Defense, Main Line","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 Nbd7 6. Nf3 O-O 7. Rc1 h6 8. Bh4 c5"],["D65","Queen's Gambit Declined: Orthodox Defense, Rubinstein Attack","1. d4 d5 2. Nf3 Nf6 3. c4 e6 4. Nc3 Be7 5. Bg5 O-O 6. e3 Nbd7 7. Rc1 c6 8. Qc2 a6 9. cxd5"],["D65","Queen's Gambit Declined: Orthodox Defense, Rubinstein Attack","1. d4 d5 2. Nf3 Nf6 3. c4 e6 4. Nc3 Be7 5. Bg5 O-O 6. e3 Nbd7 7. Rc1 c6 8. Qc2 a6 9. cxd5 exd5 10. Bd3"],["D66","Queen's Gambit Declined: Orthodox Defense, Bd3 Line","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Rc1 c6 8. Bd3"],["D66","Queen's Gambit Declined: Orthodox Defense, Bd3 Line","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Rc1 c6 8. Bd3 h6 9. Bh4"],["D66","Queen's Gambit Declined: Orthodox Defense, Fianchetto Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 c6 5. Nf3 Be7 6. e3 Nbd7 7. Rc1 O-O 8. Bd3 dxc4 9. Bxc4 b5"],["D67","Queen's Gambit Declined: Orthodox Defense, Alekhine Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Rc1 c6 8. Bd3 dxc4 9. Bxc4 Nd5 10. Bxe7 Qxe7 11. Ne4"],["D67","Queen's Gambit Declined: Orthodox Defense, Bd3 Line","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Rc1 c6 8. Bd3 dxc4 9. Bxc4 Nd5 10. Bxe7 Qxe7"],["D67","Queen's Gambit Declined: Orthodox Defense, Capablanca System","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Rc1 c6 8. Bd3 dxc4 9. Bxc4 Nd5"],["D67","Queen's Gambit Declined: Orthodox Defense, Janowski Variation","1. d4 d5 2. Nf3 Nf6 3. c4 e6 4. Nc3 Be7 5. Bg5 O-O 6. e3 Nbd7 7. Rc1 c6 8. Bd3 dxc4 9. Bxc4 Nd5 10. h4"],["D67","Queen's Gambit Declined: Orthodox Defense, Main Line","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Rc1 c6 8. Bd3 dxc4 9. Bxc4 Nd5 10. Bxe7 Qxe7 11. O-O"],["D68","Queen's Gambit Declined: Orthodox Defense, Classical Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Rc1 c6 8. Bd3 dxc4 9. Bxc4 Nd5 10. Bxe7 Qxe7 11. O-O Nxc3 12. Rxc3 e5"],["D68","Queen's Gambit Declined: Orthodox Defense, Classical Variation","1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 Be7 5. Bg5 O-O 6. e3 Nbd7 7. Rc1 c6 8. Bd3 dxc4 9. Bxc4 Nd5 10. Bxe7 Qxe7 11. O-O Nxc3 12. Rxc3 e5 13. Qb1"],["D69","Queen's Gambit Declined: Orthodox Defense, Classical Variation","1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Rc1 c6 8. Bd3 dxc4 9. Bxc4 Nd5 10. Bxe7 Qxe7 11. O-O Nxc3 12. Rxc3 e5 13. dxe5 Nxe5 14. Nxe5 Qxe5"],["D94","Grünfeld Defense: Flohr Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 g6 5. Nf3 Bg7 6. Bd3 O-O 7. O-O Bf5"],["D94","Grünfeld Defense: Smyslov Defense","1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. e3 g6 5. Nf3 Bg7 6. Bd3 O-O 7. O-O Bg4"],["E09","Catalan Opening: Closed Variation, Rabinovich Variation","1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Qc2 e6 5. Nbd2 Be7 6. g3 Nbd7 7. Bg2 O-O 8. O-O b5"]];
 const SITE_DATA = ["https://raw.githubusercontent.com/pjchafloque/chess-review/main/data/", "data/"];
 
@@ -879,7 +994,7 @@ const S = {
   flip: null,
   filter: "all",
   tfilter: store.get("tfilter", "all"),
-  depth: 12,
+  depth: 14,       // = BROWSER_DEPTH
   job: null,
   queue: []
 };
@@ -916,7 +1031,7 @@ function replay(g) {
   for (const t of g.tokens) {
     const mv = ch.move(t, { sloppy: true });
     if (!mv) break;
-    moves.push({ san: mv.san, from: mv.from, to: mv.to, promotion: mv.promotion || "", color: mv.color });
+    moves.push({ san: mv.san, from: mv.from, to: mv.to, promotion: mv.promotion || "", color: mv.color, captured: mv.captured || "", flags: mv.flags });
     fens.push(ch.fen());
   }
   g._moves = moves; g._fens = fens;
@@ -1063,46 +1178,91 @@ function importText(text) {
   renderList();
 }
 
-/* ---------- engine ---------- */
+/* ---------- engine ----------
+   Stockfish 19 Lite (stockfish.js 19.0.1 by Nathan Rugg for Chess.com, GPLv3) is served from this site
+   in engine/: single-threaded WebAssembly, so it runs on GitHub Pages without special headers. Stockfish 10
+   from a CDN is only the fallback for browsers that can't run it.
+   One search runs at a time, in three lanes: "live" (exploring the board, Retry: the newest request wins
+   and stops the one before), "user" (trainer checks and other things you're waiting on) and "bg" (reviewing
+   a game in the background, which steps aside and starts that position again when you need the engine). */
+const ENGINE_LOCAL = "engine/stockfish-19-lite-single.js";
+const BROWSER_DEPTH = 14;      // background reviews in the browser (the website's own reviews use depth 18)
 const engine = {
-  impl: null, handler: null, ready: false,
+  impl: null, ready: false, name: "", v: 1, cur: null, q: [], mpv: 1, readyCb: null,
   send(c) { this.impl && this.impl.postMessage(c); },
-  onLine(line) { if (this.handler) this.handler(line); },
   async init() {
-    for (const url of SF_URLS) {
-      try { this.impl = await tryWorker(url, l => this.onLine(l)); break; } catch (e) { /* next */ }
+    try { this.impl = await startLocalWorker(ENGINE_LOCAL, l => this.onLine(l)); this.name = "Stockfish 19"; this.v = 2; }
+    catch (e) {
+      for (const url of SF_URLS) { try { this.impl = await tryWorker(url, l => this.onLine(l)); break; } catch (e2) { /* next */ } }
+      if (!this.impl) { try { this.impl = await tryMainThread(SF_URLS[0], l => this.onLine(l)); } catch (e3) {} }
+      if (!this.impl) throw new Error("no engine");
+      this.name = "Stockfish 10"; this.v = 1;
     }
-    if (!this.impl) { try { this.impl = await tryMainThread(SF_URLS[0], l => this.onLine(l)); } catch (e) {} }
-    if (!this.impl) throw new Error("no engine");
     this.send("setoption name Hash value 32");
-    await this.rawReady();
-    this.ready = true;
+    await new Promise(res => { this.readyCb = res; this.send("isready"); });
+    this.ready = true; this.next();
   },
-  lock: Promise.resolve(),
-  queued(fn) { const p = this.lock.then(fn); this.lock = p.catch(() => {}); return p; },
-  isReady() { return this.queued(() => this.rawReady()); },
-  rawReady() { return new Promise(res => { this.handler = l => { if (l.startsWith("readyok")) { this.handler = null; res(); } }; this.send("isready"); }); },
-  analyse(fen, depth) { return this.queued(() => this.rawAnalyse(fen, depth)); },
-  rawAnalyse(fen, depth) {
-    return new Promise(res => {
-      let last = {}; let timer = setTimeout(() => this.send("stop"), 45000);
-      this.handler = line => {
-        if (line.startsWith("info") && line.includes(" score ")) {
-          const mp = line.match(/ multipv (\d+)/); if (mp && mp[1] !== "1") return;
-          const sc = line.match(/ score (cp|mate) (-?\d+)/);
-          if (sc) last.score = { type: sc[1], v: +sc[2] };
-          const pv = line.match(/ pv (.+)$/); if (pv) last.pv = pv[1].trim().split(/\s+/);
-        } else if (line.startsWith("bestmove")) {
-          clearTimeout(timer); this.handler = null;
-          const b = line.split(/\s+/)[1];
-          res({ score: last.score, best: b && b !== "(none)" ? b : (last.pv ? last.pv[0] : null), pv: last.pv || [] });
-        }
-      };
-      this.send("position fen " + fen);
-      this.send("go depth " + depth);
+  onLine(line) {
+    if (line.startsWith("readyok")) { const cb = this.readyCb; this.readyCb = null; if (cb) cb(); return; }
+    const job = this.cur; if (!job) return;
+    if (line.startsWith("info ") && line.includes(" pv ") && line.includes(" score ")) {
+      if (/ (lower|upper)bound/.test(line)) return;
+      const k = +((line.match(/ multipv (\d+)/) || [0, 1])[1]), sc = line.match(/ score (cp|mate) (-?\d+)/), pv = line.match(/ pv (.+)$/), d = line.match(/ depth (\d+)/);
+      if (!sc || !pv) return;
+      job.lines[k - 1] = { score: { type: sc[1], v: +sc[2] }, pv: pv[1].trim().split(/\s+/), depth: d ? +d[1] : 0 };
+      if (job.onInfo && k === Math.min(job.mpv, job.lines.length)) { try { job.onInfo(job.result()); } catch (e) {} }
+    } else if (line.startsWith("bestmove")) {
+      this.cur = null;
+      if (job.requeue) { job.requeue = false; job.lines = []; const at = this.q.findIndex(j => j.lane === "bg"); this.q.splice(at < 0 ? this.q.length : at, 0, job); }
+      else job.finish(line);
+      this.next();
+    }
+  },
+  // Resolves with { score, best, pv, lines: [{score, pv, depth}], depth }, or null if a newer live search replaced it.
+  analyse(fen, depth, opts) {
+    opts = opts || {};
+    return new Promise(resolve => {
+      const job = { fen, depth, lane: opts.lane || "user", mpv: Math.max(1, opts.multipv || 1), onInfo: opts.onInfo || null, lines: [], requeue: false };
+      job.result = () => { const l = job.lines.filter(Boolean), l1 = l[0]; return { score: l1 ? l1.score : null, best: l1 ? l1.pv[0] : null, pv: l1 ? l1.pv : [], lines: l, depth: l1 ? l1.depth : 0 }; };
+      job.finish = line => { const r = job.result(), b = line.split(/\s+/)[1]; if (!r.best && b && b !== "(none)") r.best = b; resolve(r); };
+      job.drop = () => resolve(null);
+      if (job.lane === "live") {
+        this.q = this.q.filter(j => { if (j.lane === "live") { j.drop(); return false; } return true; });
+        this.q.unshift(job);
+      } else if (job.lane === "user") {
+        const at = this.q.findIndex(j => j.lane === "bg"); this.q.splice(at < 0 ? this.q.length : at, 0, job);
+      } else this.q.push(job);
+      const c = this.cur;
+      if (c && job.lane !== "bg" && (c.lane === "bg" || (job.lane === "live" && c.lane === "live"))) {
+        if (c.lane === "bg") c.requeue = true; else c.finish = () => c.drop();
+        this.send("stop");
+      }
+      this.next();
     });
+  },
+  // Stop exploring: end the live search and forget queued ones.
+  stopLive() {
+    this.q = this.q.filter(j => { if (j.lane === "live") { j.drop(); return false; } return true; });
+    if (this.cur && this.cur.lane === "live") { const c = this.cur; c.finish = () => c.drop(); this.send("stop"); }
+  },
+  next() {
+    if (this.cur || !this.ready || !this.q.length) return;
+    const job = this.q.shift(); this.cur = job;
+    if (job.mpv !== this.mpv) { this.send("setoption name MultiPV value " + job.mpv); this.mpv = job.mpv; }
+    this.send("position fen " + job.fen);
+    this.send("go depth " + job.depth);
   }
 };
+function startLocalWorker(url, onLine) {
+  return new Promise((resolve, reject) => {
+    if (typeof WebAssembly !== "object") { reject(new Error("no wasm")); return; }
+    let w; try { w = new Worker(url); } catch (e) { reject(e); return; }
+    const t = setTimeout(() => { try { w.terminate(); } catch (e) {} reject(new Error("timeout")); }, 30000);
+    w.onmessage = e => { const l = lineOf(e); if (l.startsWith("uciok")) { clearTimeout(t); w.onmessage = ev => onLine(lineOf(ev)); resolve(w); } };
+    w.onerror = e => { clearTimeout(t); try { w.terminate(); } catch (x) {} reject(e); };
+    w.postMessage("uci");
+  });
+}
 function lineOf(e) { return typeof e === "string" ? e : (e && typeof e.data === "string" ? e.data : ""); }
 function tryWorker(url, onLine) {
   return new Promise((resolve, reject) => {
@@ -1136,16 +1296,31 @@ function tryMainThread(url, onLine) {
 
 /* ---------- evaluation maths ---------- */
 // Every stored eval is from White's side. num = pawns, capped at ±10 (mate counts as 10).
+// alt = the engine's second-best move in the same position (Stockfish's second line), when known.
+const clampN = v => Math.max(-10, Math.min(10, v));
+function lineEval(sign, sc) {
+  if (!sc) return { num: 0, cp: 0 };
+  if (sc.type === "mate") { const m = sign * sc.v; return { num: m > 0 ? 10 : -10, mate: m }; }
+  const cp = sign * sc.v; return { num: clampN(cp / 100), cp };
+}
 function toEval(fen, r) {
   const sign = fen.split(" ")[1] === "w" ? 1 : -1;
-  if (!r.score) return { num: 0, cp: 0, best: r.best };
-  if (r.score.type === "mate") {
-    const m = sign * r.score.v;
-    if (r.score.v === 0) return { num: sign * -10, mated: true, best: null };
-    return { num: m > 0 ? 10 : -10, mate: m, best: r.best };
-  }
-  const cp = sign * r.score.v;
-  return { num: Math.max(-10, Math.min(10, cp / 100)), cp, best: r.best };
+  if (!r || !r.score) return { num: 0, cp: 0, best: r ? r.best : null };
+  if (r.score.type === "mate" && r.score.v === 0) return { num: sign * -10, mated: true, best: null };
+  const e = lineEval(sign, r.score); e.best = r.best;
+  const l2 = r.lines && r.lines[1];
+  if (l2 && l2.score && l2.pv && l2.pv.length) { e.alt = lineEval(sign, l2.score); e.alt.best = l2.pv[0]; }
+  return e;
+}
+// The website's stored format (see scripts/update.py): ["c", cp, best, second?], ["m", mate, best, second?], ["x", winner], ["d"].
+function expandEval(x) {
+  if (!x) return null;
+  if (x[0] === "x") return { num: x[1] * 10, mated: true, best: null };
+  if (x[0] === "d") return { num: 0, cp: 0, best: null, draw: true };
+  const one = y => y[0] === "m" ? { num: y[1] > 0 ? 10 : -10, mate: y[1] } : { num: clampN(y[1] / 100), cp: y[1] };
+  const e = one(x); e.best = x[2] || null;
+  if (x[3] && x[3][2]) { e.alt = one(x[3]); e.alt.best = x[3][2]; }
+  return e;
 }
 // Eval bar fill for White: a forced mate (or checkmate on the board) fills the bar completely.
 function barPct(e) {
@@ -1170,31 +1345,212 @@ function fmtEval(e) {
   if (e.mate != null) return (e.mate > 0 ? "M" : "-M") + Math.abs(e.mate);
   const v = (e.cp || 0) / 100; return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1);
 }
-function classify(g, evals, i) {
-  if (i < (g.bookPly || 0)) return { cls: "book", loss: 0, acc: null };
-  const a = evals[i], b = evals[i + 1]; if (!a || !b) return null;
-  const s = moverAt(g, i) === "w" ? 1 : -1;
-  const before = s * a.num, after = s * b.num;
-  const loss = Math.max(0, before - after);
-  const mv = g._moves && g._moves[i];
+
+/* ---------- move grading ----------
+   Like chess.com's Classification V2: every eval becomes expected points (the chance of winning, a draw
+   counting half) with Lichess's published win% curve, and a move is graded by how many expected points
+   it gives away compared with Stockfish's best move. Going from +5 to +3 barely changes who wins; going
+   from +0.5 to −1.5 does, so the second is graded much harder even though both lose two pawns.
+     Best        Stockfish's top move (or tied with it)
+     Excellent   loses under 0.02        Good       under 0.05
+     Inaccuracy  under 0.10              Mistake    under 0.20       Blunder   0.20 or more
+   Special grades on top of that:
+     Book        known opening theory (scripts/openings.tsv on the updater; this page's own lines otherwise)
+     Forced      the only legal move
+     Miss        your opponent's last move gave you a chance (0.10 or more) to win something (material or
+                 mate) and you let it go, without ending up worse than you were before their mistake and
+                 without hanging material yourself. Otherwise it stays a mistake or blunder.
+     Great       the top move when every other move is clearly worse (the engine's second choice loses
+                 0.10 or more), you aren't lost anyway (0.30 or more) and the second choice wasn't a clear win
+                 too (under 0.85), unless it's a reflex: a recapture,
+                 taking free material, trading off an attacked piece, saving a hanging piece with a quiet move,
+                 or one of three or fewer ways out of check.
+     Brilliant   a sound piece sacrifice: best or nearly best (under 0.02), it leaves two points of material
+                 or more hanging that could have been kept (a static exchange count, pins included for the
+                 first capture), you are not worse afterwards (0.45 or more), and you weren't already winning
+                 without it (the alternative under 0.85). */
+const EP_K = 0.00368208;
+function epW(e) {
+  if (!e) return 0.5;
+  if (e.mated) return e.num > 0 ? 1 : 0;
+  if (e.mate != null) return e.mate > 0 ? 1 : 0;
+  const cp = e.cp != null ? e.cp : e.num * 100;
+  return 1 / (1 + Math.exp(-EP_K * Math.max(-4000, Math.min(4000, cp))));
+}
+const epFor = (e, side) => side === "w" ? epW(e) : 1 - epW(e);
+const GRADE_EXCELLENT = 0.02, GRADE_GOOD = 0.05, GRADE_INACC = 0.10, GRADE_MISTAKE = 0.20;
+const GREAT_GAP = 0.10, GREAT_MIN = 0.30, MISS_GAIN = 0.10, BRILLIANT_SAC = 2, BRILLIANT_AFTER = 0.45, BRILLIANT_WINNING = 0.85;
+// Lichess's accuracy for one move, from the win% (0–100) before and after it.
+function moveAccuracy(epB, epA) { const d = Math.max(0, (epB - epA) * 100); return Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * d) - 3.1669)); }
+
+// Static exchange evaluation on a plain 64-square board (index = rank * 8 + file, a1 = 0).
+const SEE_VAL = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 };
+function boardArr(fen) {
+  const b = new Array(64).fill(null), rows = fen.split(" ")[0].split("/");
+  for (let r = 0; r < 8; r++) { let f = 0; for (const ch of rows[r]) { if (ch >= "1" && ch <= "8") f += +ch; else { b[(7 - r) * 8 + f] = ch; f++; } } }
+  return b;
+}
+const sqIdx = s => (s.charCodeAt(1) - 49) * 8 + (s.charCodeAt(0) - 97);
+const idxSq = i => String.fromCharCode(97 + (i & 7)) + String.fromCharCode(49 + (i >> 3));
+const pcColor = p => p === p.toUpperCase() ? "w" : "b";
+const KNIGHT_D = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
+const RAYS = [[1, 0, "rq"], [-1, 0, "rq"], [0, 1, "rq"], [0, -1, "rq"], [1, 1, "bq"], [1, -1, "bq"], [-1, 1, "bq"], [-1, -1, "bq"]];
+// The cheapest piece of `side` that attacks square t (pins ignored), or -1.
+function leastAttacker(b, t, side) {
+  const tf = t & 7, tr = t >> 3; let best = -1, bv = 1e9;
+  const consider = (f, r, type) => {
+    if (f < 0 || f > 7 || r < 0 || r > 7) return; const i = r * 8 + f, p = b[i];
+    if (p && pcColor(p) === side && p.toLowerCase() === type && SEE_VAL[type] < bv) { bv = SEE_VAL[type]; best = i; }
+  };
+  const pr = side === "w" ? tr - 1 : tr + 1; consider(tf - 1, pr, "p"); consider(tf + 1, pr, "p");
+  for (const [df, dr] of KNIGHT_D) consider(tf + df, tr + dr, "n");
+  for (const [df, dr, kinds] of RAYS) {
+    let f = tf + df, r = tr + dr;
+    while (f >= 0 && f < 8 && r >= 0 && r < 8) {
+      const i = r * 8 + f, p = b[i];
+      if (p) { const t2 = p.toLowerCase(); if (pcColor(p) === side && kinds.includes(t2) && SEE_VAL[t2] < bv) { bv = SEE_VAL[t2]; best = i; } break; }
+      f += df; r += dr;
+    }
+  }
+  for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) if (df || dr) consider(tf + df, tr + dr, "k");
+  return best;
+}
+// Material won by capturing on t with the piece on `from`, then both sides recapturing with their
+// cheapest piece for as long as it pays (x-rays included).
+function seeFrom(b0, t, from) {
+  const b = b0.slice(), gain = [SEE_VAL[b[t].toLowerCase()]]; let d = 0;
+  let onSq = b[from]; b[t] = onSq; b[from] = null; let side = pcColor(onSq) === "w" ? "b" : "w";
+  for (;;) {
+    const a = leastAttacker(b, t, side); if (a < 0) break;
+    d++; gain[d] = SEE_VAL[onSq.toLowerCase()] - gain[d - 1];
+    onSq = b[a]; b[t] = onSq; b[a] = null; side = side === "w" ? "b" : "w";
+  }
+  while (d > 0) { gain[d - 1] = -Math.max(-gain[d - 1], gain[d]); d--; }
+  return gain[0];
+}
+// For every piece of `side`, what its opponent wins by taking it (only pieces worth taking).
+// first: the opponent's cheapest legal capture per square (after a move); without it, any attacker counts.
+function threats(b, side, first) {
+  const out = new Map(), opp = side === "w" ? "b" : "w";
+  for (let t = 0; t < 64; t++) {
+    const p = b[t]; if (!p || pcColor(p) !== side || p === "K" || p === "k") continue;
+    const f = first ? first.get(t) : leastAttacker(b, t, opp); if (f == null || f < 0) continue;
+    const v = seeFrom(b, t, f); if (v > 0) out.set(t, v);
+  }
+  return out;
+}
+function legalCount(g, i) {
+  g._legal = g._legal || [];
+  if (g._legal[i] == null) { try { const c = new Chess(g.fens[i]); g._legal[i] = c.moves().length; g._check = g._check || []; g._check[i] = c.in_check(); } catch (e) { g._legal[i] = 2; } }
+  return g._legal[i];
+}
+// Could the piece on square index `from` step somewhere it can't be won? (A piece that can't is lost anyway,
+// so giving it up isn't a sacrifice.)
+function canEscape(fen, b0, from) {
+  const p = b0[from], opp = pcColor(p) === "w" ? "b" : "w";
+  for (const m of new Chess(fen).moves({ square: idxSq(from), verbose: true })) {
+    const b = b0.slice(), t = sqIdx(m.to); b[t] = p; b[from] = null;
+    const a = leastAttacker(b, t, opp);
+    if (a < 0 || seeFrom(b, t, a) <= 0) return true;
+  }
+  return false;
+}
+// What a move does to the material: how much more it leaves en prise than before (net of anything it
+// captured, not counting pieces that were lost anyway), and the facts the Great and Brilliant rules need.
+function moveFacts(g, i) {
+  g._facts = g._facts || [];
+  if (g._facts[i]) return g._facts[i];
+  const mv = g._moves[i], side = mv.color, b0 = boardArr(g.fens[i]), b1 = boardArr(g.fens[i + 1]);
+  const before = threats(b0, side, null);
+  const first = new Map();
+  for (const m of new Chess(g.fens[i + 1]).moves({ verbose: true })) {
+    if (!m.captured || m.flags.indexOf("e") >= 0) continue;
+    const t = sqIdx(m.to), f = sqIdx(m.from), cur = first.get(t);
+    if (cur == null || SEE_VAL[b1[f].toLowerCase()] < SEE_VAL[b1[cur].toLowerCase()]) first.set(t, f);
+  }
+  const after = threats(b1, side, first);
+  const from = sqIdx(mv.from), to = sqIdx(mv.to);
+  const gained = (mv.captured ? SEE_VAL[mv.captured] : 0) + (mv.promotion ? SEE_VAL[mv.promotion] - 1 : 0);
+  const lostAnyway = t => (before.get(t) && !canEscape(g.fens[i], b0, t)) ? before.get(t) : 0;
+  const movedBefore = before.get(from) || 0, movedAfter = after.get(to) || 0;
+  let worst = movedAfter - lostAnyway(from), at = to;       // the piece that moved: did it walk into a capture?
+  // Other pieces count only if the move newly leaves them en prise (one already hanging is the opponent's threat, not a sacrifice).
+  for (const [t, v] of after) if (t !== to) { const d = v - (before.get(t) || 0); if (d > worst) { worst = d; at = t; } }
+  const p = b1[at];
+  legalCount(g, i);
+  let threatBefore = 0; for (const v of before.values()) threatBefore = Math.max(threatBefore, v);
+  return (g._facts[i] = { sac: worst - gained, sacSq: idxSq(at), sacPiece: p ? p.toLowerCase() : null, gained, movedBefore, movedAfter,
+    threatBefore, threatAfter: after.size ? Math.max(...after.values()) : 0, inCheck: !!(g._check && g._check[i]), legal: g._legal[i] });
+}
+// Moves anyone would find: they can still be the only good move, but they aren't "Great".
+function reflexMove(g, i, f) {
+  const mv = g._moves[i], prev = i > 0 ? g._moves[i - 1] : null, quiet = !mv.captured && mv.san.indexOf("+") < 0;
+  if (prev && prev.captured && mv.captured && mv.to === prev.to) return "recapture";
+  if (mv.captured && SEE_VAL[mv.captured] - f.movedAfter >= 1) return "free";               // takes material that was there for the taking
+  if (mv.captured && f.movedBefore > 0 && SEE_VAL[mv.captured] - f.movedAfter >= 0) return "trade"; // an attacked piece trades itself off
+  if (quiet && f.threatBefore > 0 && f.threatAfter === 0) return "save";                   // moves or defends the piece that was hanging
+  if (f.inCheck && f.legal <= 3) return "check";
+  return "";
+}
+// Did Stockfish's move here win something concrete (material or mate)? Uses the website's deeper line when
+// there is one; otherwise a capture or a check counts.
+function bestWins(g, i, a) {
+  const pv = pvFor(g, i, "best");
+  if (pv) { const d = describeLine(g.fens[i], pv, null, null); return !!(d && (d.mate || d.what)); }
+  return /[x+#]/.test(uciToSan(g.fens[i], a.best));
+}
+function bookPlies(g) { const a = S.analyses[g.id]; return a && a.book != null ? a.book : (g.bookPly || 0); }
+function bookNameAt(g, ply) {
+  const a = S.analyses[g.id];
+  if (a && a.bookNames) { let n = ""; for (const k in a.bookNames) if (+k <= ply && +k >= 0) n = a.bookNames[k]; return n; }
+  return (g.bookNames && g.bookNames[ply]) || "";
+}
+function sameScore(x, y) { return x && y && (x.mate != null || y.mate != null ? x.mate === y.mate : x.cp === y.cp); }
+// The grade of move i (from position i to i + 1). Needs evals i and i + 1 (and i - 1 for Miss).
+function computeGrade(g, ev, i) {
+  const a = ev[i], b = ev[i + 1]; if (!a || !b) return null;
+  const side = moverAt(g, i), s = side === "w" ? 1 : -1;
+  const epB = epFor(a, side), epA = epFor(b, side), epl = Math.max(0, epB - epA);
+  const r = { side, epl, epBefore: epB, epAfter: epA, acc: moveAccuracy(epB, epA), pawns: Math.max(0, s * (a.num - b.num)), cls: "" };
+  if (i < bookPlies(g)) { r.cls = "book"; r.acc = null; return r; }
+  const mv = g._moves ? g._moves[i] : null;
   const uci = mv ? mv.from + mv.to + (mv.promotion || "") : null;
-  let cls;
-  if (a.best && (uci ? uci === a.best : loss < 0.05)) cls = "best";
-  else if ((before >= 4 && after >= 4) || (before <= -4 && after <= -4)) cls = "good"; // game already decided
-  else if (loss >= 2) cls = "blunder";
-  else if (loss >= 1) cls = "mistake";
-  else if (loss >= 0.5) cls = "inacc";
-  else cls = "good";
-  const wl = Math.max(0, s * (winPct(a.num) - winPct(b.num)));
-  const acc = Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * wl) - 3.1669));
-  return { cls, loss, acc, before, after };
+  if (mv && legalCount(g, i) === 1) { r.cls = "forced"; return r; }
+  const isBest = uci ? !!a.best && (uci === a.best || (!!a.alt && uci === a.alt.best && sameScore(a, a.alt))) : epl < 0.001;
+  r.cls = isBest ? "best" : epl < GRADE_EXCELLENT ? "excellent" : epl < GRADE_GOOD ? "good" : epl < GRADE_INACC ? "inacc" : epl < GRADE_MISTAKE ? "mistake" : "blunder";
+  if ((r.cls === "mistake" || r.cls === "blunder") && i > 0 && ev[i - 1] && i - 1 >= bookPlies(g)) {
+    const ref = epFor(ev[i - 1], side);                      // where you stood before your opponent's last move
+    // With the board replayed: it's only a miss if the chance was to win something, and the move
+    // didn't hang material of its own (that's a mistake or blunder whatever the opponent did before).
+    if (epB - ref >= MISS_GAIN && epA >= ref - 0.02 && (!mv || (bestWins(g, i, a) && moveFacts(g, i).sac < 3))) { r.cls = "miss"; r.chance = epB - ref; }
+  }
+  if (mv && a.alt) {
+    const altEp = epFor(a.alt, side);
+    r.altEp = altEp;
+    if (epl < GRADE_EXCELLENT && epA >= BRILLIANT_AFTER && (uci === a.best ? altEp : epB) < BRILLIANT_WINNING) {
+      const f = moveFacts(g, i);
+      if (f.sac >= BRILLIANT_SAC) { r.cls = "brilliant"; r.sac = f; return r; }
+    }
+    if (r.cls === "best" && uci === a.best && epB - altEp >= GREAT_GAP && epB >= GREAT_MIN && altEp < BRILLIANT_WINNING) {
+      const f = moveFacts(g, i), why = reflexMove(g, i, f);
+      if (!why) r.cls = "great"; else r.onlyMove = why;
+    }
+  }
+  return r;
+}
+// Grades are cached per move and redone only when the evals they depend on change.
+function gradeAt(g, ev, i) {
+  const c = g._gc || (g._gc = []), a = ev[i], b = ev[i + 1], p = i > 0 ? ev[i - 1] : null, bp = bookPlies(g), rep = !!g._moves;
+  const k = c[i];
+  if (k && k.a === a && k.b === b && k.p === p && k.bp === bp && k.rep === rep) return k.r;
+  const r = computeGrade(g, ev, i); c[i] = { a, b, p, bp, rep, r }; return r;
 }
 function summarize(g, evals) {
   const out = { w: { n: 0, acc: 0, c: {} }, b: { n: 0, acc: 0, c: {} } };
-  for (const k of ORDER) { out.w.c[k] = 0; out.b.c[k] = 0; }
+  for (const k of ORDER.concat("forced")) { out.w.c[k] = 0; out.b.c[k] = 0; }
   for (let i = 0; i < g.nply; i++) {
-    const r = classify(g, evals, i); if (!r) continue;
-    const p = out[moverAt(g, i)]; p.c[r.cls]++;
+    const r = gradeAt(g, evals, i); if (!r) continue;
+    const p = out[r.side]; p.c[r.cls]++;
     if (r.acc != null) { p.n++; p.acc += r.acc; }
   }
   for (const k of ["w", "b"]) out[k].accuracy = out[k].n ? out[k].acc / out[k].n : null;
@@ -1205,39 +1561,47 @@ function uciToSan(fen, uci) {
   try { const c = new Chess(fen); const m = c.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || "q" }); return m ? m.san : uci; } catch (e) { return uci; }
 }
 
-/* ---------- analysis queue ---------- */
+/* ---------- analysis queue ----------
+   Games the website hasn't reviewed yet are reviewed here, one at a time, with the engine's two best
+   lines in every position. A game reviewed by an older engine (Stockfish 10 or the website's Stockfish 16
+   reviews) is redone when you open it, and keeps showing its old review until the new one is finished. */
+function isComplete(a, g) { return !!(a && a.evals && a.evals.length === (g.nply != null ? g.nply : g.fens.length - 1) + 1 && a.evals.every(Boolean)); }
+function isDone(g) { return isComplete(S.analyses[g.id], g); }
+function isCurrent(g) { const a = S.analyses[g.id]; return isComplete(a, g) && (a.v || 1) >= engine.v; }
 function evalsFor(g) {
-  if (S.job && S.job.id === g.id) return S.job.evals;
-  const a = S.analyses[g.id]; return a ? a.evals : null;
+  const a = S.analyses[g.id];
+  if (S.job && S.job.id === g.id && !isComplete(a, g)) return S.job.evals;
+  return a ? a.evals : null;
 }
-function isDone(g) { const a = S.analyses[g.id]; return !!(a && a.evals && a.evals.length === (g.nply != null ? g.nply : g.fens.length - 1) + 1 && a.evals.every(Boolean)); }
 function enqueue(g) {
-  if (!g || isDone(g) || (S.job && S.job.id === g.id) || S.queue.includes(g.id)) return;
+  if (!g || (S.job && S.job.id === g.id) || S.queue.includes(g.id)) return;
+  if (engine.ready ? isCurrent(g) : isDone(g)) return;
   S.queue.push(g.id); pump();
 }
 async function pump() {
   if (S.job || !engine.ready || !S.queue.length) return;
   const id = S.queue.shift(); const g = S.games.find(x => x.id === id);
-  if (!g || isDone(g)) return pump();
-  const depth = S.depth;
-  S.job = { id, evals: new Array(g.fens.length), done: 0, total: g.fens.length };
+  if (!g || isCurrent(g)) return pump();
+  const depth = engine.v >= 2 ? BROWSER_DEPTH : 12;
+  S.job = { id, evals: new Array(g.fens.length), done: 0, total: g.fens.length, depth, upgrade: isDone(g) };
   renderProgress();
-  engine.send("ucinewgame"); await engine.isReady();
   for (let i = 0; i < g.fens.length; i++) {
     if (!S.job || S.job.cancel) break;
     const fen = g.fens[i]; const c = new Chess(fen); let e;
     if (c.in_checkmate()) e = { num: c.turn() === "w" ? -10 : 10, mated: true, best: null };
-    else if (c.in_stalemate() || c.insufficient_material()) e = { num: 0, cp: 0, best: null };
-    else e = toEval(fen, await engine.analyse(fen, depth));
+    else if (c.in_stalemate() || c.insufficient_material()) e = { num: 0, cp: 0, best: null, draw: true };
+    else e = toEval(fen, await engine.analyse(fen, depth, { multipv: engine.v >= 2 ? 2 : 1, lane: "bg" }));
+    if (!S.job || S.job.cancel) break;
     S.job.evals[i] = e; S.job.done = i + 1;
-    if (S.sel && S.sel.id === id) { renderProgress(); renderAnalysis(); }
+    if (S.sel && S.sel.id === id && view === "review") { renderProgress(); if (!S.job.upgrade) renderAnalysis(); }
   }
   const job = S.job; S.job = null;
-  if (job && !job.cancel && !isDone(g)) {
-    S.analyses[id] = { depth, evals: job.evals };
+  if (job && !job.cancel && !isCurrent(g)) {
+    const old = S.analyses[id];
+    S.analyses[id] = { v: engine.v, depth, evals: job.evals, pv: old && old.pv || null, ref: old && old.ref || null, pq: old && old.pq || null, pz: 0, book: old && old.v === engine.v ? old.book : null, bookNames: old && old.v === engine.v ? old.bookNames : null };
     big.set("analyses", S.analyses);
   }
-  renderList(); if (S.sel && S.sel.id === id) { renderProgress(); renderAnalysis(); }
+  renderList(); if (S.sel && S.sel.id === id && view === "review") { renderProgress(); renderAnalysis(); renderMoves(); }
   if (view === "trainer") trainerRefresh();
   pump();
 }
@@ -1279,6 +1643,8 @@ function renderList() {
 }
 
 function select(g) {
+  if (X.on) xExit(true);
+  B.sel = null; B.targets = [];
   S.sel = g || null; S.ply = g ? g.moves.length : 0; S.flip = g ? g.me === "b" : false;
   renderList();
   // The review panel is the slowest thing to draw; skip it while another tab is showing.
@@ -1295,7 +1661,7 @@ function renderReview() {
     $("summary").innerHTML = ""; $("moves").innerHTML = ""; $("graph").innerHTML = ""; renderProgress();
     return;
   }
-  const meta = [g.date, g.tc, g.bookName || g.opening, g.headers.Termination].filter(Boolean).map(esc).join(" · ");
+  const meta = [g.date, g.tc, bookNameAt(g, bookPlies(g)) || g.bookName || g.opening, g.headers.Termination].filter(Boolean).map(esc).join(" · ");
   $("head").innerHTML = '<div><h2>' + esc(g.white) + (g.whiteElo ? ' <span style="color:var(--muted);font-weight:400">' + esc(g.whiteElo) + '</span>' : "") +
     ' <span style="color:var(--muted)">vs</span> ' + esc(g.black) + (g.blackElo ? ' <span style="color:var(--muted);font-weight:400">' + esc(g.blackElo) + '</span>' : "") +
     '</h2><div class="meta">' + esc(g.headers.Result || "") + (meta ? " · " + meta : "") + '</div></div>' +
@@ -1307,7 +1673,7 @@ function renderProgress() {
   const g = S.sel; const p = $("progress");
   if (!g) { p.hidden = true; return; }
   if (S.job && S.job.id === g.id) {
-    p.hidden = false; $("progText").textContent = "Analyzing position " + S.job.done + " of " + S.job.total + " at depth " + S.depth + "…";
+    p.hidden = false; $("progText").textContent = (S.job.upgrade ? "Upgrading this review to " + engine.name + ": position " : "Analyzing position ") + S.job.done + " of " + S.job.total + " at depth " + S.job.depth + "…";
     $("progBar").style.width = (100 * S.job.done / S.job.total) + "%";
   } else if (!isDone(g)) {
     p.hidden = false;
@@ -1316,6 +1682,37 @@ function renderProgress() {
   } else p.hidden = true;
 }
 
+/* ---------- review: move list, coach, player cards, key moments, graph ---------- */
+const moveNo = (g, i) => (+(g.fens[i].split(" ")[5] || 1)) + (g.moves[i].color === "w" ? "." : "…");
+const pct = x => Math.round(Math.max(0, Math.min(1, x)) * 100) + "%";
+const fmtSecs = t => t < 60 ? (t < 9.95 ? t.toFixed(1) : String(Math.round(t))) + "s" : Math.floor(t / 60) + ":" + String(Math.round(t % 60)).padStart(2, "0");
+function playerName(g, c) { return g.me === c ? "you" : (c === "w" ? g.white : g.black) || sideName(c); }
+function whoMoved(g, i) { const c = g.moves[i].color; return g.me === c ? "You" : (c === "w" ? g.white : g.black); }
+// Clock times from chess.com's [%clk] comments: seconds the mover spent on move i.
+function timeSpent(g, i) {
+  if (g._clk === undefined) {
+    g._clk = []; const re = /\[%clk\s+(\d+):(\d+):(\d+(?:\.\d+)?)\]/g; let m;
+    while ((m = re.exec(g._src || ""))) g._clk.push(+m[1] * 3600 + +m[2] * 60 + +m[3]);
+  }
+  if (g._clk.length !== g.nply || g.tclass === "daily" || !g.headers.TimeControl) return null;
+  const [base, inc] = g.headers.TimeControl.split("+").map(Number); if (!base) return null;
+  const t = (i >= 2 ? g._clk[i - 2] : base) - g._clk[i] + (inc || 0);
+  return t >= 0 ? t : null;
+}
+// Opening / middlegame / endgame, roughly like Lichess's divider: the middlegame starts once ten or fewer
+// pieces (not pawns or kings) are left, a back rank has thinned out, or after move 12 at the latest; the
+// endgame once six or fewer pieces are left.
+function phases(g) {
+  if (g._phases) return g._phases;
+  let mid = null, end = null;
+  for (let p = 0; p < g.fens.length; p++) {
+    const f = g.fens[p].split(" ")[0], pieces = (f.match(/[nbrqNBRQ]/g) || []).length, rows = f.split("/");
+    const back = row => (row.match(/[a-zA-Z]/g) || []).length;
+    if (mid == null && (pieces <= 10 || back(rows[0]) < 4 || back(rows[7]) < 4 || p >= 24)) mid = p;
+    if (end == null && pieces <= 6) { end = p; if (mid == null) mid = p; }
+  }
+  return (g._phases = { mid: mid == null ? g.fens.length : mid, end: end == null ? g.fens.length : end });
+}
 function renderMoves() {
   const g = S.sel; const ev = evalsFor(g) || [];
   let html = ""; const startBlack = g.moves.length && g.moves[0].color === "b";
@@ -1328,10 +1725,10 @@ function renderMoves() {
   }
   const cell = idx => {
     if (idx == null) return '<span class="mv"></span>';
-    const r = classify(g, ev, idx); const mv = g.moves[idx];
-    const k = r ? '<i class="k ' + r.cls + '"></i>' : '<i class="k" style="background:transparent"></i>';
-    const sym = r && ["inacc", "mistake", "blunder"].includes(r.cls) ? '<span class="sym ' + r.cls + '">' + CLS[r.cls].sym + '</span>' : "";
-    return '<button type="button" class="mv" data-ply="' + (idx + 1) + '" aria-current="' + (S.ply === idx + 1) + '">' + k + esc(mv.san) + sym + '</button>';
+    const r = gradeAt(g, ev, idx); const mv = g.moves[idx];
+    const ic = r ? kIcon(r.cls) : '<span class="ki none"></span>';
+    const sym = r && CLS[r.cls].sym ? '<span class="sym ' + r.cls + '">' + CLS[r.cls].sym + '</span>' : "";
+    return '<button type="button" class="mv" data-ply="' + (idx + 1) + '" aria-current="' + (S.ply === idx + 1 && !X.on) + '"' + (r ? ' title="' + CLS[r.cls].label + '"' : "") + '>' + ic + esc(mv.san) + sym + '</button>';
   };
   for (const [n, a, b] of rows) html += '<div class="mrow"><span class="n">' + n + '.</span>' + cell(a) + cell(b) + '</div>';
   $("moves").innerHTML = html || '<div class="empty">No moves.</div>';
@@ -1339,83 +1736,183 @@ function renderMoves() {
 
 function renderAnalysis() {
   const g = S.sel; if (!g) return;
+  if (X.on) { renderExplore(); return; }
+  $("xpanel").hidden = true; $("insight").hidden = false;
   const ev = evalsFor(g) || [];
   const ply = S.ply; const fen = g.fens[ply];
   const last = ply > 0 ? g.moves[ply - 1] : null;
-  const r = ply > 0 ? classify(g, ev, ply - 1) : null;
-  let arrow = null, badge = null;
-  if (last && r) badge = { sq: last.to, cls: r.cls };
-  if (last && r && ["inacc", "mistake", "blunder"].includes(r.cls) && ev[ply - 1] && ev[ply - 1].best) {
-    const b = ev[ply - 1].best; arrow = { from: b.slice(0, 2), to: b.slice(2, 4) };
+  const r = ply > 0 ? gradeAt(g, ev, ply - 1) : null;
+  const arrows = [];
+  if (last && r && !["best", "book", "forced", "brilliant", "great"].includes(r.cls) && ev[ply - 1] && ev[ply - 1].best) {
+    const b = ev[ply - 1].best; arrows.push({ from: b.slice(0, 2), to: b.slice(2, 4), color: "var(--c-best)" });
   }
-  renderBoard(fen, last, arrow, badge);
-
-  // eval bar
+  renderBoard(fen, last, arrows, last && r ? { sq: last.to, cls: r.cls } : null, { sel: B.sel, targets: B.targets });
   paintEvalBar("", ev[ply], S.flip);
-
-  // insight
-  const ins = $("insight");
-  if (!last) {
-    ins.innerHTML = '<span class="ico" style="background:var(--muted)">◇</span><div class="txt"><div class="ttl">Starting position</div><div class="det">Use ▶ or the → key to step through the game.' + (e ? ' Eval <b>' + fmtEval(e) + '</b>' : "") + '</div></div>';
-  } else {
-    const num = Math.floor((g.fens[ply - 1].split(" ")[5] | 0)) + (last.color === "b" ? "…" : ".");
-    const who = last.color === "w" ? g.white : g.black;
-    if (!r) {
-      ins.innerHTML = '<span class="ico">…</span><div class="txt"><div class="ttl">' + esc(num + " " + last.san) + '</div><div class="det">' + esc(who) + ' · waiting for the engine</div></div>';
-    } else if (r.cls === "book") {
-      const bn = g.bookNames[ply] || "";
-      ins.innerHTML = '<span class="ico" style="background:var(--c-book)">B</span><div class="txt"><div class="ttl">' + esc(num + " " + last.san) + ' is a book move</div><div class="det">' + esc(who) + (bn ? ' · ' + esc(bn) : ' · known opening theory') + '</div></div>';
-    } else {
-      const c = CLS[r.cls];
-      let det = esc(who) + ' · eval after <b>' + fmtEval(ev[ply]) + '</b>';
-      if (r.cls !== "best" && ev[ply - 1] && ev[ply - 1].best) {
-        det += ' · best was <b>' + esc(uciToSan(g.fens[ply - 1], ev[ply - 1].best)) + '</b>';
-        if (r.loss >= 0.05) det += ' · cost <b>' + r.loss.toFixed(1) + '</b> pawn' + (r.loss.toFixed(1) === "1.0" ? "" : "s");
-      }
-      ins.innerHTML = '<span class="ico" style="background:' + c.color + (r.cls === "inacc" ? ';color:#1d1d1f' : "") + '">' + c.sym + '</span><div class="txt"><div class="ttl">' + esc(num + " " + last.san) + ' is ' + (r.cls === "inacc" ? "an inaccuracy" : r.cls === "best" ? "the best move" : r.cls === "good" ? "a good move" : "a " + c.label.toLowerCase()) + '</div><div class="det">' + det + '</div></div>';
-    }
-  }
-
-  // summary
-  const have = ev.filter(Boolean).length;
-  if (have > 1) {
-    const sm = summarize(g, ev);
-    const card = (side, name) => {
-      const p = sm[side];
-      return '<div class="pcard"><div class="nm"><span class="side-chip" style="background:' + (side === "w" ? "var(--graph-white)" : "var(--graph-black)") + '"></span>' + esc(name) + (g.me === side ? ' <span class="tag">You</span>' : "") + '</div>' +
-        '<div class="acc">' + (p.accuracy == null ? "–" : p.accuracy.toFixed(1)) + '<small>accuracy</small></div>' +
-        '<ul class="counts">' + ORDER.map(k => '<li><i class="k ' + k + '"></i><span>' + CLS[k].label.replace(" move", "") + '</span><span>' + p.c[k] + '</span></li>').join("") + '</ul></div>';
-    };
-    $("summary").innerHTML = card("w", g.white) + card("b", g.black);
-  } else $("summary").innerHTML = "";
-
+  renderCoach(g, ev, ply, r);
+  renderSummary(g, ev);
+  renderKeys(g, ev);
   renderGraph(g, ev);
   document.querySelectorAll("#moves .mv").forEach(b => b.setAttribute("aria-current", String(+b.dataset.ply === ply)));
   const cur = document.querySelector('#moves .mv[aria-current="true"]');
   if (cur) { const box = $("moves"); const t = cur.offsetTop - box.offsetTop; if (t < box.scrollTop || t > box.scrollTop + box.clientHeight - 30) box.scrollTop = t - box.clientHeight / 2; }
-  if (S.job && S.job.id === g.id) renderMoves();
+  if (S.job && S.job.id === g.id && !S.job.upgrade) renderMoves();
 }
 
+// The coach: what the move was, why, and what to do about it.
+function renderCoach(g, ev, ply, r) {
+  const ins = $("insight"); ins.classList.remove("retry");
+  if (!g) return;
+  if (ply === 0) {
+    const e = ev[0];
+    ins.innerHTML = '<span class="ico">◇</span><div class="txt"><div class="ttl">Starting position</div><div class="det">Use ▶ or the → key to step through the game.' + (e ? ' Eval <b>' + fmtEval(e) + '</b>' : "") + '</div></div>';
+    return;
+  }
+  const i = ply - 1, mv = g.moves[i], num = moveNo(g, i), who = whoMoved(g, i);
+  if (!r) {
+    ins.innerHTML = '<span class="ico">…</span><div class="txt"><div class="ttl">' + esc(num + " " + mv.san) + '</div><div class="det">' + esc(who) + ' · waiting for the engine</div></div>';
+    return;
+  }
+  const c = CLS[r.cls], det = [esc(who)];
+  if (r.cls === "book") det.push(esc(bookNameAt(g, ply) || "known opening theory"));
+  else {
+    det.push('eval <b>' + fmtEval(ev[ply]) + '</b>');
+    if (r.epl >= 0.02 && !["brilliant", "great", "best", "forced"].includes(r.cls)) det.push('<span class="chance" title="Chance of winning (a draw counts half) before and after this move">win chance ' + pct(r.epBefore) + ' → ' + pct(r.epAfter) + '</span>');
+  }
+  const t = timeSpent(g, i); if (t != null) det.push("took " + fmtSecs(t));
+  const say = coachSay(g, ev, i, r), acts = coachActs(g, ev, i, r);
+  ins.innerHTML = '<span class="ico ' + r.cls + '">' + c.glyph + '</span><div class="txt"><div class="ttl">' + esc(num + " " + mv.san) + ' is ' + c.say + '</div><div class="det">' + det.join(" · ") + '</div>' +
+    (say ? '<div class="say">' + say + '</div>' : "") + '</div>' + (acts ? '<div class="acts">' + acts + '</div>' : "");
+}
+function coachSay(g, ev, i, r) {
+  const a = ev[i], fen = g.fens[i], opp = r.side === "w" ? "b" : "w";
+  const best = a && a.best ? '<b>' + esc(uciToSan(fen, a.best)) + '</b>' : "";
+  const prev = i > 0 ? g.moves[i - 1] : null;
+  switch (r.cls) {
+    case "book": case "forced": return r.cls === "forced" ? "The only legal move." : "";
+    case "best": return r.onlyMove ? "The only good move, but an easy one to see." : "Stockfish's top choice.";
+    case "excellent": return r.epAfter >= r.epBefore - 0.005 ? "Stockfish's first choice was " + best + ", but this is just as good." : "Nearly as good as Stockfish's " + best + " (" + fmtEval(a) + ").";
+    case "good": return best + " was a little stronger (" + fmtEval(a) + ").";
+    case "inacc": case "mistake": case "blunder":
+      return best + " was better (" + fmtEval(a) + "). " + whyHtml(g, i, "ref");
+    case "miss":
+      return (prev ? (g.me === opp ? "Your " : esc(playerName(g, opp)) + "'s ") + esc(moveNo(g, i - 1) + " " + prev.san) + " was a mistake, and " : "") + best + " would have punished it (" + fmtEval(a) + "). " + whyHtml(g, i, "best");
+    case "great": {
+      const alt = a.alt ? '<b>' + esc(uciToSan(fen, a.alt.best)) + '</b>' : "";
+      return "The only good move" + (alt ? ": the next best, " + alt + ", gives " + fmtEval(a.alt) + " instead of " + fmtEval(a) + "." : ".") + " " + whyHtml(g, i, "best");
+    }
+    case "brilliant": {
+      const f = r.sac, pn = f && f.sacPiece ? PNAME[f.sacPiece] : "piece";
+      return "A sound sacrifice: it gives up the " + pn + (f && f.sacSq ? " on " + f.sacSq : "") + ", and the position holds up (" + fmtEval(ev[i + 1]) + "). " + whyHtml(g, i, "best");
+    }
+  }
+  return "";
+}
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+function coachActs(g, ev, i, r) {
+  const out = [];
+  if (g.me && r.side === g.me && ["inacc", "mistake", "miss", "blunder"].includes(r.cls) && ev[i] && ev[i].best) out.push('<button class="btn small" type="button" data-act="retry" title="Go back to this position and look for a better move">Retry</button>');
+  if (ev[i] && ev[i].best && !["book", "forced", "best"].includes(r.cls)) out.push('<button class="btn small" type="button" data-act="line">' + (["great", "brilliant"].includes(r.cls) ? "See the idea" : "Best line") + '</button>');
+  const nk = nextKey(g, ev, i + 1); if (nk != null) out.push('<button class="btn small" type="button" data-act="key" data-ply="' + (nk + 1) + '" title="Jump to your next brilliant, great, missed or bad move">Next key moment →</button>');
+  return out.join("");
+}
+// "Why" for a move, worked out from an engine line: what the opponent can do after it ("ref"), or what
+// the best move would have done ("best"). Lines come from the website's review when it has them,
+// otherwise from Stockfish in this browser. Cached per game.
+function whyHtml(g, i, kind) {
+  g._why = g._why || {}; const key = i + kind, w = g._why[key];
+  if (w && w.html != null) return w.html;
+  if (!w) {
+    g._why[key] = { html: null };
+    loadWhy(g, i, kind).catch(() => "").then(html => {
+      g._why[key].html = html || "";
+      if (S.sel === g && S.ply === i + 1 && !X.on && view === "review") { const ev = evalsFor(g) || []; renderCoach(g, ev, S.ply, gradeAt(g, ev, i)); }
+    });
+  }
+  return engine.ready || pvFor(g, i, kind) ? '<span class="wait">Working out why…</span>' : "";
+}
+function pvFor(g, i, kind) { const a = S.analyses[g.id]; const src = a && (kind === "ref" ? a.ref : a.pv); return src && src[i] && src[i].length ? src[i] : null; }
+async function loadWhy(g, i, kind) {
+  const fen = kind === "ref" ? g.fens[i + 1] : g.fens[i];
+  if (new Chess(fen).game_over()) return "";
+  let pv = pvFor(g, i, kind);
+  if (!pv) { if (!engine.ready) return ""; const r = await engine.analyse(fen, 16, { lane: "user" }); pv = r && r.pv; }
+  if (!pv || !pv.length) return "";
+  const mover = g.moves[i].color, opp = mover === "w" ? "b" : "w";
+  if (kind === "ref") {
+    const owner = g.me === mover ? "your" : sideName(mover) + "’s";
+    const d = describeLine(fen, pv, owner, g.moves[i].captured || null);
+    const them = g.me === opp ? "you" : playerName(g, opp);
+    if (!d) return "";
+    if (d.mate) return "It allows a forced mate: <b>" + esc(d.line) + "</b>.";
+    if (d.what) return "After it, " + esc(them) + " can " + d.what + ": <b>" + esc(d.line) + "</b>." + (d.fork ? " " + esc(d.fork) + "." : "");
+    return (them === "you" ? "Your" : esc(them) + "'s") + " best answer: <b>" + esc(lineSan(fen, pv.slice(0, 5))) + "</b>.";
+  }
+  const owner = g.me === opp ? "your" : sideName(opp) + "’s";
+  const d = describeLine(fen, pv, owner, null);
+  if (!d) return "";
+  if (d.mate) return "<b>" + esc(d.first) + "</b> starts a forced mate: <b>" + esc(d.line) + "</b>.";
+  if (d.what) return "<b>" + esc(d.first) + "</b> wins " + d.what.replace(/^win /, "") + ": <b>" + esc(d.line) + "</b>." + (d.fork ? " " + esc(d.fork) + "." : "");
+  return "The idea: <b>" + esc(lineSan(fen, pv.slice(0, 8))) + "</b>.";
+}
+function nextKey(g, ev, fromPly) {
+  for (let i = fromPly; i < g.nply; i++) { const r = gradeAt(g, ev, i); if (r && KEY_CLS.includes(r.cls) && (!g.me || r.side === g.me)) return i; }
+  return null;
+}
+function renderSummary(g, ev) {
+  const have = ev.filter(Boolean).length;
+  if (have < 2) { $("summary").innerHTML = ""; return; }
+  const sm = summarize(g, ev), ph = phases(g);
+  const phaseAcc = side => {
+    const acc = [[], [], []];
+    for (let i = 0; i < g.nply; i++) { const r = gradeAt(g, ev, i); if (!r || r.side !== side || r.acc == null) continue; acc[i + 1 <= ph.mid ? 0 : i + 1 <= ph.end ? 1 : 2].push(r.acc); }
+    return acc.map(a => a.length ? (a.reduce((x, y) => x + y, 0) / a.length).toFixed(0) : "–");
+  };
+  const card = (side, name) => {
+    const p = sm[side];
+    return '<div class="pcard"><div class="nm"><span class="side-chip" style="background:' + (side === "w" ? "var(--graph-white)" : "var(--graph-black)") + '"></span>' + esc(name) + (g.me === side ? ' <span class="tag">You</span>' : "") + '</div>' +
+      '<div class="acc">' + (p.accuracy == null ? "–" : p.accuracy.toFixed(1)) + '<small>accuracy</small></div>' +
+      '<ul class="counts">' + ORDER.map(k => '<li><button type="button" class="crow" data-side="' + side + '" data-cls="' + k + '"' + (p.c[k] ? ' title="Go to the next ' + CLS[k].label.toLowerCase() + '"' : " disabled") + '>' + kIcon(k) + '<span>' + CLS[k].label + '</span><span>' + p.c[k] + '</span></button></li>').join("") + '</ul>' +
+      '</div>';
+  };
+  const prow = (side, name) => { const pa = phaseAcc(side); return '<div class="nm">' + esc(name) + '</div>' + pa.map(v => v === "–" ? '<span class="na">–</span>' : '<b>' + v + '</b>').join(""); };
+  $("summary").innerHTML = card("w", g.white) + card("b", g.black) +
+    '<div class="phases" title="Accuracy in each part of the game"><span class="t">Accuracy by phase</span><span class="h"></span><span class="h">Opening</span><span class="h">Middle</span><span class="h">Endgame</span>' +
+    prow("w", g.me === "w" ? "You" : g.white) + prow("b", g.me === "b" ? "You" : g.black) + '</div>';
+}
+function renderKeys(g, ev) {
+  const el = $("keys"), list = [];
+  if (ev.filter(Boolean).length < 2) { el.hidden = true; return; }
+  for (let i = 0; i < g.nply; i++) { const r = gradeAt(g, ev, i); if (r && KEY_CLS.includes(r.cls) && (!g.me || r.side === g.me)) list.push([i, r.cls]); }
+  el.hidden = false;
+  el.innerHTML = '<div class="section-label">' + (g.me ? "Your key moments" : "Key moments") + '</div>' + (list.length
+    ? '<div class="row">' + list.map(([i, c]) => '<button type="button" class="kchip" data-ply="' + (i + 1) + '" aria-current="' + (S.ply === i + 1 && !X.on) + '" title="' + CLS[c].label + '">' + kIcon(c) + esc(moveNo(g, i) + " " + g.moves[i].san) + '</button>').join("") + '</div>'
+    : '<div class="none">No mistakes, misses or standout moves in this game.</div>');
+}
 function renderGraph(g, ev) {
   const svg = $("graph"); const W = 600, H = 86; const N = g.fens.length - 1;
   if (N < 1) { svg.innerHTML = ""; return; }
-  const x = i => (i / N) * W; const y = i => H - (winPct(ev[i].num) / 100) * H;
+  const x = i => (i / N) * W; const y = i => H - epW(ev[i]) * H;
   let pts = []; for (let i = 0; i <= N; i++) if (ev[i]) pts.push([x(i), y(i)]);
   let s = '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="var(--graph-black)"/>';
   if (pts.length > 1) {
     s += '<path d="M' + pts[0][0] + ' ' + H + ' L' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(" L") + ' L' + pts[pts.length - 1][0] + ' ' + H + ' Z" fill="var(--graph-white)"/>';
   }
   s += '<line x1="0" x2="' + W + '" y1="' + H / 2 + '" y2="' + H / 2 + '" stroke="#8e8e93" stroke-width="1" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>';
-  for (let i = 0; i < N; i++) {
-    const r = classify(g, ev, i);
-    if (r && ["mistake", "blunder"].includes(r.cls)) s += '<circle cx="' + x(i + 1) + '" cy="' + y(i + 1) + '" r="3.2" fill="' + CLS[r.cls].color + '" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke"/>';
-  }
   s += '<line x1="' + x(S.ply) + '" x2="' + x(S.ply) + '" y1="0" y2="' + H + '" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/>';
   svg.innerHTML = s;
+  // Dots for the moves that matter, drawn as HTML so they stay round while the chart stretches.
+  const wrap = svg.parentElement; wrap.querySelectorAll(".gdot").forEach(d => d.remove());
+  for (let i = 0; i < N; i++) {
+    const r = gradeAt(g, ev, i); if (!r || !KEY_CLS.includes(r.cls) || !ev[i + 1]) continue;
+    const d = document.createElement("span"); d.className = "gdot ki " + r.cls;
+    d.style.left = (100 * (i + 1) / N) + "%"; d.style.top = (100 * (1 - epW(ev[i + 1]))) + "%";
+    wrap.appendChild(d);
+  }
 }
 
-function renderBoard(fen, last, arrow, badge, o) {
+function renderBoard(fen, last, arrows, badge, o) {
   o = o || {}; const el = o.el || "board";
+  if (arrows && !Array.isArray(arrows)) arrows = [arrows];
   const rows = fen.split(" ")[0].split("/");
   const grid = []; // grid[rank 0..7 from 8 down][file 0..7]
   for (const r of rows) { const line = []; for (const ch of r) { if (/\d/.test(ch)) for (let k = 0; k < +ch; k++) line.push(null); else line.push(ch); } grid.push(line); }
@@ -1435,25 +1932,190 @@ function renderBoard(fen, last, arrow, badge, o) {
     if (vr === 7) inner += '<span class="coord f">' + files[f] + '</span>';
     if (vf === 0) inner += '<span class="coord r">' + (8 - r) + '</span>';
     if (p) inner += '<span class="pc ' + (p === p.toUpperCase() ? "w" : "b") + p.toLowerCase() + '" role="img" aria-label="' + (p === p.toUpperCase() ? "white " : "black ") + GL[p.toLowerCase()] + '"></span>';
-    if (badge && badge.sq === sq) { const c = CLS[badge.cls]; inner += '<span class="badge" style="background:' + c.color + (badge.cls === "inacc" ? ';color:#1d1d1f' : "") + '">' + c.sym + '</span>'; }
+    if (badge && badge.sq === sq && CLS[badge.cls]) inner += '<span class="badge ' + badge.cls + '" title="' + CLS[badge.cls].label + '">' + CLS[badge.cls].glyph + '</span>';
     html += '<div class="' + cls + '" data-sq="' + sq + '">' + inner + '</div>';
   }
-  if (arrow) {
+  if (arrows && arrows.length) {
     const c = s => { const f = files.indexOf(s[0]), r = 8 - +s[1]; const vf = flip ? 7 - f : f, vr = flip ? 7 - r : r; return [vf + .5, vr + .5]; };
-    const [x1, y1] = c(arrow.from), [x2, y2] = c(arrow.to);
-    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1; const ex = x2 - dx / len * .32, ey = y2 - dy / len * .32;
-    const mid = "ah-" + el;
-    html += '<svg class="arrows" viewBox="0 0 8 8"><defs><marker id="' + mid + '" viewBox="0 0 10 10" refX="3" refY="5" markerWidth="3" markerHeight="3" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--arrow)"/></marker></defs>' +
-      '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + ex + '" y2="' + ey + '" style="stroke:var(--arrow)" stroke-opacity=".85" stroke-width=".17" stroke-linecap="round" marker-end="url(#' + mid + ')"/></svg>';
+    html += '<svg class="arrows" viewBox="0 0 8 8"><defs>';
+    arrows.forEach((a, k) => { html += '<marker id="ah-' + el + k + '" viewBox="0 0 10 10" refX="3" refY="5" markerWidth="3" markerHeight="3" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill:' + (a.color || "var(--arrow)") + '"/></marker>'; });
+    html += '</defs>';
+    arrows.forEach((a, k) => {
+      const [x1, y1] = c(a.from), [x2, y2] = c(a.to);
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1; const ex = x2 - dx / len * .32, ey = y2 - dy / len * .32;
+      html += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + ex + '" y2="' + ey + '" style="stroke:' + (a.color || "var(--arrow)") + '" stroke-opacity="' + (a.faint ? ".45" : ".85") + '" stroke-width=".17" stroke-linecap="round" marker-end="url(#ah-' + el + k + ')"/>';
+    });
+    html += '</svg>';
   }
   $(el).innerHTML = html;
 }
 
 function go(ply) {
-  if (!S.sel) return; const prev = S.ply;
+  if (!S.sel) return;
+  if (X.on) xExit(true);
+  const prev = S.ply; B.sel = null; B.targets = [];
   S.ply = Math.max(0, Math.min(S.sel.moves.length, ply));
   if (S.ply !== prev) sound.play(S.ply > prev ? S.sel.moves[S.ply - 1].san : "back");
   renderAnalysis();
+}
+
+/* ---------- review: trying moves on the board (explore) and Retry ----------
+   Move any piece on the review board to leave the game and look at your own line with Stockfish
+   (three best lines, live). Retry puts you back before one of your mistakes to find a better move. */
+const B = { sel: null, targets: [] };          // the piece picked up on the review board
+const X = { on: false, mode: "", ply: 0, start: "", hist: [], idx: 0, fen: "", res: null, resFen: "", atok: 0, token: 0, retry: null, auto: [] };
+function xEnter(mode, ply) {
+  const g = S.sel; if (!g) return;
+  X.auto.forEach(clearTimeout); X.auto = [];
+  engine.stopLive(); B.sel = null; B.targets = [];
+  Object.assign(X, { on: true, mode, ply, start: g.fens[ply], hist: [], idx: 0, fen: g.fens[ply], res: null, resFen: "", token: X.token + 1,
+    retry: mode === "retry" ? { i: ply, tries: 0, done: false, shown: false, checking: false, msg: null, hint: null, arrow: null } : null });
+  if (mode === "explore") xAnalyse();
+  renderAnalysis(); renderMovesCurrent();
+}
+function xExit(quiet) {
+  if (!X.on) return;
+  X.auto.forEach(clearTimeout); X.auto = [];
+  X.on = false; X.retry = null; X.token++; X.atok++; engine.stopLive(); B.sel = null; B.targets = [];
+  const c = document.querySelector("#review canvas.confetti"); if (c) c.remove();
+  if (!quiet) { renderAnalysis(); renderMovesCurrent(); }
+}
+function renderMovesCurrent() { document.querySelectorAll("#moves .mv").forEach(b => b.setAttribute("aria-current", String(!X.on && +b.dataset.ply === S.ply))); }
+function xPlay(from, to, promo) {
+  const c = new Chess(X.fen); const m = c.move({ from, to, promotion: promo || "q" }); if (!m) return null;
+  X.hist = X.hist.slice(0, X.idx); X.hist.push({ san: m.san, from: m.from, to: m.to, fen: c.fen(), color: m.color, promotion: m.promotion || "" });
+  X.idx = X.hist.length; X.fen = c.fen(); sound.play(m.san);
+  return m;
+}
+function xGo(idx) {
+  X.auto.forEach(clearTimeout); X.auto = [];
+  X.idx = Math.max(0, Math.min(X.hist.length, idx)); X.fen = X.idx ? X.hist[X.idx - 1].fen : X.start;
+  B.sel = null; B.targets = []; xAnalyse(); renderAnalysis();
+}
+function xAnalyse() {
+  const fen = X.fen, t = ++X.atok; X.res = null;
+  if (!engine.ready || X.mode !== "explore") return;
+  if (new Chess(fen).game_over()) return;
+  let last = 0;
+  const show = r => { if (!r || t !== X.atok || !X.on) return; X.res = r; X.resFen = fen; const now = Date.now(); if (now - last > 180 || r.final) { last = now; renderExplore(true); } };
+  engine.analyse(fen, 22, { lane: "live", multipv: 3, onInfo: show }).then(r => { if (r) { r.final = true; show(r); } });
+}
+function exploreEval() {
+  if (X.res && X.resFen === X.fen && X.res.score) return toEval(X.fen, X.res);
+  if (X.idx === 0) { const ev = evalsFor(S.sel) || []; return ev[X.ply] || null; }
+  const c = new Chess(X.fen);
+  if (c.in_checkmate()) return { num: c.turn() === "w" ? -10 : 10, mated: true };
+  if (c.game_over()) return { num: 0, cp: 0 };
+  return null;
+}
+function renderExplore(liveOnly) {
+  const g = S.sel; if (!g || !X.on) return;
+  const last = X.idx ? X.hist[X.idx - 1] : (X.ply > 0 ? g.moves[X.ply - 1] : null);
+  const arrows = [];
+  if (X.mode === "explore" && X.res && X.resFen === X.fen && X.res.best) arrows.push({ from: X.res.best.slice(0, 2), to: X.res.best.slice(2, 4) });
+  if (X.retry && X.retry.arrow) arrows.push(X.retry.arrow);
+  renderBoard(X.fen, last, arrows, null, { sel: B.sel, targets: B.targets, hint: X.retry ? X.retry.hint : null });
+  paintEvalBar("", exploreEval(), S.flip);
+  if (X.mode === "retry") { $("xpanel").hidden = true; $("insight").hidden = false; if (!liveOnly) renderRetry(); return; }
+  $("insight").hidden = true;
+  const p = $("xpanel"); p.hidden = false;
+  const from = X.ply > 0 ? moveNo(g, X.ply - 1) + " " + g.moves[X.ply - 1].san : "the start";
+  let mv = "";
+  if (X.hist.length) {
+    const c = new Chess(X.start); const parts = [];
+    X.hist.forEach((h, k) => {
+      const n = c.fen().split(" ")[5], white = c.turn() === "w"; c.move(h.san);
+      const lbl = esc(h.san);
+      parts.push((white ? '<span class="n">' + n + '.</span> ' : (k === 0 ? '<span class="n">' + n + '…</span> ' : "")) + '<span class="xm' + (k + 1 === X.idx ? " cur" : "") + '" data-xi="' + (k + 1) + '" role="button" tabindex="0">' + lbl + '</span>');
+    });
+    mv = '<div class="xmoves">' + parts.join(" ") + '</div>';
+  } else mv = '<div class="xmoves" style="color:var(--muted)">Move a piece to try your own line.</div>';
+  let lines = "";
+  const c0 = new Chess(X.fen);
+  if (c0.game_over()) lines = '<div class="xdepth">' + (c0.in_checkmate() ? "Checkmate." : "Draw.") + '</div>';
+  else if (!engine.ready) lines = '<div class="xdepth">' + (engineFailed ? "Stockfish didn't load." : "Waiting for Stockfish…") + '</div>';
+  else if (X.res && X.resFen === X.fen && X.res.lines.length) {
+    const sign = X.fen.split(" ")[1] === "w" ? 1 : -1;
+    lines = '<ul class="xlines">' + X.res.lines.slice(0, 3).map((l, k) => {
+      const e = lineEval(sign, l.score), san = lineSan(X.fen, l.pv.slice(0, 10));
+      const first = san.split(" ").slice(0, 2).join(" ");
+      return '<li><button type="button" class="xline" data-xl="' + k + '" title="Play ' + esc(l.pv[0]) + '"><span class="ev">' + fmtEval(e) + '</span><span class="pv"><b>' + esc(first) + '</b>' + esc(san.slice(first.length)) + '</span></button></li>';
+    }).join("") + '</ul><div class="xdepth">' + esc(engine.name) + ' · depth ' + X.res.depth + '</div>';
+  } else lines = '<div class="xdepth">Stockfish is thinking…</div>';
+  p.innerHTML = '<div class="xhead"><div class="t">Your analysis <span>from ' + esc(from) + '</span></div><button class="btn small" type="button" data-x="back">Back to the game</button></div>' + mv + lines +
+    '<div class="xbtns"><button class="btn small" type="button" data-x="prev"' + (X.idx ? "" : " disabled") + '>← Back</button><button class="btn small" type="button" data-x="next"' + (X.idx < X.hist.length ? "" : " disabled") + '>Forward →</button></div>';
+}
+// Retry: back to the position before one of your mistakes. Find a move that keeps (nearly) all of your chances.
+function renderRetry() {
+  const g = S.sel, r = X.retry, i = r.i, ins = $("insight"), played = g.moves[i];
+  const ev = evalsFor(g) || [], gr = gradeAt(g, ev, i);
+  ins.classList.add("retry");
+  const ask = r.done ? (r.shown ? "Here's the answer" : "You found it") : gr && gr.cls === "miss" && i > 0 ? "Find the move that punishes " + g.moves[i - 1].san : "Find a better move than " + played.san;
+  const sub = r.done ? (r.shown ? "Stockfish's line is on the board." : "Nice. That's the kind of move to look for next time.") : sideName(played.color) + " to move" + (r.tries ? " · try " + (r.tries + 1) : "") + ". Move a piece on the board.";
+  const btns = r.done
+    ? '<button class="btn small" type="button" data-act="back">Back to the game</button><button class="btn small" type="button" data-act="explore">Keep exploring</button>'
+    : '<button class="btn small" type="button" data-act="hint">Hint</button><button class="btn small" type="button" data-act="answer">Show the answer</button><button class="btn small" type="button" data-act="back">Back to the game</button>';
+  ins.innerHTML = '<span class="ico ' + (gr ? gr.cls : "") + '">' + (gr ? CLS[gr.cls].glyph : "?") + '</span><div class="txt"><div class="ttl">' + esc("Retry " + moveNo(g, i) + " · " + ask) + '</div><div class="det">' + esc(sub) + '</div></div>' +
+    (r.msg ? '<div class="feedback ' + r.msg.kind + '">' + r.msg.html + '</div>' : "") + '<div class="acts">' + btns + '</div>';
+}
+async function retryMove(m) {
+  const g = S.sel, r = X.retry, i = r.i, ev = evalsFor(g) || [], a = ev[i], side = moverAt(g, i), tok = X.token;
+  const uci = m.from + m.to + (m.promotion || ""), played = g.moves[i], playedUci = played.from + played.to + (played.promotion || "");
+  const startFen = g.fens[i], bestSan = uciToSan(startFen, a.best), epB = epFor(a, side);
+  r.tries++; r.hint = null;
+  const verdict = async () => {
+    if (uci === a.best || new Chess(X.fen).in_checkmate()) return { ok: true, html: "<b>" + esc(m.san) + "</b> is " + (uci === a.best ? "Stockfish's top move." : "checkmate.") };
+    if (uci === playedUci) return { ok: false, html: "<b>" + esc(m.san) + "</b> is the move you played in the game." };
+    if (a.alt && uci === a.alt.best && epB - epFor(a.alt, side) < GRADE_GOOD) return { ok: true, html: "<b>" + esc(m.san) + "</b> works too (" + fmtEval(a.alt) + "). Stockfish's first choice was <b>" + esc(bestSan) + "</b> (" + fmtEval(a) + ")." };
+    if (!engine.ready) return { ok: false, html: "<b>" + esc(m.san) + "</b> isn't the move Stockfish found." };
+    r.checking = true; r.msg = { kind: "info", html: "Checking <b>" + esc(m.san) + "</b> with Stockfish…" }; renderRetry();
+    const res = await engine.analyse(X.fen, 14, { lane: "user" }); r.checking = false;
+    if (tok !== X.token) return null;
+    const e = toEval(X.fen, res), lost = epB - epFor(e, side);
+    if (lost < GRADE_GOOD) return { ok: true, html: "<b>" + esc(m.san) + "</b> works too (" + fmtEval(e) + "). Stockfish's first choice was <b>" + esc(bestSan) + "</b>." };
+    return { ok: false, html: "<b>" + esc(m.san) + "</b> isn't it: your win chance would go from " + pct(epB) + " to " + pct(epFor(e, side)) + "." };
+  };
+  const v = await verdict(); if (!v || tok !== X.token || !X.on) return;
+  if (v.ok) {
+    r.done = true; r.msg = { kind: "good", html: v.html + (r.tries > 1 ? "" : " First try.") };
+    renderAnalysis(); confetti("board"); $("board").classList.add("flash-good"); setTimeout(() => $("board").classList.remove("flash-good"), 700);
+    const why = await loadWhy(g, i, "best").catch(() => ""); if (why && tok === X.token && X.on) { r.msg.html += '<div class="why"><span class="why-h">Why</span>' + why + '</div>'; renderRetry(); }
+    return;
+  }
+  r.msg = { kind: "bad", html: v.html + " Try again." }; renderAnalysis();
+  $("board").classList.add("flash-bad");
+  X.auto.push(setTimeout(() => { $("board").classList.remove("flash-bad"); if (tok !== X.token || !X.on) return; X.hist = []; X.idx = 0; X.fen = X.start; renderAnalysis(); }, 750));
+}
+function retryAnswer() {
+  const g = S.sel, r = X.retry, i = r.i, ev = evalsFor(g) || [], a = ev[i]; if (!a || !a.best) return;
+  r.done = true; r.shown = true; r.hint = null; X.hist = []; X.idx = 0; X.fen = X.start;
+  r.msg = { kind: "info", html: "The answer: <b>" + esc(uciToSan(X.start, a.best)) + "</b> (" + fmtEval(a) + ")." };
+  const tok = X.token, pv = pvFor(g, i, "best");
+  const play = line => {
+    const show = (line && line.length ? line : [a.best]).slice(0, 7);
+    show.forEach((u, k) => X.auto.push(setTimeout(() => { if (tok !== X.token || !X.on) return; xPlay(u.slice(0, 2), u.slice(2, 4), u[4]); renderAnalysis(); }, 650 * (k + 1))));
+  };
+  renderAnalysis();
+  if (pv) play(pv); else if (engine.ready) engine.analyse(X.start, 16, { lane: "user" }).then(res => { if (tok === X.token) play(res && res.pv); }); else play(null);
+  loadWhy(g, i, "best").catch(() => "").then(why => { if (why && tok === X.token && X.on) { r.msg.html += '<div class="why"><span class="why-h">Why</span>' + why + '</div>'; renderRetry(); } });
+}
+// Show the best line (or the idea behind a great move) from the position before move i, move by move.
+function showLine(i) {
+  const g = S.sel, ev = evalsFor(g) || [], a = ev[i]; if (!a) return;
+  xEnter("explore", i);
+  const tok = X.token, pv = pvFor(g, i, "best");
+  const play = line => {
+    const moves = (line && line.length ? line : a.best ? [a.best] : []).slice(0, 8);
+    moves.forEach((u, k) => X.auto.push(setTimeout(() => {
+      if (tok !== X.token || !X.on) return;
+      xPlay(u.slice(0, 2), u.slice(2, 4), u[4]);
+      if (k === moves.length - 1) xAnalyse(); else { X.atok++; X.res = null; }
+      renderAnalysis();
+    }, 700 * (k + 1))));
+  };
+  if (pv) play(pv);
+  else if (engine.ready) engine.analyse(X.start, 16, { lane: "user" }).then(r => { if (tok === X.token && X.on) play(r && r.pv); });
+  else play(null);
 }
 
 
@@ -1527,20 +2189,100 @@ $("bStart").onclick = () => go(0); $("bPrev").onclick = () => go(S.ply - 1);
 $("bNext").onclick = () => go(S.ply + 1); $("bEnd").onclick = () => go(1e9);
 $("bSound").onclick = () => sound.toggle(); sound.label();
 
-$("graph").addEventListener("click", e => {
-  if (!S.sel) return; const rect = e.currentTarget.getBoundingClientRect();
-  go(Math.round((e.clientX - rect.left) / rect.width * S.sel.moves.length));
+// Graph: click a spot to jump there; hover to see the move and the eval.
+const graphPly = (e, el) => { const rect = el.getBoundingClientRect(); return Math.max(0, Math.min(S.sel.moves.length, Math.round((e.clientX - rect.left) / rect.width * S.sel.moves.length))); };
+$("graph").addEventListener("click", e => { if (S.sel) go(graphPly(e, e.currentTarget)); });
+$("graph").addEventListener("mousemove", e => {
+  const g = S.sel; if (!g) return; const p = graphPly(e, e.currentTarget), ev = evalsFor(g) || [], tip = $("gtip");
+  const r = p > 0 ? gradeAt(g, ev, p - 1) : null;
+  tip.textContent = (p > 0 ? moveNo(g, p - 1) + " " + g.moves[p - 1].san : "Start") + (ev[p] ? " · " + fmtEval(ev[p]) : "") + (r && r.cls !== "best" && r.cls !== "book" ? " · " + CLS[r.cls].label : "");
+  tip.style.left = (100 * p / Math.max(1, g.moves.length)) + "%"; tip.hidden = false;
+});
+$("graph").addEventListener("mouseleave", () => { $("gtip").hidden = true; });
+
+// Player cards: a grade row jumps to that player's next move with that grade (and round again).
+$("summary").addEventListener("click", e => {
+  const b = e.target.closest(".crow[data-cls]"); const g = S.sel; if (!b || !g) return;
+  const ev = evalsFor(g) || [], want = b.dataset.cls, side = b.dataset.side, hits = [];
+  for (let i = 0; i < g.nply; i++) { const r = gradeAt(g, ev, i); if (r && r.cls === want && r.side === side) hits.push(i + 1); }
+  if (!hits.length) return;
+  go(hits.find(p => p > S.ply) || hits[0]);
+});
+$("keys").addEventListener("click", e => { const b = e.target.closest(".kchip[data-ply]"); if (b) go(+b.dataset.ply); });
+
+// Coach buttons
+$("insight").addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"), g = S.sel; if (!b || !g) return;
+  const act = b.dataset.act;
+  if (act === "retry") xEnter("retry", S.ply - 1);
+  else if (act === "line") showLine(S.ply - 1);
+  else if (act === "key") go(+b.dataset.ply);
+  else if (act === "back") xExit();
+  else if (act === "explore") { const keep = { hist: X.hist, idx: X.idx, fen: X.fen }; X.mode = "explore"; X.retry = null; Object.assign(X, keep); xAnalyse(); renderAnalysis(); }
+  else if (act === "hint" && X.retry && !X.retry.done) {
+    const a = (evalsFor(g) || [])[X.retry.i]; if (!a || !a.best) return;
+    X.retry.hint = a.best.slice(0, 2); const pc = new Chess(X.start).get(X.retry.hint);
+    X.retry.msg = { kind: "info", html: "Hint: it's a move with your " + (pc ? PNAME[pc.type] : "piece") + " on <b>" + X.retry.hint + "</b>." };
+    X.hist = []; X.idx = 0; X.fen = X.start; renderAnalysis();
+  }
+  else if (act === "answer" && X.retry && !X.retry.done) retryAnswer();
+});
+// Explore panel
+$("xpanel").addEventListener("click", e => {
+  const b = e.target.closest("[data-x],[data-xl],[data-xi]"); if (!b || !X.on) return;
+  if (b.dataset.x === "back") xExit();
+  else if (b.dataset.x === "prev") xGo(X.idx - 1);
+  else if (b.dataset.x === "next") xGo(X.idx + 1);
+  else if (b.dataset.xi) xGo(+b.dataset.xi);
+  else if (b.dataset.xl != null && X.res && X.resFen === X.fen) {
+    const l = X.res.lines[+b.dataset.xl]; if (!l || !l.pv[0]) return;
+    const u = l.pv[0]; if (xPlay(u.slice(0, 2), u.slice(2, 4), u[4])) { xAnalyse(); renderAnalysis(); }
+  }
+});
+// The review board: pick up a piece and put it down. Playing the game's own next move just steps forward;
+// anything else starts your own line (or answers a Retry).
+$("board").addEventListener("click", e => {
+  const g = S.sel, el = e.target.closest(".sq[data-sq]"); if (!g || !el) return;
+  if (X.on && X.mode === "retry" && (X.retry.done || X.retry.checking || X.hist.length)) return;
+  if (X.auto.length && X.on) { X.auto.forEach(clearTimeout); X.auto = []; }
+  const fen = X.on ? X.fen : g.fens[S.ply], c = new Chess(fen), sq = el.dataset.sq;
+  if (B.sel && B.targets.includes(sq)) {
+    const from = B.sel; B.sel = null; B.targets = [];
+    if (!X.on) {
+      const nx = g.moves[S.ply];
+      if (nx && nx.from === from && nx.to === sq) { go(S.ply + 1); return; }
+      xEnter("explore", S.ply);
+    }
+    const m = xPlay(from, sq, "q"); if (!m) { renderAnalysis(); return; }
+    if (X.mode === "retry") { renderAnalysis(); retryMove(m); }
+    else { xAnalyse(); renderAnalysis(); }
+    return;
+  }
+  const pc = c.get(sq);
+  if (pc && pc.color === c.turn() && !c.game_over()) { B.sel = sq; B.targets = c.moves({ square: sq, verbose: true }).map(m => m.to); }
+  else { B.sel = null; B.targets = []; }
+  if (X.on) renderExplore(); else renderAnalysis();
 });
 document.addEventListener("keydown", e => {
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName)) return;
+  if (view !== "review" || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (X.on && X.mode === "explore") {
+    if (e.key === "ArrowLeft") { if (X.idx) xGo(X.idx - 1); else xExit(); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { xGo(X.idx + 1); e.preventDefault(); }
+    else if (e.key === "Escape") xExit();
+    return;
+  }
+  if (X.on && e.key === "Escape") { xExit(); return; }
   if (e.key === "ArrowLeft") { go(S.ply - 1); e.preventDefault(); }
   else if (e.key === "ArrowRight") { go(S.ply + 1); e.preventDefault(); }
   else if (e.key === "Home") go(0); else if (e.key === "End") go(1e9);
 });
+$("lgrid").innerHTML = ORDER.concat("forced").map(k => kIcon(k) + '<div><b>' + CLS[k].label + '</b>: ' + esc(CLS[k].about) + '</div>').join("");
 /* ---------- views ---------- */
 let view = "review";
 function showView(v) {
   view = v === "trainer" || v === "openings" ? v : "review";
+  if (view !== "review" && X.on) xExit(true);
   $("viewReview").hidden = view !== "review"; $("viewTrainer").hidden = view !== "trainer"; $("viewOpenings").hidden = view !== "openings";
   $("viewTitle").textContent = { trainer: "Blunder Trainer", openings: "Openings", review: "Game Review" }[view];
   $("viewTag").textContent = { trainer: "Puzzles made from your own blunders.", openings: "Learn the lines your opponents actually play.", review: "Every move of your games, graded." }[view];
@@ -1568,10 +2310,13 @@ function buildPuzzles() {
     const ev = a.evals;
     for (let i = 0; i < g.nply; i++) {
       if (moverAt(g, i) !== g.me || !ev[i] || !ev[i].best) continue;
-      const r = classify(g, ev, i); if (!r) continue;
-      if (!(r.cls === "blunder" || (withMistakes && r.cls === "mistake"))) continue;
+      const r = gradeAt(g, ev, i); if (!r) continue;
+      // Blunders, and misses as big as one; with the box ticked, mistakes and smaller misses too.
+      const big = r.cls === "blunder" || (r.cls === "miss" && r.epl >= GRADE_MISTAKE);
+      if (!(big || (withMistakes && (r.cls === "mistake" || r.cls === "miss")))) continue;
+      if (a.pz >= 3 && a.pv && !a.pv[i]) continue;   // the website stores a line for every such move unless you played Stockfish's move
       out.push({ id: g.id + ":" + i, g, i, best: ev[i].best, pv: a.pv && a.pv[i] ? a.pv[i] : null, ref: a.ref && a.ref[i] ? a.ref[i] : null,
-        loss: r.loss, cls: r.cls, before: ev[i] });
+        loss: r.pawns, cls: r.cls, before: ev[i] });
     }
   }
   const solvedAll = out.filter(p => prog[p.id] === "solved").length;
@@ -1772,7 +2517,7 @@ function renderTrainer() {
   const fb = T.msg ? '<div class="feedback ' + T.msg.kind + '">' + T.msg.html + '</div>' : "";
   box.innerHTML = '<div class="eyebrow">Puzzle ' + (T.idx + 1) + ' of ' + T.list.length + (prog[p.id] === "solved" && T.status === "solving" ? ' · solved before' : '') + '</div>' +
     '<p class="ask">' + esc(ask) + '</p>' + sub +
-    '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '.' + (p.prev && !T.intro ? ' Your opponent had just played <b>' + esc(p.prev.san) + '</b>.' : '') + ' In the game you played a ' + (p.cls === "blunder" ? "blunder" : "mistake") + ' here.</div>' + fb;
+    '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '.' + (p.prev && !T.intro ? ' Your opponent had just played <b>' + esc(p.prev.san) + '</b>.' : '') + (p.cls === "miss" ? ' In the game you missed this chance.' : ' In the game you played a ' + (p.cls === "blunder" ? "blunder" : "mistake") + ' here.') + '</div>' + fb;
 }
 function sanOf(fen, uci) { return uciToSan(fen, uci); }
 function costText(p) {
@@ -1905,12 +2650,6 @@ if (!window.Chess) {
   return;
 }
 /* ---------- games stored on the website (refreshed by the GitHub job) ---------- */
-function expandEval(x) {
-  if (x[0] === "c") return { num: Math.max(-10, Math.min(10, x[1] / 100)), cp: x[1], best: x[2] || null };
-  if (x[0] === "m") return { num: x[1] > 0 ? 10 : -10, mate: x[1], best: x[2] || null };
-  if (x[0] === "x") return { num: x[1] * 10, mated: true, best: null };
-  return { num: 0, cp: 0, best: null };
-}
 async function loadSiteData() {
   for (const base of SITE_DATA) {
     try {
@@ -1921,19 +2660,26 @@ async function loadSiteData() {
   }
   return null;
 }
+// The website's review replaces this browser's own unless this browser's is newer: a later analysis
+// version (v2 = Stockfish 19 with two lines per position), or the same version searched deeper.
 function mergeSite(site) {
   let added = 0, reviewed = 0;
   if (site.games.length) S.raw = S.raw.filter(e => !e.example);
   const ids = new Set(S.raw.map(e => e.id));
   for (const g of site.games) if (!ids.has(g.id)) { S.raw.push({ id: g.id, pgn: g.pgn }); ids.add(g.id); added++; }
+  const same = (x, y) => JSON.stringify(x == null ? null : x) === JSON.stringify(y == null ? null : y);
   for (const id in site.an) {
     const a = site.an[id]; if (!a || !a.e) continue;
-    const cur = S.analyses[id];
-    if (cur && cur.evals && cur.evals.every(Boolean) && cur.depth >= a.d) {
-      if ((a.p && JSON.stringify(cur.pv || null) !== JSON.stringify(a.p)) || (a.r && JSON.stringify(cur.ref || null) !== JSON.stringify(a.r)) || (a.q && JSON.stringify(cur.pq || null) !== JSON.stringify(a.q))) { cur.pv = a.p || cur.pv; cur.ref = a.r || cur.ref; cur.pq = a.q || cur.pq; reviewed++; }
+    const av = a.v || 1, cur = S.analyses[id];
+    if (cur && cur.evals && cur.evals.every(Boolean) && ((cur.v || 1) > av || ((cur.v || 1) === av && cur.depth >= a.d))) {
+      if (!same(cur.pv, a.p || cur.pv) || !same(cur.ref, a.r || cur.ref) || !same(cur.pq, a.q || cur.pq) || (a.b != null && (cur.v || 1) === av && (cur.book !== a.b || !same(cur.bookNames, a.bn) || (cur.pz || 0) !== (a.pz || 0)))) {
+        cur.pv = a.p || cur.pv; cur.ref = a.r || cur.ref; cur.pq = a.q || cur.pq; if ((cur.v || 1) === av) cur.pz = a.pz || 0;
+        if (a.b != null && (cur.v || 1) === av) { cur.book = a.b; cur.bookNames = a.bn || {}; }
+        reviewed++;
+      }
       continue;
     }
-    S.analyses[id] = { depth: a.d, evals: a.e.map(expandEval), pv: a.p || null, ref: a.r || null, pq: a.q || null }; reviewed++;
+    S.analyses[id] = { v: av, depth: a.d, evals: a.e.map(expandEval), pv: a.p || null, ref: a.r || null, pq: a.q || null, pz: a.pz || 0, book: a.b != null ? a.b : null, bookNames: a.bn || null }; reviewed++;
   }
   if (added || reviewed) { big.set("games", S.raw); big.set("analyses", S.analyses); }
   return added + reviewed;
@@ -2836,7 +3582,8 @@ $("resetYes").onclick = () => {
   window.addEventListener("pagehide", () => { if (sync.timer) { clearTimeout(sync.timer); sync.timer = null; sync.run(); } });
 
   engine.init().then(() => {
-    $("engine").dataset.state = "ready"; $("engineText").textContent = "Stockfish 10 ready";
+    $("engine").dataset.state = "ready"; $("engineText").textContent = engine.name + (engine.v >= 2 ? " ready" : " ready (fallback)");
+    $("engine").title = engine.v >= 2 ? "Stockfish 19 Lite, running in this browser. The website's own reviews use full Stockfish 19 at depth 18." : "This browser couldn't run Stockfish 19, so it's using Stockfish 10.";
     if (view === "openings") updateOpeningEval();     // ask before the review queue so the bar fills quickly
     if (S.sel) enqueue(S.sel); renderProgress();
   }).catch(() => {
