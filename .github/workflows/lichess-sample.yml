@@ -1,0 +1,29 @@
+name: Lichess sample (scratch)
+
+on:
+  push:
+    branches: [repertoire-sample]
+
+permissions:
+  contents: read
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check tools
+        run: |
+          command -v zstd || (sudo apt-get update && sudo apt-get install -y zstd)
+          nproc; free -g; df -h . | tail -1
+          curl -sI https://database.lichess.org/standard/lichess_db_standard_rated_2026-10.pgn.zst | head -5 || true
+      - name: Sample rated rapid games, both players 1300-1800
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python3 scripts/lichess_sample.py --out lichess-sample.json --months 2026-10,2026-09,2026-08 --minutes 35 --b-games 60000 --w-games 200000
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lichess-sample
+          path: lichess-sample.json
+          retention-days: 3
