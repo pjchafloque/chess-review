@@ -5,25 +5,27 @@ on:
     branches: [repertoire-sample]
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 jobs:
-  sample:
+  save:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Check tools
-        run: |
-          command -v zstd || (sudo apt-get update && sudo apt-get install -y zstd)
-          nproc; free -g; df -h . | tail -1
-          curl -sI https://database.lichess.org/standard/lichess_db_standard_rated_2026-10.pgn.zst | head -5 || true
-      - name: Sample rated rapid games, both players 1300-1800
-        env:
-          PYTHONUNBUFFERED: "1"
-        run: python3 scripts/lichess_sample.py --out lichess-sample.json --months 2026-10,2026-09,2026-08 --minutes 35 --b-games 60000 --w-games 200000
-      - uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: lichess-sample
-          path: lichess-sample.json
-          retention-days: 3
+          run-id: 44405674730
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: sample
+      - name: Commit the sample to this branch
+        run: |
+          ls -la sample
+          mkdir -p data && cp sample/lichess-sample.json data/lichess-sample.json
+          git config user.name "chess-review bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/lichess-sample.json
+          git commit -m "Lichess sample (rated rapid, both players 1300-1800)"
+          git push
