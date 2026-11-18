@@ -1,0 +1,80 @@
+# The idea behind your book move, shown in the Openings tab. One line per move:
+# side (b = Black, w = White), the moves from the start with your move last, then the idea.
+b	e4 c6 d4 d5	The point of 1...c6: d5 hits e4 with a pawn the c6 pawn already backs up, so you claim your share of the center right away.
+b	e4 c6 Nf3 d5	Same idea as against 2.d4: d5 challenges e4 at once, backed by the c6 pawn.
+b	e4 c6 Nc3 d5	Same idea: d5 challenges e4 at once.
+b	e4 c6 Bc4 d5	Hit the bishop and the e4 pawn together. If 3.exd5 cxd5, the bishop is attacked again and you keep a pawn on d5.
+b	e4 c6 Bc4 d5 exd5 cxd5	Take back with the pawn: you keep a pawn in the center and the c4 bishop has to move again.
+b	e4 c6 Bc4 d5 exd5 cxd5 Bb3 Nf6	Develop and add a defender to d5, which the b3 bishop is eyeing. Nc6 and e6 come next.
+b	e4 c6 Bc4 d5 exd5 cxd5 Bb5+ Nc6	Block the check with a developing move. The knight on c6 also eyes d4.
+b	e4 c6 f4 d5	Same idea: d5 hits e4. White usually answers with e5, and then your bishop comes out to f5.
+b	e4 c6 f4 d5 e5 Bf5	Get the light-squared bishop out before e6 shuts it in, the classic Caro-Kann idea.
+b	e4 c6 Qf3 d5	Ignore the early queen and take the center. Your knight can come to f6 later and gain time against it.
+b	e4 c6 Qf3 d5 exd5 cxd5	Take back with the pawn to keep a pawn on d5. Nf6 and Nc6 follow, often with tempo on the queen.
+b	e4 c6 d4 d5 e5 c5	Hit White's pawn chain at its base: c5 attacks d4 before White can support it with c3 and Nf3. Nc6 piles on next.
+b	e4 c6 d4 d5 e5 c5 c3 Nc6	Add a second attacker to d4. The plan is cxd4 and then Bg4, going after the knight that defends it.
+b	e4 c6 d4 d5 e5 c5 c3 Nc6 Nf3 cxd4	Trade on d4 first. After 6.cxd4 your bishop goes to g4 to pin the knight that holds d4.
+b	e4 c6 d4 d5 e5 c5 c3 Nc6 Nf3 cxd4 cxd4 Bg4	Pin the knight that defends d4. Then e6 and Nge7 to f5 add more pressure on d4.
+b	e4 c6 d4 d5 e5 c5 Nf3 Bg4	Pin the knight that defends d4, so cxd4 and Nc6 win the fight for that pawn.
+b	e4 c6 d4 d5 e5 c5 dxc5 Nc6	Develop first. You can win the c5 pawn back later with e6 and Bxc5.
+b	e4 c6 d4 d5 exd5 cxd5	Take back with the c-pawn so you keep a pawn on d5 and get the half-open c-file.
+b	e4 c6 d4 d5 exd5 cxd5 Nc3 Nc6	Develop with pressure on d4. Nf6 and Bg4 come next.
+b	e4 c6 d4 d5 Nc3 dxe4	Take on e4. After 4.Nxe4 your bishop comes to f5 with tempo on the knight.
+b	e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5	Develop the bishop with tempo on the e4 knight, and get it outside your pawns before e6.
+b	e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6	Keep the bishop on its diagonal. If White pushes h4 and h5 later, h6 gives it a safe square on h7.
+b	e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng5 h6	Kick the knight right away. 6.Nxf7? just loses a piece: Kxf7 and your king is fine.
+b	e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng5 h6 Nxf7 Kxf7	Take the knight. White gave up a piece for one pawn, so get your king safe and develop.
+b	e4 c6 Nf3 d5 exd5 cxd5	Take back with the c-pawn: you keep a pawn on d5 and get the half-open c-file.
+b	e4 c6 Nf3 d5 exd5 cxd5 d4 Nc6	Develop with pressure on d4. Your light-squared bishop can still come to g4 or f5 before you play e6.
+b	e4 c6 Nf3 d5 exd5 cxd5 d4 Nc6 Nc3 Nf6	Natural development: the knight covers d5 and e4. Bg4, pinning the f3 knight, comes next.
+b	e4 c6 Nf3 d5 exd5 cxd5 d4 Nc6 Bb5 a6	Ask the bishop right away. If it takes on c6 you get the bishop pair, and if it drops back to a4, b5 gains space with tempo.
+b	e4 c6 Nf3 d5 exd5 cxd5 d4 Nc6 Bb5 a6 Ba4 b5	Gain space with tempo on the bishop. After Bb3, your bishop comes to g4.
+b	e4 c6 Nf3 d5 exd5 cxd5 d4 Nc6 Nc3 Nf6 Bb5 Bg4	Pin the f3 knight. With your knight on c6 and bishop on g4, d4 is under pressure.
+b	e4 c6 Nf3 d5 e5 Bg4	Get the bishop out before e6 shuts it in, and pin the f3 knight, which will defend d4.
+b	e4 c6 Nf3 d5 e5 Bg4 d4 e6	Now e6 is fine because your bishop is already outside the pawn chain. c5 comes next to hit d4.
+b	e4 c6 Nf3 d5 e5 Bg4 d4 e6 Be2 c5	Hit d4, the base of White's pawn chain. Nc6 adds more pressure.
+b	e4 c6 Nf3 d5 Nc3 dxe4	Take on e4. After 4.Nxe4 your bishop comes out to g4 with gain of time.
+b	e4 c6 Nf3 d5 Nc3 dxe4 Nxe4 Bg4	Pin the f3 knight and get your bishop out before e6.
+b	e4 c6 Nc3 d5 exd5 cxd5	Take back with the pawn so you keep a pawn in the center.
+w	d4 d5 c4	The Queen's Gambit: c4 attacks d5 and offers a pawn to pull Black's center pawn away from the middle.
+w	d4 d5 c4 dxc4 e4	Take the whole center while Black's pawn sits on c4. You win the pawn back later with Bxc4.
+w	d4 d5 c4 dxc4 e4 e6 Bxc4	Win the pawn back. You keep the big center and develop easily with Nf3, Nc3 and O-O.
+w	d4 d5 c4 dxc4 e4 b5 a4	Undermine the b5 pawn that protects c4. After c6, axb5 cxb5 and Nc3, the b5 pawn comes under fire.
+w	d4 d5 c4 dxc4 e4 e5 Nf3	Develop with an attack on e5. After exd4, Bxc4 wins the pawn back with a lead in development.
+w	d4 d5 c4 dxc4 e4 e5 Nf3 exd4 Bxc4	Win back the c4 pawn with a developing move. Castle next and use your lead in development.
+w	d4 d5 c4 dxc4 e4 Nf6 e5	Kick the knight with tempo and gain space. After Nd5, Bxc4 wins your pawn back.
+w	d4 d5 c4 dxc4 e4 Nc6 Nf3	Develop and protect d4. Bxc4 wins the pawn back later.
+w	d4 d5 c4 e6 cxd5	Trade on d5 to fix Black's pawns early. Your pieces then aim at the d5 pawn.
+w	d4 d5 c4 e6 cxd5 exd5 Nf3	Develop toward the center and keep an eye on e5. Your pieces go to their natural squares before you pick a plan.
+w	d4 d5 c4 e6 cxd5 exd5 Nf3 Nf6 g3	Fianchetto the bishop so it presses on d5 from g2. Castle next.
+w	d4 d5 c4 e6 cxd5 Qxd5 Nc3	Develop with tempo on the queen.
+w	d4 d5 c4 c6 cxd5	The Exchange Slav: a simple, symmetrical structure. Develop quickly and use the open c-file.
+w	d4 d5 c4 c6 cxd5 cxd5 Nc3	Develop toward d5. In this quiet structure, smooth development counts most.
+w	d4 d5 c4 c6 cxd5 cxd5 Nc3 Nf6 Nf3	Develop and control e5. Your dark-squared bishop comes out next, to f4 or g5.
+w	d4 d5 c4 Nf6 cxd5	Against the Marshall Defense, take on d5. If the knight takes back, e4 kicks it with tempo.
+w	d4 d5 c4 Nf6 cxd5 Nxd5 e4	Kick the knight with tempo and take the whole center.
+w	d4 d5 c4 Nf6 cxd5 Nxd5 e4 Nf6 Nc3	Develop and defend e4. Your big pawn center is the edge.
+w	d4 d5 c4 Nf6 cxd5 Nxd5 e4 Nb6 Nf3	Develop. Your d4 and e4 pawns give you the center, and Nc3, Be2 and O-O follow.
+w	d4 d5 c4 Nf6 cxd5 Qxd5 Nc3	Develop with tempo on the queen.
+w	d4 d5 c4 Nc6 cxd5	Against the Chigorin, take on d5. Your d4 pawn becomes the target, so keep it covered.
+w	d4 d5 c4 Nc6 cxd5 Qxd5 Nf3	Defend d4 with the knight. Not Nc3?: then Qxd4 wins a pawn, because only your queen guards d4.
+w	d4 d5 c4 e5 dxe5	Take the pawn. After d4, develop with Nf3 and don't play e3: Bb4+ and dxe3 is a known trap (the Lasker Trap).
+w	d4 d5 c4 e5 dxe5 d4 Nf3	Develop and keep the extra pawn. Avoid e3, which runs into Bb4+ and dxe3.
+w	d4 Nf6 c4	Take space on the queenside and keep e4 in reserve. Most Indian defenses start here.
+w	d4 Nf6 c4 e6 Nc3	Develop and support e4. If Bb4 (the Nimzo-Indian), your book answer is Bd2.
+w	d4 Nf6 c4 e6 Nc3 Bb4 Bd2	Break the pin calmly. If Black takes on c3, take back with the bishop and keep your pawns healthy.
+w	d4 Nf6 c4 g6 Nc3	Develop and get ready for e4, taking the full center against the King's Indian.
+w	d4 Nf6 c4 g6 Nc3 Bg7 e4	Take the full center while Black's pieces are on the kingside.
+w	d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3	Develop. Be2 and O-O come next, the calm main line against the King's Indian.
+w	d4 e6 c4	Take space. If d5 comes, it's a Queen's Gambit Declined. Against Bb4+ your book plays Nc3.
+w	d4 e5 dxe5	Take the pawn: the Englund Gambit gives it up for very little. Just watch for the queen tricks on e7 and b4.
+w	d4 e5 dxe5 Nc6 Nf3	Defend the e5 pawn with a developing move.
+w	d4 e5 dxe5 Nc6 Nf3 Qe7 Bf4	Defend e5 with the bishop. Know the follow-up: Qb4+ Bd2, and after Qxb2 play Nc3.
+w	d4 e5 dxe5 Nc6 Nf3 Qe7 Bf4 Qb4+ Bd2	Block the check with the bishop. If Qxb2, Nc3 is the answer.
+w	d4 e5 dxe5 Nc6 Nf3 Qe7 Bf4 Qb4+ Bd2 Qxb2 Nc3	The famous trap is 6.Bc3? Bb4! and Black mates on c1. Nc3 shuts that down, and your pieces develop with tempo on the queen.
+w	d4 g6 c4	Take space. You can add Nc3 and e4 next.
+w	d4 g6 c4 Bg7 Nf3	Develop and control e5 and d4. Nc3 and e4 can follow.
+w	d4 c6 c4	Take space with c4. After d5 it's a Slav.
+w	d4 d6 c4	Take space. Nc3 and e4 can follow.
+w	d4 c5 d5	Push past the c5 pawn and take space. Black's pieces get cramped behind it.
+w	d4 b6 e4	Take the full center. Black's bishop on b7 will hit e4, so be ready to defend it with Nc3 or Bd3.

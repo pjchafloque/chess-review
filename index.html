@@ -329,8 +329,7 @@ a { color: var(--link); text-decoration: none; }
 .ocovtop b { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; }
 .ocovbar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
 .ocovbar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .4s; }
-.omodes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 560px) { .omodes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.omodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .omode {
   display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; text-align: left; border: 1px solid var(--chip-line);
   background: var(--surface); color: var(--ink); border-radius: var(--radius); padding: 14px 16px; font: inherit; cursor: pointer;
@@ -390,6 +389,13 @@ a { color: var(--link); text-decoration: none; }
 .omiss-ctx { flex: 1; min-width: 0; font-size: 14px; letter-spacing: -.016em; color: var(--muted); }
 .omiss-n { font-size: 14px; letter-spacing: -.016em; color: var(--t-bad); white-space: nowrap; }
 .owarn { color: var(--t-warn); }
+.ogame { align-items: center; }
+.ogame .omiss-mv.res { width: 28px; height: 28px; min-width: 28px; flex: none; font-size: 14px; color: #fff; }
+.ogame .omiss-ctx b { color: var(--ink); font-weight: 600; }
+.ogame-w { display: block; color: var(--ink); }
+.ogame.bad .ogame-w { color: var(--t-bad); }
+.ogame.good .ogame-w { color: var(--t-best); }
+.why p { margin: 0 0 6px; } .why p:last-child { margin-bottom: 0; }
 .ostack { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; display: flex; }
 .ostack i { display: block; height: 100%; transition: width .4s; }
 .st-prac { background: var(--accent); } .st-learn { background: var(--c-inacc); } .st-new { background: var(--chip-line); }
@@ -729,18 +735,20 @@ details.legend summary::-webkit-details-marker { display: none; }
     <div class="tside">
       <div class="oside" id="oside" role="group" aria-label="Choose your side">
         <button type="button" data-side="b" data-label="Black · Caro-Kann" aria-pressed="true">Black · Caro-Kann</button>
-        <button type="button" data-side="w" data-label="White · Queen's Gambit" aria-pressed="false">White · Queen's Gambit</button>
+        <button type="button" data-side="w" data-label="White · 1.d4" aria-pressed="false">White · 1.d4</button>
       </div>
       <div class="omodes" id="omodes" role="group" aria-label="How to train"></div>
       <div class="panel tcard" id="oprompt"></div>
       <div class="tactions">
-        <button class="btn" id="oHint" type="button">Show book move</button>
+        <button class="btn" id="oHint" type="button">Show move</button>
         <button class="btn" id="oShow" type="button" hidden>Show solution</button>
-        <button class="btn primary" id="oNext" type="button">Next line</button>
+        <button class="btn primary" id="oNext" type="button">Start</button>
       </div>
+      <div class="panel tstats" id="ostats"></div>
+      <div class="panel tsettings" id="ogames"></div>
       <div class="panel tsettings" id="ocov"></div>
       <div class="panel tsettings" id="omiss"></div>
-      <div class="panel tstats" id="ostats"></div>
+      <div class="panel tsettings" id="oset"></div>
       <div><button class="btn small" id="oReset" type="button">Reset my openings progress</button></div>
     </div>
   </section>
@@ -811,7 +819,7 @@ const store = {
    saved on a device, progress is also kept in one secret gist and merged both ways.
    meta[k] = { at: last local change, ep: last reset }. A newer reset wins outright; otherwise solved
    puzzles are unioned, openings keep the copy with more lines played, and settings take the newest. */
-const SYNC_KEYS = ["oseen", "oprog", "ocov", "olearn", "oclean", "opun", "ohold", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
+const SYNC_KEYS = ["oseen", "oprog", "ocov", "olearn", "oclean", "opun", "ohold", "ocards", "onew", "ogame", "oset", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
 const SYNC_FILE = "pchess-progress.json", SYNC_DESC = "PChess progress (sync)";
 const sync = {
   timer: null, busy: false, again: false, state: "off", when: 0, err: "", onPulled: null,
@@ -840,6 +848,11 @@ const sync = {
     if (k === "tprog") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) if (v[id] !== "solved") v[id] = r; return { v, at, ep }; }
     if (k === "opun") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) if (v[id] !== "solved") v[id] = r; return { v, at, ep }; }
     if (k === "ocov" || k === "olearn") { const v = { b: [], w: [] }; for (const x of [a.v, b.v]) for (const sd of ["b", "w"]) for (const l of (x && x[sd]) || []) if (!v[sd].includes(l)) v[sd].push(l); return { v, at, ep }; }
+    // Openings flashcards: each move keeps the copy reviewed last. New-move counts: the same day takes the
+    // larger count, otherwise the newer day. Games already counted: the newest game per side.
+    if (k === "ocards") { const v = Object.assign({}, b.v || {}); for (const [id, c] of Object.entries(a.v || {})) { const o = v[id]; if (!o || (c[2] || 0) > (o[2] || 0) || ((c[2] || 0) === (o[2] || 0) && (c[4] || 0) > (o[4] || 0))) v[id] = c; } return { v, at, ep }; }
+    if (k === "onew") { const x = a.v || {}, y = b.v || {}; if (x.d !== y.d) return (x.d || "") > (y.d || "") ? a : b; const v = { d: x.d }; for (const sd of ["b", "w"]) v[sd] = Math.max(x[sd] || 0, y[sd] || 0); return { v, at, ep }; }
+    if (k === "ogame") { const x = a.v || {}, y = b.v || {}, v = {}; for (const sd of ["b", "w"]) { const m = (x[sd] || "") > (y[sd] || "") ? x[sd] : y[sd]; if (m) v[sd] = m; } return { v, at, ep }; }
     if (k === "oprog") { const n = x => x && x.v ? ((x.v.b && x.v.b.lines) || 0) + ((x.v.w && x.v.w.lines) || 0) : 0; const w = n(a) !== n(b) ? (n(a) > n(b) ? a : b) : (a.at >= b.at ? a : b); return { v: w.v, at, ep }; }
     return a.at >= b.at ? a : b;
   },
@@ -2689,212 +2702,634 @@ function savedNote() {
   $("updateNote").textContent = mine.length ? mine.length + " games, " + done + " reviewed." : "";
 }
 
-const REP_DATA = {"names":["English Opening: Symmetrical Variation, Anti-Benoni Variation, Kasparov-Vaganian Gambit","Australian Defense","Benoni Defense: Franco-Sicilian Hybrid","Borg Defense: Borg Gambit","English Defense","English Defense: Eastbourne Gambit","English Defense: Perrin Variation","English Defense: Poli Gambit","Englund Gambit","Horwitz Defense","Horwitz Defense: Zilbermints Gambit","Kangaroo Defense","Kangaroo Defense: Keres Defense, Transpositional Variation","Mikenas Defense","Mikenas Defense: Cannstatter Variation","Mikenas Defense: Lithuanian Variation","Mikenas Defense: Pozarek Gambit","Modern Defense: Beefeater Variation","Polish Defense","Pterodactyl Defense: Central, Benoni Beefeater Pterodactyl","Pterodactyl Defense: Central, Benoni Pterodactyl","Pterodactyl Defense: Fianchetto, Queen Benoni Pterodactyl","Pterodactyl Defense: Fianchetto, Queen Pteranodon","Pterodactyl Defense: Queen Pterodactyl, Quiet Line","Queen's Pawn Game","Queen's Pawn Game: Anglo-Slav Opening","Queen's Pawn Game: Modern Defense","Modern Defense","Modern Defense: Neo-Modern Defense","Old Indian Defense","Rat Defense: English Rat","Rat Defense: English Rat, Lisbon Gambit","Rat Defense: English Rat, Pounds Gambit","Modern Defense: Averbakh System","Modern Defense: Averbakh Variation, Pseudo-Sämisch","Modern Defense: Kotov Variation","Modern Defense: Randspringer Variation","Pterodactyl Defense: Central, Bogolubovia","Benoni Defense: Old Benoni","Queen's Pawn Game: Liedmann Gambit","Indian Defense","Indian Defense: Medusa Gambit","Indian Defense: Normal Variation","Indian Defense: Pyrenees Gambit","Mexican Defense","Mexican Defense: Horsefly Gambit","Queen's Indian Accelerated","Slav Indian","Indian Defense: Budapest Gambit","Indian Defense: Budapest Gambit Accepted","Indian Defense: Budapest Gambit Accepted, Fajarowicz Defense","Indian Defense: Budapest Gambit Accepted, Fajarowicz Defense, Bonsdorf Variation","Indian Defense: Budapest Gambit Accepted, Fajarowicz Defense, Steiner Variation","Indian Defense: Budapest Gambit Accepted, Main Line","Indian Defense: Budapest Gambit Accepted, Main Line, Adler Variation","Indian Defense: Budapest Gambit Accepted, Main Line, Alekhine Variation","Indian Defense: Budapest Gambit Accepted, Main Line, Alekhine Variation, Abonyi Variation","Indian Defense: Budapest Gambit Accepted, Main Line, Alekhine Variation, Tartakower Defense","Indian Defense: Budapest Gambit Accepted, Main Line, Rubinstein Variation","Old Indian Defense: Aged Gibbon Gambit","Old Indian Defense: Czech Variation, with Nc3","Old Indian Defense: Czech Variation, with Nf3","Old Indian Defense: Janowski Variation","Old Indian Defense: Janowski Variation, Fianchetto Variation","Old Indian Defense: Janowski Variation, Grinberg Gambit","Old Indian Defense: Janowski Variation, Main Line","Old Indian Defense: Duz-Khotimirsky Variation","Old Indian Defense: Tartakower-Indian","Old Indian Defense: Two Knights Variation","Old Indian Defense: Ukrainian Variation","Old Indian Defense: Normal Variation","Benoni Defense","Benoni Defense: Czech Benoni Defense","Benoni Defense: Hromádka System","Benoni Defense: King's Indian System","Benoni Defense: Weenink Variation","Grünfeld Defense: Three Knights Variation, Burille Variation, Reversed Tarrasch","Vulture Defense","Benko Gambit","Benko Gambit Accepted","Benko Gambit Accepted: Dlugy Variation","Benko Gambit Accepted: Modern Variation","Benko Gambit Accepted: Pawn Return Variation","Benko Gambit Declined: Bishop Attack","Benko Gambit Declined: Hjørring Countergambit","Benko Gambit Declined: Main Line","Benko Gambit Declined: Pseudo-Sämisch","Benko Gambit Declined: Quiet Line","Benko Gambit Declined: Sosonko Variation","Benko Gambit: Mutkin Countergambit","Benko Gambit: Nescafe Frappe Attack","Benko Gambit: Zaitsev System","Benko Gambit: Zaitsev Variation, Nescafe Frappe Attack","Benko Gambit Accepted: Central Storming Variation","Benko Gambit Accepted: Fianchetto Variation","Benko Gambit Accepted: Fully Accepted Variation","Benko Gambit: Fianchetto Variation","Benko Gambit: Nd2 Variation","Benko Gambit Accepted: King Walk Variation","Benko Gambit Accepted: Yugoslav","Benoni Defense: Modern Variation","Benoni Defense: Modern Variation, Snake Variation","Benoni Defense: Fianchetto Variation","Benoni Defense: Knight's Tour Variation","Benoni Defense: Uhlmann Variation","Benoni Defense: Fianchetto Variation, Hastings Defense","Benoni Defense: Fianchetto Variation, Hastings Defense, Main Line","Benoni Defense: King's Pawn Line","Benoni Defense: King's Pawn Line, with Be3","Benoni Defense: King's Pawn Line, with Bg5","Benoni Defense: King's Pawn Line, with Nge2","Benoni Defense: Mikenas Variation","Benoni Defense: Pawn Storm Variation","Benoni Defense: Taimanov Variation","Benoni Defense: Four Pawns Attack","Benoni Defense: Four Pawns Attack, Main Line","Benoni Defense: Classical Variation","Benoni Defense: Classical Variation, New York Variation","Benoni Defense: Classical Variation, Traditional Variation","Benoni Defense: Classical Variation, Averbakh-Grivas Attack","Benoni Defense: Classical Variation, Main Line","Benoni Defense: Classical Variation, Full Line","Benoni Defense: Classical Variation, Argentine Counterattack","Benoni Defense: Classical Variation, Czerniak Defense","Benoni Defense: Classical Variation, Czerniak Defense, Tal Line","Dutch Defense","Dutch Defense: Bellon Gambit","Dutch Defense: Bladel Variation","Dutch Defense: Classical Variation","Dutch Defense: Krause Variation","Dutch Defense: Normal Variation","Dutch Defense: Rubinstein Variation","Dutch Defense: Queen's Knight Variation","Dutch Defense: Fianchetto Variation","Dutch Defense: Hort-Antoshin System","Dutch Defense: Leningrad Variation","Dutch Defense: Nimzo-Dutch Variation","Dutch Defense: Nimzo-Dutch Variation, Alekhine Variation","Dutch Defense: Stonewall Variation, Modern Variation","Dutch Defense: Classical Variation, Blackburne Attack","Dutch Defense: Alekhine Variation","Dutch Defense: Stonewall Variation","Dutch Defense: Stonewall Variation, Botvinnik Variation","Dutch Defense: Stonewall Variation, Chekhover Variation","Dutch Defense: Classical Variation, Buenos Aires Variation","Dutch Defense: Classical Variation, Huisl Variation","Dutch Defense: Classical Variation, Ilyin-Zhenevsky Variation","Dutch Defense: Classical Variation, Ilyin-Zhenevsky Variation, Winter Variation","Dutch Defense: Classical Variation, Ilyin-Zhenevsky Variation, Alatortsev-Lisitsyn Line","Dutch Defense: Classical Variation, Ilyin-Zhenevsky Variation, Modern Main Line","Caro-Kann Defense","Caro-Kann Defense: Accelerated Panov Attack","Caro-Kann Defense: Accelerated Panov Attack, Modern Variation","Caro-Kann Defense: Accelerated Panov Attack, Open Variation","Caro-Kann Defense: Accelerated Panov Attack, Pseudo-Scandinavian","Caro-Kann Defense: Accelerated Panov Attack, Van Weersel Attack","Caro-Kann Defense: Apocalypse Attack","Caro-Kann Defense: Breyer Variation","Caro-Kann Defense: Breyer Variation, Stein Attack","Caro-Kann Defense: Dinic Gambit","Caro-Kann Defense: Endgame Offer","Caro-Kann Defense: Endgame Variation","Caro-Kann Defense: Euwe Attack","Caro-Kann Defense: Goldman Variation","Caro-Kann Defense: Hector Gambit","Caro-Kann Defense: Hillbilly Attack","Caro-Kann Defense: Hillbilly Attack, Schaeffer Gambit","Caro-Kann Defense: Labahn Attack","Caro-Kann Defense: Labahn Attack, Double Gambit","Caro-Kann Defense: Labahn Attack, Polish Variation","Caro-Kann Defense: Scorpion-Horus Gambit","Caro-Kann Defense: Spike Variation","Caro-Kann Defense: Spike Variation, Scorpion-Grob Gambit","Caro-Kann Defense: St. Patrick's Attack","Caro-Kann Defense: Toikkanen Gambit","Caro-Kann Defense: Two Knights Attack","Caro-Kann Defense: Two Knights Attack, Mindeno Variation","Caro-Kann Defense: Two Knights Attack, Mindeno Variation, Exchange Line","Caro-Kann Defense: Two Knights Attack, Mindeno Variation, Retreat Line","Caro-Kann Defense: Advance Variation","Caro-Kann Defense: Advance Variation, Bayonet Attack","Caro-Kann Defense: Advance Variation, Botvinnik-Carls Defense","Caro-Kann Defense: Advance Variation, Bronstein Variation","Caro-Kann Defense: Advance Variation, Prins Attack","Caro-Kann Defense: Advance Variation, Short Variation","Caro-Kann Defense: Advance Variation, Tal Variation","Caro-Kann Defense: Advance Variation, Van der Wiel Attack","Caro-Kann Defense: Advance Variation, Van der Wiel Attack, Dreyev Defense","Caro-Kann Defense: Advance, Short Variation","Caro-Kann Defense: De Bruycker Defense","Caro-Kann Defense: Edinburgh Variation","Caro-Kann Defense: Maróczy Variation","Caro-Kann Defense: Maróczy Variation, Maróczy Gambit","Caro-Kann Defense: Masi Variation","Caro-Kann Defense: Massachusetts Defense","Caro-Kann Defense: Mieses Attack, Landau Gambit","Caro-Kann Defense: Mieses Gambit","Caro-Kann Defense: Modern Variation","Caro-Kann Defense: Ulysses Gambit","Caro-Kann Defense: Exchange Variation","Caro-Kann Defense: Exchange Variation, Bulla Attack","Caro-Kann Defense: Exchange Variation, Rubinstein Variation","Caro-Kann Defense: Panov Attack","Caro-Kann Defense: Panov Attack, Gunderam Attack","Caro-Kann Defense: Panov Attack, Modern Defense","Caro-Kann Defense: Panov Attack, Modern Defense, Carlsbad Line","Caro-Kann Defense: Panov Attack, Modern Defense, Czerniak Line","Caro-Kann Defense: Panov Attack, Modern Defense, Mieses Line","Caro-Kann Defense: Panov Attack, Modern Defense, Reifir-Spielmann Line","Caro-Kann Defense: Panov-Botvinnik, Herzog Defense","Caro-Kann Defense: Panov Attack, Fianchetto Defense","Caro-Kann Defense: Panov Attack, Fianchetto Defense, Fianchetto Gambit","Caro-Kann Defense: Panov Attack, Main Line","Caro-Kann Defense: Alekhine Gambit","Caro-Kann Defense: Alien Gambit","Caro-Kann Defense: Campomanes Attack","Caro-Kann Defense: Forgacs Variation","Caro-Kann Defense: Gurgenidze Counterattack","Caro-Kann Defense: Gurgenidze System","Caro-Kann Defense: Main Line","Caro-Kann Defense: Rasa-Studier Gambit","Caro-Kann Defense: Tartakower Variation","Caro-Kann Defense: Tartakower Variation, Perlis Line","Caro-Kann Defense: von Hennig Gambit","Caro-Kann Defense: Bronstein-Larsen Variation","Caro-Kann Defense: Finnish Variation","Caro-Kann Defense: Karpov Variation","Caro-Kann Defense: Karpov Variation, Modern Main Line","Caro-Kann Defense: Karpov Variation, Modern Variation","Caro-Kann Defense: Karpov Variation, Modern Variation, Ivanchuk Defense","Caro-Kann Defense: Karpov Variation, Modern Variation, Kasparov Attack","Caro-Kann Defense: Karpov Variation, Smyslov Variation","Caro-Kann Defense: Karpov Variation, Smyslov Variation, Main Line","Caro-Kann Defense: Karpov Variation, Tiviakov-Fischer Attack","Caro-Kann Defense: Classical Variation","Caro-Kann Defense: Classical Variation, Flohr Variation","Caro-Kann Defense: Classical Variation, Main Line","Caro-Kann Defense: Classical Variation, Maróczy Attack","Caro-Kann Defense: Martian Gambit","Caro-Kann Defense: Classical Variation, Lobron System","Caro-Kann Defense: Classical Variation, Seirawan Variation","Caro-Kann Defense: Classical Variation, Spassky Variation","Queen's Gambit","Queen's Gambit Declined: Austrian Attack, Salvio Countergambit","Queen's Gambit Declined: Austrian Defense","Queen's Gambit Declined: Austrian Defense, Gusev Countergambit","Queen's Gambit Declined: Austrian Defense, Haberditz Variation","Queen's Gambit Declined: Baltic Defense","Queen's Gambit Declined: Baltic Defense, Argentinian Gambit","Queen's Gambit Declined: Baltic Defense, Pseudo-Chigorin","Queen's Gambit Declined: Baltic Defense, Queen Attack","Queen's Gambit Declined: Baltic Defense, Queen Attack Deferred","Queen's Gambit Declined: Marshall Defense","Queen's Gambit Declined: Marshall Defense, Tan Gambit","Queen's Gambit Declined: Zilbermints Gambit","Queen's Gambit Declined: Chigorin Defense","Queen's Gambit Declined: Chigorin Defense, Exchange Variation","Queen's Gambit Declined: Chigorin Defense, Exchange Variation, Costa's Line","Queen's Gambit Declined: Chigorin Defense, Janowski Variation","Queen's Gambit Declined: Chigorin Defense, Lazard Gambit","Queen's Gambit Declined: Chigorin Defense, Main Line","Queen's Gambit Declined: Chigorin Defense, Main Line, Alekhine Variation","Queen's Gambit Declined: Chigorin Defense, Modern Gambit","Queen's Gambit Declined: Chigorin Defense, Tartakower Gambit","Queen's Gambit Declined: Albin Countergambit","Queen's Gambit Declined: Albin Countergambit, Balogh Variation","Queen's Gambit Declined: Albin Countergambit, Janowski Variation","Queen's Gambit Declined: Albin Countergambit, Krenosz Variation","Queen's Gambit Declined: Albin Countergambit, Lasker Trap","Queen's Gambit Declined: Albin Countergambit, Modern Line","Queen's Gambit Declined: Albin Countergambit, Normal Line","Queen's Gambit Declined: Albin Countergambit, Spassky Variation","Queen's Gambit Declined: Albin Countergambit, Tartakower Defense","Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation","Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation, Be6 Line","Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation, Bf5 Line","Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation, Bg4 Line","Slav Defense","Slav Defense: Diemer Gambit","Slav Defense: Exchange Variation","Slav Defense: Exchange Variation, Boor Attack","Slav Defense: Slav Gambit, Alekhine Attack","Slav Defense: Winawer Countergambit","Slav Defense: Winawer Countergambit, Anti-Winawer Gambit","Slav Defense: Bonet Gambit","Slav Defense: Breyer Variation","Slav Defense: Modern Line","Slav Defense: Quiet Variation","Slav Defense: Quiet Variation, Pin Defense","Slav Defense: Quiet Variation, Amsterdam Variation","Slav Defense: Quiet Variation, Landau Variation","Slav Defense: Quiet Variation, Schallopp Defense","Slav Defense: Exchange Variation, Schallopp Variation","Slav Defense: Exchange Variation, Symmetrical Line","Slav Defense: Exchange Variation, Trifunovic Variation","Slav Defense: Alekhine Variation","Slav Defense: Chebanenko Variation","Slav Defense: Chebanenko Variation, Advance System","Slav Defense: Geller Gambit","Slav Defense: Schlechter Variation","Slav Defense: Süchting Variation","Slav Defense: Three Knights Variation","Slav Defense: Two Knights Attack","Slav Defense: Alapin Variation","Slav Defense: Smyslov Variation","Slav Defense: Soultanbeieff Variation","Slav Defense: Steiner Variation","Slav Defense: Czech Variation","Slav Defense: Czech Variation, Bled Attack","Slav Defense: Czech Variation, Carlsbad Variation","Slav Defense: Czech Variation, Carlsbad Variation, Morozevich Variation","Slav Defense: Czech Variation, Krause Attack","Slav Defense: Czech Variation, Krause Attack, Fazekas Gambit","Slav Defense: Czech Variation, Wiesbaden Variation","Slav Defense: Czech Variation, Wiesbaden Variation, Sharp Line","Slav Defense: Czech Variation, Classical System","Slav Defense: Czech Variation, Lasker Variation","Slav Defense: Czech Variation, Classical System, Main Line","Slav Defense: Czech Variation, Dutch Variation","Slav Defense: Czech Variation, Dutch Variation, Sämisch Variation","Queen's Gambit Accepted","Queen's Gambit Accepted: Accelerated Mannheim Variation","Queen's Gambit Accepted: Central Variation, Alekhine System","Queen's Gambit Accepted: Central Variation, Greco Variation","Queen's Gambit Accepted: Central Variation, McDonnell Defense","Queen's Gambit Accepted: Central Variation, McDonnell Defense, Somov Gambit","Queen's Gambit Accepted: Central Variation, Modern Defense","Queen's Gambit Accepted: Central Variation, Rubinstein Defense","Queen's Gambit Accepted: Central Variation, Rubinstein Defense, Yefimov Gambit","Queen's Gambit Accepted: Linares Variation","Queen's Gambit Accepted: Old Variation","Queen's Gambit Accepted: Old Variation, Billinger Gambit","Queen's Gambit Accepted: Old Variation, Christensen Gambit","Queen's Gambit Accepted: Old Variation, Korchnoi Gambit","Queen's Gambit Accepted: Old Variation, Novikov Gambit","Queen's Gambit Accepted: Saduleto Variation","Queen's Gambit Accepted: Schwartz Defense","Queen's Gambit Accepted: Alekhine Defense, Borisenko-Furman Variation","Queen's Gambit Accepted: Godes Variation","Queen's Gambit Accepted: Gunsberg Defense","Queen's Gambit Accepted: Normal Variation","Queen's Gambit Accepted: Rosenthal Variation","Queen's Gambit Accepted: Slav Gambit","Queen's Gambit Accepted: Alekhine Defense","Queen's Gambit Accepted: Alekhine Defense, Alatortsev Variation","Queen's Gambit Accepted: Alekhine Defense, Haberditz Variation","Queen's Gambit Accepted: Mannheim Variation","Queen's Gambit Accepted: Bogoljubow Defense","Queen's Gambit Accepted: Gunsberg Defense, Prianishenmo Gambit","Queen's Gambit Accepted: Showalter Variation","Queen's Gambit Accepted: Janowski-Larsen Variation","Queen's Gambit Accepted: Smyslov Variation","Queen's Gambit Accepted: Winawer Defense","Queen's Gambit Accepted: Classical Defense","Queen's Gambit Accepted: Classical Defense, Normal Line","Queen's Gambit Accepted: Classical Defense, Steinitz Variation, Development Variation","Queen's Gambit Accepted: Classical Defense, Steinitz Variation, Exchange Variation","Queen's Gambit Accepted: Classical, Furman Variation","Queen's Gambit Accepted: Normal Variation, .. a6 Sideline","Queen's Gambit Accepted: Normal Variation, Traditional System","Queen's Gambit Accepted: Classical Defense, Main Line","Queen's Gambit Accepted: Classical Defense, Rubinstein Variation","Queen's Gambit Accepted: Classical Defense, Russian Gambit","Queen's Gambit Accepted: Furman Variation","Queen's Gambit Accepted: Classical Defense, Alekhine System","Queen's Gambit Accepted: Classical, Flohr Variation","Queen's Gambit Accepted: Classical Defense, Alekhine System, Main Line","Queen's Gambit Accepted: Classical Defense, Alekhine System, Smyslov Variation","Queen's Gambit Declined","Queen's Gambit Declined: Capablanca Variation","Queen's Gambit Declined: Semmering Variation","Queen's Gambit Declined: Spielmann Variation","Queen's Gambit Declined: Stonewall Variation","Queen's Gambit Declined: Tarrasch Defense, Pseudo-Tarrasch","Queen's Gambit Declined: Tarrasch Defense, Pseudo-Tarrasch Bishop Attack","Queen's Gambit Declined: Traditional Variation","Queen's Gambit Declined: Vienna Variation","Semi-Slav Defense: Quiet Variation","Queen's Gambit Declined: Alapin Variation","Queen's Gambit Declined: Charousek Variation","Queen's Gambit Declined: Charousek Variation, Miladinovic Gambit","Queen's Gambit Declined: Janowski Variation","Queen's Gambit Declined: Queen's Knight Variation","Queen's Gambit Declined: Semi-Slav, Abrahams Variation","Queen's Gambit Declined: Semi-Slav, Junge Variation","Queen's Gambit Declined: Semi-Slav, Koomen Variation","Semi-Slav Defense: Accelerated Move Order","Semi-Slav Defense: Anti-Noteboom, Stonewall Variation","Semi-Slav Defense: Anti-Noteboom, Stonewall Variation, Portisch Gambit","Semi-Slav Defense: Gunderam Gambit","Semi-Slav Defense: Marshall Gambit","Semi-Slav Defense: Marshall Gambit, Forgotten Variation","Semi-Slav Defense: Marshall Gambit, Main Line","Semi-Slav Defense: Marshall Gambit, Tolush Variation","Semi-Slav Defense: Noteboom Variation","Semi-Slav Defense: Noteboom Variation, Abrahams Variation","Semi-Slav Defense: Noteboom Variation, Anti-Noteboom Gambit","Semi-Slav Defense: Noteboom Variation, Anti-Noteboom Variation","Semi-Slav Defense: Noteboom Variation, Anti-Noteboom Variation, Belyavsky Line","Queen's Gambit Declined: Tarrasch Defense","Tarrasch Defense","Tarrasch Defense: Grünfeld Gambit","Tarrasch Defense: Marshall Gambit","Tarrasch Defense: Schara Gambit","Tarrasch Defense: Symmetrical Variation","Tarrasch Defense: Tarrasch Gambit","Tarrasch Defense: Two Knights Variation","Tarrasch Defense: von Hennig Gambit","Tarrasch Defense: Dubov Tarrasch","Tarrasch Defense: Prague Variation","Tarrasch Defense: Rubinstein System","Tarrasch Defense: Swedish Variation","Tarrasch Defense: Swedish Variation, Central Break","Tarrasch Defense: Wagner Variation","Queen's Gambit Declined: Tarrasch Defense, Stoltz Variation","Tarrasch Defense: Classical Variation","Tarrasch Defense: Classical Variation, Advance Variation","Tarrasch Defense: Classical Variation, Bogoljubow Variation","Tarrasch Defense: Classical Variation, Carlsbad Variation","Tarrasch Defense: Classical Variation, Chandler Variation","Tarrasch Defense: Classical Variation, Classical Tarrasch Gambit","Tarrasch Defense: Classical Variation, Endgame Variation","Tarrasch Defense: Classical Variation, Main Line","Tarrasch Defense: Classical Variation, Petursson Variation","Tarrasch Defense: Classical Variation, Réti Variation","Tarrasch Defense: Classical Variation, Spassky Variation","Tarrasch Defense: Prague Variation, Main Line","Queen's Gambit Declined: Exchange Variation","Queen's Gambit Declined: Exchange Variation, Carlsen Variation","Queen's Gambit Declined: Exchange Variation, Chameleon Variation","Queen's Gambit Declined: Exchange Variation, Positional Variation","Queen's Gambit Declined: Exchange Variation, Sämisch Variation","Queen's Gambit Declined: Harrwitz Attack","Queen's Gambit Declined: Normal Defense","Queen's Gambit Declined: Exchange Variation, Reshevsky Variation","Queen's Gambit Declined: Barmen Variation","Queen's Gambit Declined: Harrwitz Attack, Fianchetto Defense","Queen's Gambit Declined: Harrwitz Attack, Main Line","Queen's Gambit Declined: Harrwitz Attack, Orthodox Defense","Queen's Gambit Declined: Harrwitz Attack, Two Knights Defense","Queen's Gambit Declined: Harrwitz Attack, Two Knights Defense, Blockade Line","Queen's Gambit Declined: Knight Defense, Alekhine Gambit","Queen's Gambit Declined: Miles Variation","Queen's Gambit Declined: Three Knights Variation","Queen's Gambit Declined: Three Knights, Vienna Variation","Queen's Gambit Declined: Vienna Variation, Quiet Variation","Queen's Gambit Declined: Ragozin Defense","Queen's Gambit Declined: Ragozin Defense, Alekhine Variation","Queen's Gambit Declined: Westphalian Variation","Queen's Gambit Declined: Ragozin Defense, Vienna Variation","Queen's Gambit Declined: Semi-Tarrasch Defense","Queen's Gambit Declined: Semi-Tarrasch Defense, Levenfish Variation","Queen's Gambit Declined: Semi-Tarrasch Defense, Pillsbury Variation","Queen's Gambit Declined: Semi-Tarrasch Defense, Symmetrical Variation","Queen's Gambit Declined: Semi-Tarrasch Defense, with e3","Queen's Gambit Declined: Semi-Tarrasch Defense, Endgame Variation","Queen's Gambit Declined: Semi-Tarrasch Defense, Exchange Variation","Queen's Gambit Declined: Semi-Tarrasch Defense, Kmoch Variation","Queen's Gambit Declined: Semi-Tarrasch Defense, San Sebastian Variation","Queen's Gambit Declined: Semi-Tarrasch Defense, Main Line","Semi-Slav Defense","Semi-Slav Defense: Anti-Moscow Gambit","Semi-Slav Defense: Hastings Variation","Semi-Slav Defense: Moscow Variation","Semi-Slav Defense Accepted","Semi-Slav Defense: Botvinnik Variation","Semi-Slav Defense: Botvinnik Variation, Alatortsev System","Semi-Slav Defense: Botvinnik Variation, Ekstrom Variation","Semi-Slav Defense: Botvinnik Variation, Lilienthal Variation","Semi-Slav Defense: Botvinnik Variation, Szabo Variation","Semi-Slav Defense: Accelerated Meran Variation","Semi-Slav Defense: Main Line","Semi-Slav Defense: Normal Variation","Semi-Slav Defense: Rubinstein System","Semi-Slav Defense: Stoltz Variation","Semi-Slav Defense: Stoltz Variation, Center Variation","Semi-Slav Defense: Stoltz Variation, Center Variation, Mikhalchishin Line","Semi-Slav Defense: Stoltz Variation, Shabalov Attack","Semi-Slav Defense: Bogoljubow Variation","Semi-Slav Defense: Chigorin Defense","Semi-Slav Defense: Romih Variation","Semi-Slav Defense: Meran Variation","Semi-Slav Defense: Meran Variation, Lundin Variation","Semi-Slav Defense: Meran Variation, Wade Variation","Semi-Slav Defense: Meran Variation, Wade Variation, Kaidanov Gambit","Semi-Slav Defense: Meran Variation, Wade Variation, Larsen Variation","Semi-Slav Defense: Semi-Meran Variation","Semi-Slav Defense: Meran Variation, Old Variation","Semi-Slav Defense: Meran Variation, Pirc Variation","Semi-Slav Defense: Meran Variation, Reynolds' Variation","Semi-Slav Defense: Meran Variation, Blumenfeld Variation","Semi-Slav Defense: Meran Variation, Rabinovich Variation","Semi-Slav Defense: Meran Variation, Rellstab Attack","Semi-Slav Defense: Meran Variation, Sozin Variation","Semi-Slav Defense: Meran Variation, Stahlberg Variation","Queen's Gambit Declined: Been-Koomen Variation","Queen's Gambit Declined: Modern Variation","Queen's Gambit Declined: Pseudo-Tarrasch Variation","Queen's Gambit Declined: Pseudo-Tarrasch Variation, Canal Variation","Queen's Gambit Declined: Pseudo-Tarrasch Variation, Primitive Pillsbury Variation","Queen's Gambit Declined: Semi-Tarrasch Defense, Krause Variation","Queen's Gambit Declined: Alekhine Variation","Queen's Gambit Declined: Capablanca Variation, Anti-Cambridge Springs Variation","Queen's Gambit Declined: Manhattan Variation","Queen's Gambit Declined: Modern Variation, Knight Defense","Queen's Gambit Declined: Rochlin Variation","Queen's Gambit Declined: Cambridge Springs Defense","Queen's Gambit Declined: Cambridge Springs Defense, Argentine Variation","Queen's Gambit Declined: Cambridge Springs Defense, Bogoljubow Variation","Queen's Gambit Declined: Cambridge Springs Defense, Capablanca Variation","Queen's Gambit Declined: Cambridge Springs Defense, Rubinstein Variation","Queen's Gambit Declined: Cambridge Springs Defense, Yugoslav Variation","Queen's Gambit Declined: Lasker Defense","Queen's Gambit Declined: Modern Variation, Heral Variation","Queen's Gambit Declined: Uhlmann Variation","Queen's Gambit Declined: Neo-Orthodox Variation","Queen's Gambit Declined: Anti-Tartakower Variation","Queen's Gambit Declined: Anti-Tartakower Variation, Petrosian Variation","Queen's Gambit Declined: Modern Variation, Normal Line","Queen's Gambit Declined: Neo-Orthodox Variation, Main Line","Queen's Gambit Declined: Pillsbury Attack","Queen's Gambit Declined: Lasker Defense, Russian Variation","Queen's Gambit Declined: Lasker Defense, Teichmann Variation","Queen's Gambit Declined: Lasker Defense, Bernstein Variation","Queen's Gambit Declined: Lasker Defense, Bernstein Variation, Mar del Plata Gambit","Queen's Gambit Declined: Lasker Defense, Main Line","Queen's Gambit Declined: Tartakower Defense","Queen's Gambit Declined: Tartakower Defense, Exchange Variation","Queen's Gambit Declined: Tartakower Defense, Makogonov Exchange Variation","Queen's Gambit Declined: Orthodox Defense","Queen's Gambit Declined: Orthodox Defense, Botvinnik Variation","Queen's Gambit Declined: Orthodox Defense, Rubinstein Variation","Queen's Gambit Declined: Orthodox Defense, Rubinstein Variation, Flohr Line","Queen's Gambit Declined: Orthodox Defense, Henneberger Variation","Queen's Gambit Declined: Orthodox Defense, Main Line","Queen's Gambit Declined: Orthodox Defense, Pillsbury Variation","Queen's Gambit Declined: Orthodox Defense, Swiss, Carlsbad Variation","Queen's Gambit Declined: Orthodox Defense, Rubinstein Attack","Queen's Gambit Declined: Orthodox Defense, Bd3 Line","Queen's Gambit Declined: Orthodox Defense, Fianchetto Variation","Queen's Gambit Declined: Orthodox Defense, Alekhine Variation","Queen's Gambit Declined: Orthodox Defense, Capablanca System","Queen's Gambit Declined: Orthodox Defense, Classical Variation","Neo-Grünfeld Defense: Goglidze Attack","Neo-Grünfeld Defense: with Nf3","Neo-Grünfeld Defense: with g3","Neo-Grünfeld Defense: Exchange Variation","Neo-Grünfeld Defense: Delayed Exchange Variation","Neo-Grünfeld Defense: Classical Variation, Original Defense","Neo-Grünfeld Defense: Ultra-Delayed Exchange Variation","Grünfeld Defense","Grünfeld Defense: Gibbon Gambit","Grünfeld Defense: Lundin Variation","Grünfeld Defense: Lutikov Variation","Grünfeld Defense: Lutikov Variation, Murrey Attack","Grünfeld Defense: Stockholm Variation","Grünfeld Defense: Zaitsev Gambit","Grünfeld Defense: Russian Variation, Accelerated Variation","Grünfeld Defense: Brinckmann Attack","Grünfeld Defense: Brinckmann Attack, Grünfeld Gambit","Grünfeld Defense: Brinckmann Attack, Grünfeld Gambit, Botvinnik Variation","Grünfeld Defense: Brinckmann Attack, Grünfeld Gambit, Capablanca Variation","Grünfeld Defense: Brinckmann Attack, Reshevsky Gambit","Grünfeld Defense: Brinckmann Attack, Grünfeld Gambit Accepted","Grünfeld Defense: Exchange Variation","Grünfeld Defense: Exchange Variation, Modern Exchange Variation","Grünfeld Defense: Exchange Variation, Modern Exchange Variation, Pawn Grab Line","Grünfeld Defense: Exchange Variation, Nadanian Attack","Grünfeld Defense: Exchange Variation, Classical Variation","Grünfeld Defense: Exchange Variation, Larsen Variation","Grünfeld Defense: Exchange Variation, Simagin's Improved Variation","Grünfeld Defense: Exchange Variation, Simagin's Lesser Variation","Grünfeld Defense: Exchange Variation, Seville Variation","Grünfeld Defense: Exchange Variation, Spassky Variation","Grünfeld Defense: Exchange Variation, Sokolsky Variation","Grünfeld Defense: Flohr Variation","Grünfeld Defense: Three Knights Variation","Grünfeld Defense: Three Knights Variation, Petrosian System","Grünfeld Defense: Three Knights Variation, Hungarian Attack","Grünfeld Defense: Three Knights Variation, Hungarian Variation","Grünfeld Defense: Flohr Defense","Grünfeld Defense: Makogonov Variation","Grünfeld Defense: Opocensky Variation","Grünfeld Defense: Smyslov Defense","Grünfeld Defense: Three Knights Variation, Burille Variation","Grünfeld Defense: Three Knights Variation, Paris Variation","Grünfeld Defense: Botvinnik Variation","Grünfeld Defense: Pachman Variation","Grünfeld Defense: Three Knights Variation, Vienna Variation","Grünfeld Defense: Russian Variation","Grünfeld Defense: Russian Variation, Byrne Variation","Grünfeld Defense: Russian Variation, Hungarian Variation","Grünfeld Defense: Russian Variation, Levenfish Variation","Grünfeld Defense: Russian Variation, Prins Variation","Grünfeld Defense: Russian Variation, Szabo Variation","Grünfeld Defense: Russian Variation, Keres Variation","Grünfeld Defense: Russian Variation, Smyslov Variation","Grünfeld Defense: Russian Variation, Yugoslav Variation","Catalan Opening","Catalan Opening: Hungarian Gambit","Indian Defense: Devin Gambit","Indian Defense: Seirawan Attack","Catalan Opening: Open Defense","Catalan Opening: Tarrasch Defense","Catalan Opening: Open Defense, Alekhine Variation","Catalan Opening: Open Defense, Modern Sharp Variation","Catalan Opening: Open Defense, Classical Line","Catalan Opening: Closed","Catalan Opening: Closed, Botvinnik Variation","Catalan Opening: Closed, Spassky Gambit","Catalan Opening: Closed, Zagoryansky Variation","Catalan Opening: Closed Variation, Rabinovich Variation","Catalan Opening: Closed Variation, Traditional Variation","Catalan Opening: Closed, Main Line","Catalan Opening: Closed, Sokolsky Variation","Blumenfeld Countergambit","Blumenfeld Countergambit Accepted","Blumenfeld Countergambit: Duz-Khotimirsky Variation","Blumenfeld Countergambit: Spielmann Variation","Indian Defense: Anti-Nimzo-Indian","Indian Defense: Dzindzi-Indian Defense","Indian Defense: Döry Indian","Bogo-Indian Defense","Bogo-Indian Defense: Exchange Variation","Bogo-Indian Defense: Grünfeld Variation","Bogo-Indian Defense: Haiti Variation","Bogo-Indian Defense: Monticelli Trap","Bogo-Indian Defense: New England Variation","Bogo-Indian Defense: Nimzowitsch Variation","Bogo-Indian Defense: Retreat Variation","Bogo-Indian Defense: Vitolins Variation","Bogo-Indian Defense: Wade-Smyslov Variation","Queen's Indian Defense","Queen's Indian Defense: Kasparov Variation","Queen's Indian Defense: Kasparov Variation, Botvinnik Attack","Queen's Indian Defense: Kasparov-Petrosian Variation","Queen's Indian Defense: Kasparov-Petrosian Variation, Andersson Variation","Queen's Indian Defense: Kasparov-Petrosian Variation, Classical Variation","Queen's Indian Defense: Kasparov-Petrosian Variation, Hedgehog Variation","Queen's Indian Defense: Kasparov-Petrosian Variation, Kasparov Attack","Queen's Indian Defense: Kasparov-Petrosian Variation, Main Line","Queen's Indian Defense: Kasparov-Petrosian Variation, Marco Defense","Queen's Indian Defense: Kasparov-Petrosian Variation, Modern Variation","Queen's Indian Defense: Kasparov-Petrosian Variation, Petrosian Attack","Queen's Indian Defense: Kasparov-Petrosian Variation, Polovodin Gambit","Queen's Indian Defense: Kasparov-Petrosian Variation, Rashkovsky Attack","Queen's Indian Defense: Kasparov-Petrosian Variation, Romanishin Attack","Queen's Indian Defense: Miles Variation","Queen's Indian Defense: Petrosian Variation","Queen's Indian Defense: Petrosian Variation, Farago Defense","Queen's Indian Defense, with e3","Queen's Indian Defense, with e3, Bb4+ Line","Queen's Indian Defense: Averbakh Variation","Queen's Indian Defense: Spassky System","Queen's Indian Defense: Spassky System3","Queen's Indian Defense: Buerger Variation","Queen's Indian Defense: Fianchetto Variation","Queen's Indian Defense: Fianchetto Variation, Check Variation","Queen's Indian Defense: Fianchetto Variation, Check Variation, Intermezzo Line","Queen's Indian Defense: Fianchetto Variation, Check Variation, Modern Line","Queen's Indian Defense: Fianchetto Variation, Nimzowitsch Variation","Queen's Indian Defense: Fianchetto Variation, Nimzowitsch Variation, Nimzowitsch Attack","Queen's Indian Defense: Fianchetto Variation, Nimzowitsch Variation, Quiet Line","Queen's Indian Defense: Fianchetto Variation, Nimzowitsch Variation, Timman's Line","Queen's Indian Defense: Fianchetto Variation, Rubinstein Variation","Queen's Indian Defense: Fianchetto Variation, Sämisch Variation","Queen's Indian Defense: Fianchetto Variation, Traditional Line","Queen's Indian Defense: Capablanca Variation","Queen's Indian Defense: Riumin Variation","Queen's Indian Defense: Yates Variation","Queen's Indian Defense: Anti-Queen's Indian System","Queen's Indian Defense: Classical Variation","Queen's Indian Defense: Classical Variation, Polugaevsky Gambit","Queen's Indian Defense: Classical Variation, Taimanov Gambit","Queen's Indian Defense: Euwe Variation","Queen's Indian Defense: Fianchetto Variation, Kramnik Variation","Queen's Indian Defense: Opocensky Variation","Queen's Indian Defense: Traditional Variation","Queen's Indian Defense: Classical Variation, Tiviakov Defense","Queen's Indian Defense: Classical Variation, Traditional Variation","Queen's Indian Defense: Classical Variation, Traditional Variation, Nimzowitsch Line","Queen's Indian Defense: Classical Variation, Traditional Variation, Main Line","Nimzo-Indian Defense","Nimzo-Indian Defense: Dilworth Gambit","Nimzo-Indian Defense: Kmoch Variation","Nimzo-Indian Defense: Mikenas Attack","Nimzo-Indian Defense: Romanishin Variation","Nimzo-Indian Defense: Romanishin Variation, English Hybrid","Nimzo-Indian Defense: Three Knights Variation","Nimzo-Indian Defense: Three Knights Variation, Euwe Variation","Nimzo-Indian Defense: Three Knights Variation, Korchnoi Variation","Nimzo-Indian Defense: Three Knights Variation, Shocron Gambit","Nimzo-Indian Defense: Spielmann Variation","Nimzo-Indian Defense: Spielmann Variation, Carlsbad Variation","Nimzo-Indian Defense: Spielmann Variation, Romanovsky Gambit","Nimzo-Indian Defense: Spielmann Variation, Stahlberg Variation","Nimzo-Indian Defense: Sämisch Variation","Nimzo-Indian Defense: Sämisch Variation, Botvinnik Variation","Nimzo-Indian Defense: Sämisch Variation, Keres Variation","Nimzo-Indian Defense: Sämisch Variation, Romanovsky Variation","Nimzo-Indian Defense: Sämisch Variation, O'Kelly Variation","Nimzo-Indian Defense: Sämisch Variation, Capablanca Variation","Nimzo-Indian Defense: Leningrad Variation","Nimzo-Indian Defense: Leningrad Variation, Averbakh Gambit","Nimzo-Indian Defense: Leningrad Variation, Benoni Defense","Nimzo-Indian Defense: Classical Variation","Nimzo-Indian Defense: Classical Variation, Keres Defense","Nimzo-Indian Defense: Classical Variation, Vitolins-Adorjan Gambit","Nimzo-Indian Defense: Classical Variation, Milner-Barry Variation","Nimzo-Indian Defense: Classical Variation, Zurich Variation","Nimzo-Indian Defense: Classical Variation, Belyavsky Gambit","Nimzo-Indian Defense: Classical Variation, Noa Variation","Nimzo-Indian Defense: Classical Variation, Noa Variation, Botvinnik Variation","Nimzo-Indian Defense: Classical Variation, Noa Variation, Main Line","Nimzo-Indian Defense: Classical Variation, Romanishin Gambit","Nimzo-Indian Defense: Classical Variation, Modern Variation","Nimzo-Indian Defense: Classical Variation, Noa Variation, San Remo Variation","Nimzo-Indian Defense: Classical Variation, Berlin Variation","Nimzo-Indian Defense: Classical Variation, Berlin Variation, Steiner Variation","Nimzo-Indian Defense: Classical Variation, Berlin Variation, Macieja System","Nimzo-Indian Defense: Classical Variation, Berlin Variation, Pirc Variation","Nimzo-Indian Defense: Rubinstein System","Nimzo-Indian Defense: Rubinstein System, Taimanov Variation","Nimzo-Indian Defense: Rubinstein System, Hübner Variation","Nimzo-Indian Defense: Rubinstein System, Rubinstein Variation","Nimzo-Indian Defense: Rubinstein System, Rubinstein Variation, Main Line","Nimzo-Indian Defense: Rubinstein System, Rubinstein Variation, Sherbakov Attack","Nimzo-Indian Defense: St. Petersburg Variation","Nimzo-Indian Defense: St. Petersburg Variation, with Ne4","Nimzo-Indian Defense: St. Petersburg Variation, American Variation","Nimzo-Indian Defense: St. Petersburg Variation, Romanishin-Psakhis Variation","Nimzo-Indian Defense: St. Petersburg Variation, Fischer Variation","Nimzo-Indian Defense: Normal Variation","Nimzo-Indian Defense: Reshevsky Variation","Nimzo-Indian Defense: Simagin Variation","Nimzo-Indian Defense: Normal Variation, Classical Defense","Nimzo-Indian Defense: Ragozin Defense","Nimzo-Indian Defense: Normal Variation, Botvinnik System","Nimzo-Indian Defense: Normal Variation, Ragozin Variation","Nimzo-Indian Defense: Normal Variation, Sämisch Deferred","Nimzo-Indian Defense: Ragozin Variation","Nimzo-Indian Defense: Normal Variation, Schlechter Defense","Nimzo-Indian Defense: Normal Variation, Gligoric System","Nimzo-Indian Defense: Normal Variation, Gligoric System, Keres Variation","Nimzo-Indian Defense: Normal Variation, Gligoric System, Exchange Variation","Nimzo-Indian Defense: Normal Variation, Gligoric System, Smyslov Variation","Nimzo-Indian Defense: Normal Variation, Gligoric System, Bronstein Variation","Nimzo-Indian Defense: Normal Variation, Gligoric System, Bernstein Defense","Nimzo-Indian Defense: Normal Variation, Bernstein Defense, Exchange Line","Nimzo-Indian Defense: Normal Variation, Bernstein Defense","Grünfeld Defense: Counterthrust Variation","Indian Defense: Anti-Grünfeld, Adorjan Gambit","Indian Defense: Anti-Grünfeld, Advance Variation","Indian Defense: Anti-Grünfeld, Alekhine Variation","Indian Defense: Anti-Grünfeld, Alekhine Variation, Leko Gambit","Indian Defense: Anti-Grünfeld, Basman-Williams Attack","Indian Defense: West Indian Defense","King's Indian Defense: Fianchetto Variation","King's Indian Defense: Fianchetto Variation, Immediate Fianchetto","King's Indian Defense: Santasiere Variation","King's Indian Defense: Semi-Classical Variation, Benoni Variation","Queen's Pawn, Mengarini Attack","King's Indian Defense","King's Indian Defense: Fianchetto Variation, Benjamin Defense","King's Indian Defense: Semi-Classical Variation","King's Indian Defense: Semi-Classical Variation, Exchange Variation","King's Indian Defense: Semi-Classical Variation, Queenside Storm Line","King's Indian Defense: Smyslov Variation","King's Indian Defense: Fianchetto Variation, Carlsbad Variation","King's Indian Defense: Fianchetto Variation, Delayed Fianchetto","King's Indian Defense: Fianchetto Variation, Kavalek Defense","King's Indian Defense: Fianchetto Variation, Larsen Defense","King's Indian Defense: Fianchetto Variation, Lesser Simagin (Spassky)","King's Indian Defense: Fianchetto Variation, Simagin Variation","King's Indian Defense: Fianchetto Variation, Uhlmann-Szabo System","King's Indian Defense: Fianchetto Variation, Panno Variation","King's Indian Defense: Fianchetto Variation, Panno Variation, Blockade Line","King's Indian Defense: Fianchetto Variation, Panno Variation, Donner Line","King's Indian Defense: Fianchetto Variation, Panno Variation, Korchnoi Line","King's Indian Defense: Fianchetto Variation, Double Fianchetto Attack","King's Indian Defense: Fianchetto Variation, Hungarian Variation","King's Indian Defense: Fianchetto Variation, Pterodactyl Variation","King's Indian Defense: Fianchetto Variation, Yugoslav System","King's Indian Defense: Fianchetto Variation, Yugoslav Variation, Rare Line","King's Indian Defense: Fianchetto Variation, Yugoslav Variation","King's Indian Defense: Fianchetto Variation, Yugoslav Variation, Exchange Line","King's Indian Defense: Fianchetto Variation, Yugoslav Variation, Advance Line","King's Indian Defense: Fianchetto Variation, Classical Fianchetto","King's Indian Defense: Fianchetto Variation, Debrecen Defense","King's Indian Defense: Fianchetto Variation, Classical Variation","King's Indian Defense: Fianchetto Variation, Long Variation","King's Indian Defense: Fianchetto Variation, Classical Main Line","King's Indian Defense: Accelerated Averbakh Variation","King's Indian Defense: Kramer Variation","King's Indian Defense: Normal Variation","King's Indian Defense: Karpov System","King's Indian Defense: Makogonov Variation","King's Indian Defense: Normal Variation, Deferred Fianchetto","King's Indian Defense: Pomar System","King's Indian Defense: Averbakh Variation","King's Indian Defense: Averbakh Variation, Flexible Defense","King's Indian Defense: Averbakh Variation, Geller Defense","King's Indian Defense: Averbakh Variation, Modern Defense","King's Indian Defense: Averbakh Variation, Modern Defense, Burgess Line","King's Indian Defense: Averbakh Variation, Nc6 Defense","King's Indian Defense: Averbakh Variation, Spanish Defense","King's Indian Defense: Normal Variation, Standard Development","King's Indian Defense: Semi-Averbakh System","King's Indian Defense: Averbakh Variation, Benoni Defense","King's Indian Defense: Averbakh Variation, Benoni Defense, Advance Variation","King's Indian Defense: Averbakh Variation, Benoni Defense, Exchange Variation","King's Indian Defense: Averbakh Variation, Main Line","King's Indian Defense: Four Pawns Attack","King's Indian Defense: Four Pawns Attack, Dynamic Attack","King's Indian Defense: Four Pawns Attack, Modern Defense","King's Indian Defense: Four Pawns Attack, Florentine Gambit","King's Indian Defense: Four Pawns Attack, Normal Attack","King's Indian Defense: Six Pawns Attack","King's Indian Defense: Four Pawns Attack, Fluid Attack","King's Indian Defense: Four Pawns Attack, Exchange Variation","King's Indian Defense: Sämisch Variation","King's Indian Defense: Steiner Attack","King's Indian Defense: Sämisch Variation, Bobotsov-Korchnoi-Petrosian Variation","King's Indian Defense: Sämisch Variation, Byrne Defense","King's Indian Defense: Sämisch Variation, Normal Defense","King's Indian Defense: Sämisch Variation, Sämisch Gambit","King's Indian Defense: Sämisch Variation, Sämisch Gambit Accepted","King's Indian Defense: Sämisch Variation, Double Fianchetto","King's Indian Defense: Sämisch Variation, Panno Formation","King's Indian Defense: Sämisch Variation, Ruban Variation","King's Indian Defense: Sämisch Variation, Yates Defense","King's Indian Defense: Sämisch Variation, Panno Main Line","King's Indian Defense: Sämisch Variation, Orthodox Variation","King's Indian Defense: Sämisch Variation, Bronstein Defense","King's Indian Defense: Sämisch Variation, Closed Variation","King's Indian Defense: Sämisch Variation, Orthodox Variation, Bronstein Variation","King's Indian Defense: Sämisch Variation, Closed Variation, Main Line","King's Indian Defense: Larsen Variation","King's Indian Defense: Normal Variation, Rare Defenses","King's Indian Defense: Zinnowitz Variation","King's Indian Defense: Kazakh Variation","King's Indian Defense: Orthodox Variation","King's Indian Defense: Exchange Variation","King's Indian Defense: Orthodox Variation, Gligoric-Taimanov System","King's Indian Defense: Petrosian Variation","King's Indian Defense: Petrosian Variation, Stein Defense","King's Indian Defense: Petrosian Variation, Keres Defense","King's Indian Defense: Petrosian Variation, Normal Defense","King's Indian Defense: Orthodox Variation, Donner Defense","King's Indian Defense: Orthodox Variation, Glek Defense","King's Indian Defense: Orthodox Variation, Positional Defense","King's Indian Defense: Orthodox Variation, Positional Defense, Closed Line","King's Indian Defense: Orthodox Variation, Ukrainian Defense","King's Indian Defense: Orthodox Variation, Positional Defense, Main Line","King's Indian Defense: Orthodox Variation, Aronin-Taimanov Defense","King's Indian Defense: Orthodox Variation, Bayonet Attack","King's Indian Defense: Orthodox Variation, Bayonet Attack, Sokolov's Line","King's Indian Defense: Orthodox Variation, Bayonet Attack, Yepishin's Line","King's Indian Defense: Orthodox Variation, Korchnoi Attack","King's Indian Defense: Orthodox Variation, Modern System","King's Indian Defense: Orthodox Variation, Classical System","King's Indian Defense: Orthodox Variation, Classical System, Kozul Gambit","King's Indian Defense: Orthodox Variation, Classical System, Neo-Classical Line","King's Indian Defense: Orthodox Variation, Classical System, Benko Attack","King's Indian Defense: Orthodox Variation, Classical System, Traditional Line"],"b":[[-1,12,["e4",1]],[-1,12,["c6",2]],[150,11,["Nc3",3,"c4",17,"Nf3",29,"d3",40,"b3",53,"Bc4",54,"b4",59,"g4",64,"d4",69]],[150,3,["d5",4]],[150,2,["Qf3",5,"Nf3",6,"d3",13,"h3",16]],[163,0,[]],[175,2,["dxe4",7,"Bg4",9]],[-1,0,["Ng5",8]],[164,0,[]],[176,1,["h3",10]],[-1,1,["Bxf3",11,"Bh5",12]],[177,0,[]],[178,0,[]],[-1,1,["dxe4",14]],[-1,0,["Bg5",15]],[170,0,[]],[173,0,[]],[151,3,["d5",18,"e5",28]],[151,2,["exd5",19,"cxd5",24,"e5",27]],[-1,2,["cxd5",20]],[-1,1,["cxd5",21]],[-1,1,["Nf6",22,"Qxd5",23]],[152,0,[]],[154,0,[]],[-1,1,["cxd5",25]],[-1,0,["Qb3",26]],[155,0,[]],[174,0,[]],[153,0,[]],[-1,3,["d5",30]],[-1,2,["exd5",31,"d3",34]],[-1,1,["cxd5",32]],[-1,0,["Ne5",33]],[156,0,[]],[160,2,["dxe4",35]],[-1,1,["Ng5",36,"dxe4",37]],[159,0,[]],[-1,1,["Qxd1+",38]],[-1,0,["Kxd1",39]],[161,0,[]],[157,6,["d5",41]],[-1,5,["Nd2",42]],[-1,5,["g6",43]],[-1,4,["Ngf3",44]],[-1,4,["Bg7",45]],[-1,3,["g3",46]],[-1,3,["e5",47]],[-1,2,["Bg2",48]],[-1,2,["Ne7",49]],[-1,1,["O-O",50]],[-1,1,["O-O",51]],[-1,0,["b4",52]],[158,0,[]],[162,0,[]],[165,2,["d5",55]],[-1,1,["Bb3",56]],[-1,1,["dxe4",57]],[-1,0,["Qh5",58]],[166,0,[]],[167,1,["d5",60,"e5",62]],[-1,0,["b5",61]],[168,0,[]],[-1,0,["Bb2",63]],[169,0,[]],[171,2,["d5",65]],[-1,1,["Nc3",66]],[-1,1,["dxe4",67]],[-1,0,["d3",68]],[172,0,[]],[150,11,["d5",70,"Na6",228,"Nf6",231,"f5",232]],[150,10,["e5",71,"Nd2",90,"f3",144,"Bd3",151,"Be3",156,"Nf3",157,"exd5",160,"Nc3",203]],[179,4,["Bf5",72,"c5",89]],[-1,3,["g4",73,"Ne2",74,"b4",75,"Nf3",76,"h4",77,"Nc3",78,"c3",86]],[180,0,[]],[182,0,[]],[183,0,[]],[184,0,[]],[185,0,[]],[186,3,["e6",79,"Qb6",85]],[-1,2,["g4",80]],[-1,2,["Bg6",81]],[-1,1,["Nge2",82]],[-1,1,["c5",83]],[-1,0,["h4",84]],[186,0,[]],[187,0,[]],[-1,1,["e6",87]],[-1,0,["Be2",88]],[188,0,[]],[181,0,[]],[197,10,["Qb6",91,"dxe4",92]],[190,0,[]],[-1,9,["Nxe4",93]],[219,9,["h6",94,"Nd7",95,"Bf5",117,"Nf6",205]],[225,0,[]],[226,5,["Ng5",96,"Bc4",108,"Nf3",220]],[228,5,["Ngf6",97,"Ndf6",107]],[-1,4,["Bd3",98]],[-1,4,["e6",99]],[-1,3,["N1f3",100]],[-1,3,["Bd6",101]],[-1,2,["Qe2",102]],[-1,2,["h6",103]],[-1,1,["Ne4",104]],[-1,1,["Nxe4",105]],[-1,0,["Qxe4",106]],[227,0,[]],[229,0,[]],[-1,3,["Ngf6",109]],[-1,2,["Ng5",110,"Nxf6+",115]],[-1,2,["e6",111]],[-1,1,["Qe2",112]],[-1,1,["Nb6",113]],[231,0,["Bb3",114]],[232,0,[]],[-1,1,["Nxf6",116]],[233,0,[]],[234,8,["Ng3",118,"Ng5",139]],[-1,8,["Bg6",119]],[-1,7,["Nh3",120,"h4",121,"f4",138]],[235,0,[]],[236,7,["h6",122]],[-1,6,["Nf3",123]],[-1,6,["Nd7",124]],[234,5,["h5",125]],[241,5,["Bh7",126]],[-1,4,["Bd3",127]],[-1,4,["Bxd3",128]],[-1,3,["Qxd3",129]],[-1,3,["e6",130,"Ngf6",135]],[-1,2,["Bd2",131]],[-1,2,["Ngf6",132]],[-1,1,["O-O-O",133]],[-1,1,["Be7",134,"Bd6",137]],[239,0,[]],[-1,2,["Bd2",136]],[-1,2,["e6",132]],[240,0,[]],[237,0,[]],[-1,2,["Bg6",140]],[-1,1,["N1f3",141]],[-1,1,["h6",142]],[-1,0,["Ne6",143]],[238,0,[]],[191,3,["dxe4",145]],[-1,2,["fxe4",146]],[-1,2,["e5",147]],[-1,1,["Nf3",148]],[-1,1,["exd4",149]],[-1,0,["Bc4",150]],[192,0,[]],[-1,2,["Nf6",152]],[-1,1,["e5",153]],[-1,1,["Nfd7",154]],[-1,0,["e6",155]],[195,0,[]],[196,0,[]],[-1,1,["dxe4",158]],[-1,0,["Ng5",159]],[198,0,[]],[199,7,["cxd5",161]],[199,6,["Bf4",162,"Nf3",163,"g4",165,"Bd3",166,"c4",171]],[199,0,[]],[-1,1,["Nc6",164]],[199,0,[]],[200,0,[]],[-1,2,["Nc6",167]],[-1,1,["c3",168]],[-1,1,["Nf6",169]],[-1,0,["Bf4",170]],[201,0,[]],[202,6,["Nf6",172,"Nc6",193]],[-1,5,["Nc3",173,"c5",192]],[202,5,["Nc6",174,"e6",186,"g6",189]],[204,4,["Bg5",175,"Nf3",182]],[-1,2,["e6",176,"Qa5",177,"Qb6",178,"dxc4",179]],[205,0,[]],[206,0,[]],[208,0,[]],[-1,1,["d5",180]],[-1,1,["Na5",181]],[209,0,[]],[-1,4,["Bg4",183,"e6",184]],[207,0,[]],[-1,3,["c5",185,"cxd5",195]],[202,0,[]],[202,1,["Nf3",187]],[-1,1,["Bb4",188]],[212,0,[]],[210,1,["cxd5",190]],[-1,1,["Bg7",191]],[211,0,[]],[203,0,[]],[-1,5,["Nc3",194]],[-1,5,["Nf6",174]],[-1,3,["exd5",196]],[-1,2,["Bb5",197]],[-1,2,["Bg4",198,"Bd6",199]],[202,0,[]],[-1,1,["Bg5",200]],[-1,1,["O-O",201]],[-1,0,["O-O",202]],[202,0,[]],[150,10,["dxe4",204,"Nf6",225,"b5",226,"g6",227]],[150,9,["Nxe4",93,"f3",223,"Bc4",224]],[-1,4,["Bd3",206,"Ng5",207,"Nxf6+",210]],[213,0,[]],[-1,1,["h6",208]],[-1,0,["Nxf7",209]],[214,0,[]],[-1,4,["exf6",211,"gxf6",219]],[221,3,["Bc4",212,"c3",213]],[216,0,[]],[-1,3,["Bd6",214]],[-1,2,["Bd3",215]],[-1,2,["O-O",216]],[-1,1,["Qc2",217]],[-1,1,["h6",218]],[222,0,[]],[224,0,[]],[-1,1,["Ngf6",221]],[-1,0,["Ng3",222]],[230,0,[]],[220,0,[]],[223,0,[]],[215,0,[]],[217,0,[]],[218,0,[]],[189,1,["Nc3",229]],[-1,1,["Nc7",230]],[189,0,[]],[193,0,[]],[194,0,[]]],"w":[[-1,15,["d4",1]],[24,14,["Nf6",2,"Na6",1360,"e6",1361,"g5",1390,"b6",1391,"e5",1396,"Nc6",1397,"g6",1407,"b5",1441,"c6",1442,"d6",1445,"c5",1451,"f5",1455,"d5",1516]],[40,14,["c4",3]],[42,13,["c5",4,"g5",126,"b5",127,"Nc6",128,"b6",132,"c6",133,"e5",134,"d6",145,"e6",170,"g6",926]],[71,9,["Nf3",5,"d5",11,"dxc5",112,"e3",114]],[-1,2,["cxd4",6]],[-1,2,["Nxd4",7]],[-1,1,["e5",8]],[-1,1,["Nb5",9]],[-1,0,["d5",10]],[0,0,[]],[-1,8,["e5",12,"d6",17,"Ne4",18,"b5",19,"e6",71]],[72,2,["Nc3",13]],[-1,1,["d6",14]],[-1,1,["e4",15]],[-1,0,["g6",16]],[74,0,[]],[73,0,[]],[77,0,[]],[78,8,["cxb5",20,"Bg5",64,"e4",65,"Nf3",66,"f3",67,"Nd2",68,"a4",69,"g4",70]],[-1,7,["a6",21]],[79,7,["f3",22,"e3",23,"b6",24,"Nc3",25,"bxa6",32]],[80,0,[]],[81,0,[]],[82,0,[]],[91,3,["axb5",26]],[-1,3,["e4",27]],[-1,2,["b4",28]],[-1,2,["Nb5",29]],[92,1,["d6",30]],[-1,1,["Bc4",31]],[90,0,[]],[95,6,["g6",33,"Bxa6",57]],[-1,6,["Nc3",34]],[-1,5,["Bxa6",35]],[-1,5,["f4",36,"g3",37,"e4",42,"Nf3",48]],[93,0,[]],[-1,2,["d6",38]],[-1,2,["Bg2",39]],[-1,1,["Bg7",40]],[-1,1,["Nf3",41]],[94,0,[]],[-1,2,["Bxf1",43]],[-1,2,["Kxf1",44]],[-1,1,["d6",45]],[-1,1,["g3",46,"Nge2",47]],[78,0,[]],[99,0,[]],[-1,4,["d6",49]],[-1,4,["e4",50,"g3",61,"Nd2",62]],[-1,3,["Bxf1",51]],[-1,3,["Kxf1",52]],[-1,2,["Bg7",53]],[-1,2,["g3",54]],[-1,1,["O-O",55]],[-1,1,["Kg2",56]],[98,0,[]],[-1,6,["Nc3",58]],[-1,5,["d6",59]],[-1,5,["Nf3",60,"e4",63]],[-1,4,["g6",49]],[96,0,[]],[97,0,[]],[99,0,[]],[83,0,[]],[84,0,[]],[85,0,[]],[86,0,[]],[87,0,[]],[88,0,[]],[89,0,[]],[100,8,["Nc3",72]],[-1,7,["exd5",73]],[-1,7,["cxd5",74]],[-1,6,["Bd6",75,"d6",76]],[101,0,[]],[-1,6,["e4",77]],[107,5,["g6",78]],[-1,5,["f3",79,"f4",84,"Nf3",100]],[-1,1,["Bg7",80]],[107,1,["Be3",81,"Bg5",82,"Nge2",83]],[108,0,[]],[109,0,[]],[110,0,[]],[112,4,["Bg7",85]],[-1,4,["e5",86,"Bb5+",87,"Nf3",88]],[111,0,[]],[113,0,[]],[-1,3,["O-O",89]],[114,3,["Be2",90]],[114,2,["Re8",91,"Nbd7",92,"a6",96]],[115,0,[]],[-1,2,["O-O",93]],[-1,1,["Re8",94]],[115,1,["Nd2",95]],[115,0,[]],[-1,2,["a4",97]],[-1,1,["Re8",98]],[-1,1,["Nd2",99]],[115,0,[]],[-1,4,["Bg7",101]],[-1,4,["Be2",102,"h3",183,"Bg5",185]],[118,3,["O-O",103]],[116,3,["O-O",104]],[120,2,["a6",105,"Re8",107]],[-1,1,["a4",106]],[121,0,["Bg4",184]],[123,2,["Nd2",108]],[124,1,["Nbd7",109,"Na6",110]],[124,0,[]],[123,1,["f3",111]],[123,0,[]],[-1,0,["e6",113]],[75,0,[]],[-1,5,["g6",115]],[-1,5,["Nc3",116]],[-1,4,["Bg7",117]],[-1,4,["Nf3",118]],[-1,3,["O-O",119]],[-1,3,["Be2",120]],[-1,2,["cxd4",121]],[-1,2,["exd4",122]],[-1,1,["d5",123]],[-1,1,["O-O",124]],[-1,0,["Nc6",125]],[76,0,[]],[41,0,[]],[43,0,[]],[44,2,["d5",129]],[-1,1,["Ne5",130]],[-1,1,["f4",131]],[45,0,[]],[46,0,[]],[47,0,[]],[48,2,["dxe5",135]],[49,1,["Ne4",136,"Ng4",139]],[50,1,["a3",137,"Qc2",138]],[51,0,[]],[52,0,[]],[53,1,["Nf3",140,"e4",141,"Bf4",144]],[54,0,[]],[55,0,["Nxe5",142,"d6",143]],[56,0,[]],[57,0,[]],[58,0,[]],[29,7,["g4",146,"Nc3",147,"Nf3",167]],[59,0,[]],[-1,6,["c6",148,"Bf5",149,"e5",153,"Nbd7",158]],[60,0,[]],[62,1,["g3",150,"e4",151,"f3",152]],[63,0,[]],[64,0,[]],[65,0,[]],[69,2,["e3",154,"Nf3",157]],[-1,1,["Nbd7",155]],[-1,1,["Bd3",156]],[66,0,[]],[68,0,[]],[-1,6,["e4",159]],[-1,5,["e5",160]],[-1,5,["Nf3",161]],[70,4,["g6",162]],[-1,4,["Be2",163]],[-1,3,["Bg7",164]],[-1,3,["O-O",165]],[-1,2,["O-O",166]],[850,2,["Re1",1075]],[-1,0,["c6",168,"Bg4",169]],[61,0,[]],[67,0,[]],[-1,13,["Nf3",171,"g3",552,"Nc3",624,"Qb3",923,"g4",924,"Bg5",925]],[619,12,["c5",172,"d5",195,"b6",406,"a6",524,"Ne4",525,"Bb4+",526]],[-1,8,["d5",173]],[-1,7,["exd5",174,"b5",186]],[-1,7,["cxd5",175]],[-1,6,["d6",176]],[-1,6,["Nc3",177]],[-1,5,["g6",178]],[71,5,["g3",179,"Nd2",180,"Bg5",181,"e4",182]],[102,0,[]],[103,0,[]],[104,0,[]],[116,4,["Bg7",101]],[117,0,[]],[122,0,[]],[119,0,[]],[615,2,["dxe6",187,"Bg5",191]],[-1,1,["fxe6",188]],[-1,1,["cxb5",189]],[-1,0,["d5",190]],[616,0,[]],[617,1,["exd5",192]],[-1,1,["cxd5",193]],[-1,0,["h6",194]],[618,0,[]],[-1,12,["Bg5",196,"e3",203,"Nc3",235,"g3",364]],[375,2,["h6",197,"dxc4",198,"Bb4+",202]],[369,0,[]],[-1,2,["Qa4+",199]],[-1,1,["c6",200]],[-1,1,["Qxc4",201]],[375,0,[]],[376,0,[]],[-1,11,["c5",204,"b6",211,"Be7",221,"c6",1723]],[-1,3,["cxd5",205]],[-1,2,["exd5",206]],[-1,2,["Nc3",207]],[-1,1,["a6",208]],[-1,1,["Be2",209]],[-1,0,["Nc6",210]],[399,0,[]],[-1,3,["Nc3",212]],[-1,2,["Bd6",213,"Bb7",220]],[-1,2,["cxd5",214,"Bd3",216]],[-1,0,["exd5",215]],[427,0,[]],[650,1,["O-O",217]],[-1,1,["O-O",218]],[-1,0,["Bb7",219]],[650,0,[]],[650,0,[]],[-1,4,["Nc3",222,"b3",226]],[-1,1,["O-O",223]],[443,1,["b3",224]],[-1,0,["b6",225]],[650,0,[]],[-1,3,["O-O",227]],[-1,3,["Bd3",228,"Bb2",230]],[-1,0,["b6",229]],[650,0,[]],[-1,2,["b6",231]],[-1,2,["Nbd2",232]],[-1,1,["Bb7",233]],[-1,1,["Bd3",234]],[650,0,[]],[443,11,["Nbd7",236,"Be7",254,"dxc4",322,"Bb4",324,"c5",331,"c6",349,"Nc6",1558]],[435,5,["cxd5",237,"Bg5",250]],[-1,4,["exd5",238]],[-1,4,["Bg5",239,"Bf4",249]],[-1,3,["c6",240]],[-1,3,["e3",241]],[-1,2,["Be7",242]],[430,2,["Qc2",243,"Bd3",244]],[434,0,[]],[-1,1,["O-O",245,"Nf8",247]],[-1,1,["Qc2",246]],[434,0,[]],[-1,1,["Qc2",248]],[434,0,[]],[431,0,[]],[-1,4,["h6",251,"c6",1791]],[-1,1,["Bh4",252]],[-1,0,["dxc4",253]],[441,0,[]],[-1,10,["Bf4",255,"Bg5",270,"e3",222]],[432,5,["O-O",256]],[-1,5,["e3",257]],[-1,4,["c5",258,"Nbd7",269,"b6",1997,"c6",2127]],[-1,4,["dxc5",259]],[-1,3,["Bxc5",260]],[437,3,["Qc2",261]],[-1,2,["Nc6",262]],[-1,2,["Rd1",263,"a3",266]],[-1,1,["Qa5",264]],[-1,1,["a3",265]],[432,0,[]],[-1,1,["Qa5",267]],[-1,1,["O-O-O",268]],[432,0,[]],[439,1,["c5",677]],[368,9,["O-O",271,"h6",302,"c6",2167]],[-1,9,["Qc2",272,"e3",273]],[442,0,[]],[518,8,["h6",274,"Nbd7",276]],[515,7,["Bxf6",275,"Bh4",316]],[516,0,[]],[529,8,["Bd3",277,"Qc2",279,"Rc1",282]],[530,0,["c6",278]],[530,0,[]],[531,2,["c5",280,"c6",2184,"a6",2188]],[531,1,["cxd5",281]],[532,0,[]],[534,7,["a6",283,"c6",288,"b6",687,"h6",2202]],[533,2,["c5",284,"cxd5",287]],[533,1,["c6",285]],[533,1,["Bd3",286]],[533,0,[]],[536,0,[]],[534,7,["Qc2",289,"Bd3",291,"a3",678]],[537,0,["a6",290]],[537,0,[]],[538,6,["dxc4",292,"h6",2193]],[-1,6,["Bxc4",293]],[-1,5,["Nd5",294,"b5",2208]],[541,5,["Bxe7",295]],[-1,4,["Qxe7",296]],[538,4,["O-O",297,"Ne4",2195]],[534,3,["Nxc3",298]],[-1,3,["Rxc3",299]],[-1,2,["e5",300]],[542,2,["Qc2",301,"Qb1",1966,"dxe5",2196]],[542,0,[]],[-1,8,["Bxf6",303,"Bh4",314]],[-1,5,["Bxf6",304]],[-1,5,["e3",305]],[-1,4,["O-O",306]],[-1,4,["Rc1",307]],[-1,3,["c6",308]],[-1,3,["Bd3",309]],[-1,2,["Nd7",310]],[-1,2,["O-O",311]],[-1,1,["dxc4",312]],[-1,1,["Bxc4",313]],[517,0,[]],[-1,7,["O-O",315]],[-1,7,["e3",316,"Rc1",1998]],[519,6,["Ne4",317,"b6",321]],[512,6,["Bxe7",318]],[-1,5,["Qxe7",319]],[-1,5,["Qc2",320,"cxd5",694]],[522,4,["Nf6",2172]],[526,4,["cxd5",2000]],[444,2,["e3",323,"e4",1949,"Bg5",1950]],[445,0,[]],[446,2,["Qa4+",325,"Bg5",326]],[447,0,[]],[-1,1,["Nbd7",327,"dxc4",330]],[-1,1,["e3",328]],[-1,0,["c5",329]],[448,0,[]],[449,0,[]],[450,8,["cxd5",332,"e3",1531,"Bg5",2140]],[450,7,["Nxd5",333,"cxd4",343,"exd5",628]],[-1,6,["g3",334,"e4",337,"e3",340]],[450,1,["Nc6",335]],[-1,1,["Bg2",336]],[450,0,[]],[456,5,["Nxc3",338]],[-1,5,["bxc3",339]],[456,4,["cxd4",2122]],[452,1,["Nc6",341]],[-1,1,["Bd3",342]],[459,0,[]],[-1,3,["Qxd4",344]],[-1,2,["exd5",345]],[-1,2,["e4",346]],[-1,1,["dxe4",347]],[-1,1,["Qxd8+",348]],[455,0,[]],[460,11,["Bg5",350,"e3",1610]],[-1,9,["dxc4",351,"h6",1782,"Nbd7",1791,"Be7",2167]],[464,6,["e4",352]],[465,5,["b5",353]],[-1,5,["e5",354]],[-1,4,["h6",355]],[-1,4,["Bh4",356]],[-1,3,["g5",357]],[-1,3,["Nxg5",358,"exf6",1788]],[465,2,["Nd5",359,"hxg5",360]],[466,0,[]],[-1,2,["Bxg5",361]],[-1,1,["Nbd7",362]],[-1,1,["Qf3",363,"g3",1787]],[469,0,[]],[-1,9,["c6",365,"Be7",368,"Bb4+",394]],[-1,1,["Bg2",366]],[-1,0,["dxc4",367]],[602,0,[]],[-1,8,["Bg2",369]],[607,7,["O-O",370]],[-1,7,["O-O",371]],[-1,6,["dxc4",372,"Nbd7",373,"c6",387]],[606,0,[]],[607,6,["Qc2",374,"Nc3",592]],[607,5,["c6",375]],[-1,5,["Nbd2",376,"Bf4",378,"b3",595,"Rd1",1388]],[613,2,["b6",377,"b5",1818]],[612,2,["b3",597]],[-1,4,["b6",379]],[-1,4,["Nbd2",380]],[629,3,["Bb7",381,"Ba6",405]],[-1,3,["e4",382]],[607,2,["dxe4",383]],[-1,2,["Nxe4",384]],[-1,1,["Nxe4",385]],[-1,1,["Qxe4",386]],[613,0,[]],[-1,3,["Qc2",388]],[-1,2,["b6",389]],[-1,2,["Nbd2",390,"Rd1",589]],[-1,1,["Bb7",391]],[-1,1,["e4",392]],[-1,0,["Nbd7",393,"Na6",588]],[613,0,[]],[-1,9,["Bd2",395]],[-1,8,["Be7",396]],[-1,8,["Bg2",397]],[629,7,["O-O",398,"Nbd7",616]],[629,7,["O-O",399,"Qc2",614]],[629,6,["c6",400]],[-1,6,["Bf4",401,"Qc2",403]],[-1,0,["b6",402]],[607,0,[]],[629,5,["Nbd7",404]],[629,5,["Bf4",378,"b3",620,"Rc1",621,"Rd1",622]],[629,0,[]],[632,7,["Nc3",407,"g3",435,"a3",490,"Bf4",503,"e3",504]],[633,5,["d5",408,"Bb7",418,"Bb4",430]],[-1,5,["cxd5",409]],[-1,4,["exd5",410]],[-1,4,["Bg5",411]],[-1,3,["Be7",412]],[-1,3,["e3",413]],[-1,2,["O-O",414]],[-1,2,["Bd3",415]],[-1,1,["Bb7",416]],[-1,1,["Ne5",417]],[520,0,[]],[-1,3,["Bg5",419,"a3",425]],[-1,2,["h6",420]],[-1,2,["Bh4",421]],[-1,1,["g5",422]],[-1,1,["Bg3",423]],[-1,0,["Nh5",424]],[634,0,[]],[635,2,["d5",426,"Ne4",492,"g6",498,"Be7",499]],[640,2,["cxd5",427]],[-1,1,["Nxd5",428,"exd5",493]],[642,1,["e4",429,"Qc2",494,"e3",495,"Qa4+",496,"Bd2",497]],[644,0,[]],[-1,5,["Bg5",431,"e3",737]],[-1,1,["h6",432]],[-1,1,["Bh4",433]],[-1,0,["Bb7",434]],[633,0,[]],[656,6,["Bb7",436,"Ba6",482]],[666,6,["Bg2",437]],[-1,5,["Bb4+",438,"c5",458,"Be7",463]],[667,5,["Bd2",439,"Nbd2",453]],[-1,4,["Bxd2+",440,"Be7",448]],[-1,4,["Qxd2",441]],[-1,3,["O-O",442]],[-1,3,["Nc3",443]],[-1,2,["Ne4",444]],[-1,2,["Qc2",445]],[-1,1,["Nxc3",446]],[-1,1,["Ng5",447]],[626,0,[]],[668,2,["O-O",449]],[-1,1,["O-O",450]],[-1,1,["Nc3",451]],[668,0,["d5",452]],[668,0,[]],[-1,1,["O-O",454]],[-1,1,["O-O",455]],[667,0,["d5",456,"a5",457]],[667,0,[]],[667,0,[]],[665,2,["d5",459]],[-1,1,["exd5",460]],[-1,1,["Ng5",461,"Nh4",462]],[655,0,[]],[664,0,[]],[677,4,["Nc3",464,"O-O",467]],[670,1,["Ne4",465]],[-1,1,["Bd2",466]],[676,0,[]],[671,3,["O-O",468]],[-1,3,["d5",469,"b3",473,"Re1",474,"Nc3",475]],[-1,1,["exd5",470]],[-1,1,["Nh4",471,"Nd4",472]],[672,0,[]],[673,0,[]],[674,0,[]],[675,0,[]],[679,2,["Na6",476,"d5",477,"Ne4",478]],[678,0,[]],[680,0,[]],[-1,2,["Qc2",479]],[-1,1,["Nxc3",480]],[-1,1,["Qxc3",481]],[681,0,[]],[660,2,["b3",483,"Qa4",488,"Qb3",489]],[662,1,["Bb4+",484]],[657,1,["Bd2",485]],[-1,0,["Be7",486,"Qe7",487]],[658,0,[]],[659,0,[]],[661,0,[]],[663,0,[]],[648,3,["Bb7",491,"Ba6",500]],[-1,3,["Nc3",425]],[636,0,[]],[637,0,[]],[639,0,[]],[643,0,[]],[645,0,[]],[646,0,[]],[638,0,[]],[641,0,[]],[-1,1,["Qc2",501]],[-1,0,["Bb7",502]],[649,0,[]],[647,0,[]],[653,5,["Bb7",505]],[653,5,["Bd3",506]],[653,4,["c5",507,"d5",523]],[654,4,["O-O",508,"Nc3",515]],[-1,3,["Be7",509]],[-1,3,["b3",510]],[-1,2,["O-O",511]],[-1,2,["Bb2",512]],[-1,1,["cxd4",513]],[-1,1,["Nxd4",514]],[652,0,[]],[-1,3,["cxd4",516]],[-1,3,["exd4",517]],[-1,2,["Be7",518]],[-1,2,["O-O",519]],[-1,1,["d5",520]],[-1,1,["cxd5",521]],[-1,0,["Nxd5",522]],[654,0,[]],[653,0,[]],[620,0,[]],[621,0,[]],[622,6,["Bd2",527,"Nbd2",538,"Nfd2",547,"Nc3",548]],[-1,2,["Bxd2+",528,"Nc6",529,"Qe7",530,"Be7",531,"c5",532,"a5",533]],[623,0,[]],[625,0,[]],[628,0,[]],[629,0,[]],[630,0,[]],[631,2,["g3",534]],[-1,1,["b6",535]],[-1,1,["Bg2",536]],[-1,0,["Bb7",537]],[669,0,[]],[624,3,["b6",539]],[-1,3,["a3",540,"e3",545]],[-1,2,["Bxd2+",541]],[-1,2,["Qxd2",542]],[-1,1,["Bb7",543]],[-1,1,["e3",544]],[650,0,[]],[-1,0,["Bb7",546]],[651,0,[]],[627,0,[]],[688,5,["c5",549,"Bxc3+",729,"b6",430]],[-1,4,["d5",550,"g3",718]],[690,0,["b5",551,"Ne4",728]],[691,0,[]],[598,10,["c5",553,"d5",571,"e5",601,"Be7",602,"Bb4+",609]],[-1,8,["d5",554]],[-1,7,["exd5",555]],[-1,7,["cxd5",556]],[-1,6,["d6",557]],[-1,6,["Nc3",558]],[-1,5,["g6",559]],[-1,5,["Bg2",560]],[-1,4,["Bg7",561]],[-1,4,["Nf3",562]],[-1,3,["O-O",563]],[102,3,["O-O",564]],[-1,2,["Nbd7",565,"a6",566]],[105,0,[]],[-1,2,["a4",567]],[-1,1,["Nbd7",568]],[-1,1,["Nd2",569]],[-1,0,["Re8",570]],[106,0,[]],[598,9,["Bg2",572]],[602,8,["c5",573,"dxc4",576,"Be7",587]],[-1,1,["Nf3",574]],[-1,0,["Nc6",575]],[603,0,[]],[602,3,["Qa4+",577,"Nf3",582]],[-1,2,["Nbd7",578]],[-1,2,["Qxc4",579]],[602,1,["a6",580]],[-1,1,["Qc2",581]],[604,0,[]],[602,1,["Nc6",583,"Be7",586]],[-1,1,["Qa4",584]],[-1,0,["Bb4+",585]],[605,0,[]],[606,0,[]],[-1,8,["Nf3",369]],[607,0,[]],[-1,1,["Nbd7",590]],[-1,1,["Bf4",591,"a4",1389]],[607,0,[]],[-1,1,["c6",593]],[-1,1,["Qd3",594]],[608,0,[]],[607,2,["b6",596]],[607,2,["Rd1",605]],[-1,1,["a5",598]],[-1,1,["Bb2",599]],[-1,0,["Ba6",600]],[614,0,[]],[599,0,[]],[-1,9,["Bg2",603]],[-1,8,["d5",604]],[-1,8,["Nf3",369]],[-1,1,["Bb7",606]],[-1,1,["Nc3",607]],[-1,0,["b5",608]],[609,0,[]],[-1,10,["Bd2",610]],[-1,9,["Be7",611]],[-1,9,["Bg2",612]],[-1,8,["d5",613]],[-1,8,["Nf3",397]],[-1,6,["c6",615]],[-1,6,["O-O",403]],[-1,7,["O-O",617]],[-1,6,["O-O",618]],[-1,6,["Qc2",619]],[-1,5,["c6",404]],[629,0,[]],[629,0,[]],[629,0,["h6",623]],[629,0,[]],[-1,12,["c5",625,"d5",639,"Bb4",700]],[-1,9,["Nf3",626]],[-1,8,["d5",627]],[-1,8,["cxd5",332]],[-1,7,["g3",629]],[-1,6,["Nc6",630]],[409,6,["Bg2",631]],[-1,5,["Be7",632,"cxd4",2070,"Bg4",2073]],[426,5,["O-O",633]],[-1,4,["O-O",634]],[415,4,["Bg5",635,"dxc5",2084]],[418,3,["Be6",636,"c4",2074,"cxd4",2075]],[421,1,["Rc1",637]],[-1,0,["c4",638,"b6",1990]],[417,0,[]],[-1,12,["cxd5",640,"Nf3",235,"Bg5",681]],[427,7,["exd5",641,"Nxd5",2117]],[-1,7,["Bg5",642]],[430,6,["Be7",643,"c6",656]],[-1,5,["e3",644]],[-1,4,["h6",645,"O-O",648]],[-1,1,["Bh4",646]],[-1,0,["Bg4",647]],[428,0,[]],[-1,4,["Bd3",649]],[-1,3,["Nbd7",650]],[-1,3,["Qc2",651]],[-1,2,["Re8",652]],[-1,2,["Nge2",653]],[-1,1,["Nf8",654]],[-1,1,["O-O-O",655]],[429,0,[]],[430,6,["e3",657,"Qc2",668]],[-1,5,["Be7",658]],[430,5,["Bd3",659]],[-1,4,["Nbd7",660]],[-1,4,["Nge2",661]],[-1,3,["O-O",662]],[-1,3,["O-O",663]],[-1,2,["h6",664,"Re8",2114]],[-1,2,["Bh4",665]],[-1,1,["Re8",666]],[-1,1,["Qc2",667]],[434,0,[]],[434,3,["Be7",669]],[-1,3,["e3",670]],[-1,2,["Nbd7",671,"O-O",673]],[-1,1,["Bd3",672]],[434,0,[]],[-1,2,["Bd3",674]],[434,1,["h6",675]],[-1,1,["Bh4",676]],[434,0,[]],[440,0,[]],[-1,1,["a6",679]],[-1,1,["Qc2",680]],[537,0,[]],[496,10,["Be7",682,"c5",2145,"Nbd7",2155,"c6",2205]],[368,10,["e3",683,"Nf3",270,"Bxf6",2171]],[-1,9,["Ne4",684,"O-O",685,"h6",691,"Nbd7",2200]],[512,0,[]],[-1,9,["Rc1",686,"Nf3",273]],[515,0,[]],[-1,2,["cxd5",688]],[-1,1,["exd5",689]],[-1,1,["Bd3",690]],[535,0,[]],[-1,8,["Bh4",692]],[-1,7,["O-O",693]],[-1,7,["Nf3",316]],[-1,3,["Nxc3",695]],[-1,3,["bxc3",696]],[525,2,["exd5",697]],[-1,2,["Qb3",698]],[-1,1,["Qd6",699,"Rd8",2181]],[523,0,[]],[682,8,["e4",701,"f3",702,"Qd3",716,"g3",717,"Nf3",548,"Qb3",746,"a3",758,"e3",765,"Bg5",872,"Qc2",879]],[683,0,[]],[684,4,["d5",703]],[-1,4,["a3",704]],[-1,3,["Bxc3+",705]],[-1,3,["bxc3",706]],[-1,2,["c5",707]],[-1,2,["e3",708,"cxd5",712]],[-1,1,["O-O",709]],[-1,1,["cxd5",710]],[-1,0,["Nxd5",711]],[697,0,[]],[696,1,["Nxd5",713]],[-1,1,["dxc5",714]],[698,0,["f5",715]],[699,0,[]],[685,0,[]],[686,0,[]],[-1,3,["O-O",719,"cxd4",721]],[-1,1,["Bg2",720]],[686,0,[]],[-1,3,["Nxd4",722]],[-1,2,["O-O",723]],[-1,2,["Bg2",724]],[-1,1,["d5",725]],[-1,1,["cxd5",726]],[-1,0,["Nxd5",727]],[687,0,[]],[689,0,[]],[-1,4,["bxc3",730]],[-1,3,["b6",731]],[-1,3,["e3",732]],[-1,2,["Bb7",733]],[-1,2,["Bd3",734]],[-1,1,["O-O",735]],[-1,1,["O-O",736]],[727,0,[]],[-1,4,["Ne4",738]],[-1,4,["Qc2",739]],[727,3,["Bb7",740]],[-1,3,["Bd3",741]],[-1,2,["Bxc3+",742]],[-1,2,["bxc3",743]],[-1,1,["f5",744]],[-1,1,["O-O",745]],[727,0,[]],[692,5,["c5",747]],[-1,5,["dxc5",748]],[-1,4,["Nc6",749]],[694,4,["Nf3",750]],[-1,3,["Ne4",751]],[-1,3,["Bd2",752]],[-1,2,["Nxd2",753,"Nxc5",754]],[693,0,[]],[695,2,["Qc2",755]],[-1,1,["f5",756]],[-1,1,["g3",757]],[695,0,[]],[696,2,["Bxc3+",759]],[-1,2,["bxc3",760]],[-1,1,["c5",761,"O-O",764]],[-1,1,["e3",762]],[696,0,["b6",763]],[700,0,[]],[696,0,[]],[721,7,["O-O",766,"c5",823,"Nc6",846,"b6",847,"Ne4",865]],[732,7,["a3",767,"Bd3",770,"Ne2",813,"Nf3",817]],[-1,1,["Bxc3+",768]],[-1,1,["bxc3",769]],[696,0,[]],[732,6,["c5",771,"d5",778]],[-1,4,["Nf3",772]],[-1,3,["b6",773]],[-1,3,["O-O",774]],[-1,2,["Bb7",775]],[-1,2,["Na4",776]],[-1,1,["Qe7",777,"cxd4",854]],[727,0,[]],[735,6,["Nf3",779,"a3",803]],[-1,5,["Nc6",780,"b6",783,"c5",784]],[-1,1,["O-O",781]],[736,0,["dxc4",782]],[740,0,[]],[741,0,[]],[742,5,["O-O",785]],[-1,4,["Nbd7",786,"b6",787,"dxc4",788,"Nc6",794]],[742,0,[]],[743,0,[]],[-1,2,["Bxc4",789]],[744,1,["cxd4",790,"Qe7",792,"Nbd7",793]],[-1,1,["exd4",791]],[744,0,[]],[745,0,[]],[746,0,[]],[747,4,["a3",795]],[-1,3,["dxc4",796,"Bxc3",799]],[-1,1,["Bxc4",797]],[-1,0,["cxd4",798]],[747,0,[]],[-1,3,["bxc3",800]],[748,2,["dxc4",801]],[-1,2,["Bxc4",802]],[749,1,["Qc7",811]],[-1,5,["Bxc3+",804]],[-1,5,["bxc3",805]],[737,4,["dxc4",806]],[-1,4,["Bxc4",807]],[-1,3,["c5",808]],[-1,3,["Nf3",809]],[-1,2,["Nc6",810]],[-1,2,["O-O",802]],[-1,1,["Qc2",812]],[749,0,[]],[733,1,["d5",814]],[-1,1,["a3",815]],[-1,0,["Bd6",816]],[734,0,[]],[682,2,["d5",818]],[738,2,["Bd2",819,"a3",822]],[-1,1,["Nc6",820]],[738,1,["a3",821]],[738,0,[]],[739,0,[]],[721,5,["Bd3",824,"Ne2",840]],[-1,4,["Nc6",825]],[-1,4,["a3",826,"Nf3",834]],[-1,3,["Bxc3+",827]],[-1,3,["bxc3",828]],[-1,2,["O-O",829]],[696,2,["Ne2",830]],[-1,1,["b6",831]],[-1,1,["e4",832]],[-1,0,["Ne8",833]],[701,0,[]],[-1,2,["Bxc3+",835]],[-1,2,["bxc3",836]],[-1,1,["d6",837]],[723,1,["O-O",838]],[-1,0,["O-O",839]],[723,0,[]],[724,2,["cxd4",841]],[-1,2,["exd4",842]],[-1,1,["O-O",843]],[-1,1,["a3",844,"c5",845]],[725,0,[]],[726,0,[]],[722,0,[]],[727,5,["Bd3",848,"Ne2",859]],[-1,4,["Bb7",849]],[-1,4,["Nf3",850]],[727,3,["O-O",851,"Ne4",858]],[727,3,["O-O",852]],[727,2,["c5",853,"d5",857]],[727,2,["Na4",776]],[-1,1,["a3",855]],[-1,0,["Be7",856]],[727,0,[]],[741,0,[]],[728,0,[]],[727,1,["Ne4",860,"c5",861,"Ba6",864]],[729,0,[]],[-1,1,["a3",862]],[-1,0,["Ba5",863]],[730,0,[]],[731,0,[]],[-1,3,["Qc2",866]],[-1,2,["f5",867]],[-1,2,["Nf3",868]],[-1,1,["b6",869]],[-1,1,["Bd3",870]],[-1,0,["Bb7",871]],[727,0,[]],[702,2,["h6",873]],[-1,2,["Bh4",874]],[-1,1,["c5",875]],[-1,1,["d5",876]],[-1,0,["b5",877,"d6",878]],[703,0,[]],[704,0,[]],[705,4,["O-O",880,"Nc6",890,"d5",896,"c5",915]],[-1,2,["a3",881,"e3",886]],[-1,1,["Bxc3+",882]],[-1,1,["Qxc3",883]],[-1,0,["b6",884,"b5",885]],[706,0,[]],[707,0,[]],[-1,1,["d5",887]],[-1,1,["Nf3",888]],[-1,0,["c5",889]],[717,0,[]],[709,2,["Nf3",891]],[709,1,["d6",892,"O-O",894]],[708,1,["Bd2",893]],[709,0,[]],[-1,1,["e3",895]],[709,0,[]],[711,4,["cxd5",897,"a3",904]],[-1,2,["Qxd5",898,"exd5",903]],[-1,2,["Nf3",899]],[-1,1,["Qf5",900]],[-1,1,["Qd1",901]],[-1,0,["e5",902]],[710,0,[]],[711,0,[]],[711,3,["Bxc3+",905]],[-1,3,["Qxc3",906]],[-1,2,["Nc6",907,"Ne4",908,"c5",914]],[712,0,[]],[713,2,["Qc2",909]],[711,1,["c5",910,"Nc6",911]],[715,0,[]],[-1,1,["e3",912]],[-1,0,["e5",913]],[716,0,[]],[714,0,[]],[717,3,["dxc5",916]],[-1,2,["Bxc3+",917,"O-O",918]],[718,0,[]],[720,2,["a3",919]],[-1,1,["Bxc5",920]],[-1,1,["Nf3",921]],[-1,0,["b6",922]],[719,0,[]],[40,0,[]],[600,0,[]],[601,0,[]],[756,12,["f3",927,"Nc3",942,"Nf3",1265,"g3",1330,"d5",1356,"h4",1358,"Qc2",1359]],[753,6,["c5",928,"d5",940,"e5",941]],[-1,6,["d5",929]],[-1,5,["d6",930]],[-1,5,["e4",931]],[-1,4,["Bg7",932]],[-1,4,["Nc3",933]],[-1,3,["e6",934]],[-1,3,["Be3",935]],[-1,2,["O-O",936]],[-1,2,["Qd2",937]],[-1,1,["exd5",938]],[-1,1,["cxd5",939]],[107,0,[]],[543,0,[]],[754,0,[]],[762,11,["Bg7",943,"d5",1148]],[-1,11,["e4",944,"Nf3",1106]],[794,10,["d6",945]],[794,10,["f3",946,"Bg5",1002,"Nge2",1003,"h3",1004,"g3",1007,"Be2",1012,"f4",1028,"Nf3",1052]],[820,7,["O-O",947]],[824,7,["Bg5",948,"Nge2",960,"Be3",967]],[821,3,["c5",949]],[-1,3,["d5",950]],[109,2,["e6",951,"h6",958]],[-1,2,["Qd2",952]],[-1,1,["exd5",953,"h6",956]],[-1,1,["exd5",954,"Nxd5",955]],[109,0,[]],[821,0,[]],[-1,1,["Bxh6",957]],[821,0,[]],[-1,1,["Bf4",959]],[821,0,[]],[822,3,["c5",961]],[-1,3,["d5",962]],[-1,2,["e6",963]],[-1,2,["Ng3",964]],[-1,1,["exd5",965]],[-1,1,["cxd5",966]],[110,0,[]],[-1,6,["c6",968,"c5",971,"b6",977,"Nc6",978,"e5",984]],[-1,1,["Bd3",969]],[-1,0,["a6",970]],[823,0,[]],[825,3,["dxc5",972]],[-1,2,["dxc5",973]],[-1,2,["Qxd8",974]],[-1,1,["Rxd8",975]],[-1,1,["Bxc5",976]],[826,0,[]],[827,0,[]],[830,2,["Nge2",979]],[-1,1,["a6",980,"Rb8",983]],[828,1,["Qd2",981]],[-1,0,["Rb8",982]],[831,0,[]],[829,0,[]],[832,6,["Nge2",985,"d5",989]],[-1,1,["c6",986]],[820,1,["d5",987]],[-1,0,["cxd5",988]],[836,0,[]],[834,5,["Nh5",990,"c6",1001]],[-1,5,["Qd2",991]],[-1,4,["Qh4+",992]],[-1,4,["g3",993]],[-1,3,["Nxg3",994]],[-1,3,["Qf2",995]],[-1,2,["Nxf1",996]],[-1,2,["Qxh4",997]],[-1,1,["Nxe3",998]],[-1,1,["Ke2",999]],[833,0,["Nxc4",1000]],[835,0,[]],[834,0,[]],[792,0,[]],[793,0,[]],[796,1,["O-O",1005]],[-1,1,["Be3",1006]],[795,0,[]],[797,2,["O-O",1008]],[-1,2,["Bg2",1009]],[-1,1,["e5",1010]],[-1,1,["Nge2",1011]],[798,0,[]],[806,2,["O-O",1013]],[-1,2,["Bg5",1014,"Be3",1026,"f4",1027]],[799,1,["h6",1015,"Nbd7",1016,"Na6",1017,"Nc6",1020,"a6",1021,"c5",1022]],[800,0,[]],[801,0,[]],[802,1,["Qd2",1018]],[-1,0,["c6",1019]],[803,0,[]],[804,0,[]],[805,0,[]],[808,1,["d5",1023,"dxc5",1025]],[809,0,["e6",1024]],[811,0,[]],[810,0,[]],[807,0,[]],[812,0,[]],[812,5,["O-O",1029,"Na6",1051]],[-1,5,["Nf3",1030,"Be2",1042]],[-1,3,["c5",1031]],[-1,3,["d5",1032,"Be2",1037]],[813,2,["e6",1033]],[-1,2,["Be2",1034]],[816,1,["exd5",1035]],[-1,1,["e5",1036]],[815,0,[]],[818,2,["cxd4",1038]],[-1,2,["Nxd4",1039]],[-1,1,["Nc6",1040]],[-1,1,["Be3",1041]],[819,0,[]],[-1,4,["c5",1043]],[-1,4,["d5",1044]],[-1,3,["e6",1045]],[-1,3,["dxe6",1046]],[-1,2,["fxe6",1047]],[-1,2,["g4",1048]],[-1,1,["Nc6",1049]],[-1,1,["h4",1050]],[817,0,[]],[814,0,[]],[838,9,["O-O",1053]],[-1,9,["Be3",1054,"Bg5",1055,"Be2",1056]],[837,0,[]],[839,0,[]],[841,8,["Na6",1057,"e5",1058,"Nbd7",1102]],[840,0,[]],[841,8,["dxe5",1059,"Be3",1060,"d5",1061,"O-O",1071]],[842,0,[]],[843,0,[]],[844,4,["a5",1062,"Nbd7",1063]],[845,0,[]],[847,4,["Bg5",1064]],[-1,3,["h6",1065]],[-1,3,["Bh4",1066]],[-1,2,["g5",1067]],[-1,2,["Bg3",1068]],[-1,1,["Nh5",1069]],[-1,1,["h4",1070]],[846,0,[]],[841,7,["c6",1072,"Na6",1073,"a5",1074,"Nbd7",166,"Nc6",1079]],[848,0,[]],[849,0,[]],[852,0,[]],[841,1,["c6",1076]],[-1,1,["Bf1",1077]],[-1,0,["a5",1078]],[853,0,[]],[854,7,["d5",1080]],[-1,6,["Ne7",1081]],[-1,6,["b4",1082,"Bd2",1086,"Nd2",1087,"Ne1",1088]],[855,1,["Nh5",1083]],[-1,1,["Re1",1084,"Qc2",1085]],[856,0,[]],[857,0,[]],[858,0,[]],[859,0,[]],[860,5,["Nd7",1089]],[-1,5,["Be3",1090,"f3",1099]],[862,4,["f5",1091]],[-1,4,["f3",1092]],[-1,3,["f4",1093]],[-1,3,["Bf2",1094]],[-1,2,["g5",1095]],[-1,2,["Rc1",1096]],[-1,1,["Ng6",1097]],[-1,1,["c5",1098]],[861,0,[]],[-1,1,["f5",1100]],[864,1,["g4",1101]],[863,0,[]],[-1,2,["O-O",1103]],[-1,1,["e5",1104]],[-1,1,["d5",1105]],[851,0,[]],[-1,9,["O-O",1107,"d6",1125]],[-1,4,["g3",1108,"e3",1115]],[-1,3,["d5",1109]],[-1,3,["cxd5",1110]],[-1,2,["Nxd5",1111]],[-1,2,["Bg2",1112]],[-1,1,["c5",1113]],[-1,1,["O-O",1114]],[547,0,[]],[-1,3,["d6",1116]],[-1,3,["Be2",1117]],[764,2,["c6",1118,"Nbd7",1119]],[760,0,[]],[-1,2,["O-O",1120]],[-1,1,["e5",1121]],[-1,1,["dxe5",1122,"b4",1124]],[-1,0,["dxe5",1123]],[765,0,[]],[766,0,[]],[-1,9,["g3",1126,"Bg5",1147]],[769,8,["O-O",1127]],[-1,8,["Bg2",1128]],[-1,7,["c6",1129,"Nc6",1133,"Nbd7",1136,"c5",1355]],[-1,1,["O-O",1130]],[-1,0,["Qb6",1131,"Bf5",1132,"Qa5",1291]],[763,0,[]],[771,0,[]],[768,7,["O-O",1134]],[-1,6,["Bg4",1135,"e5",1293,"a6",1294,"Bf5",1354]],[773,0,[]],[788,5,["O-O",1137]],[-1,4,["e5",1138,"a6",1325]],[787,4,["e4",1139,"b3",1324]],[789,3,["Re8",1140,"c6",1320]],[-1,3,["h3",1141]],[-1,2,["exd4",1142]],[-1,2,["Nxd4",1143]],[-1,1,["Nc5",1144]],[-1,1,["Re1",1145]],[-1,0,["a5",1146]],[790,0,[]],[767,0,[]],[550,11,["g4",1149,"Bg5",1150,"f3",1156,"h4",1161,"Qb3",1162,"Bf4",1163,"cxd5",1179,"Nf3",1222,"e3",1256]],[551,0,[]],[555,2,["Ne4",1151]],[-1,2,["Nxe4",1152]],[-1,1,["dxe4",1153]],[-1,1,["Qd2",1154]],[-1,0,["c5",1155]],[552,0,[]],[553,2,["c5",1157]],[-1,2,["cxd5",1158]],[-1,1,["Nxd5",1159]],[-1,1,["Na4",1160]],[554,0,[]],[556,0,[]],[557,0,[]],[558,4,["Bg7",1164]],[-1,4,["e3",1165,"Rc1",1176]],[-1,3,["O-O",1166]],[559,3,["Rc1",1167,"cxd5",1171]],[561,1,["c5",1168]],[-1,1,["dxc5",1169]],[-1,0,["Be6",1170,"Qa5",1178]],[560,0,[]],[-1,2,["Nxd5",1172]],[-1,2,["Nxd5",1173]],[-1,1,["Qxd5",1174]],[-1,1,["Bxc7",1175]],[563,0,[]],[-1,2,["O-O",1177]],[-1,2,["e3",1167]],[562,0,[]],[-1,10,["Nxd5",1180]],[564,10,["e4",1181,"Na4",1221]],[-1,9,["Nxc3",1182]],[-1,9,["bxc3",1183]],[-1,8,["Bg7",1184]],[-1,8,["Nf3",1185,"Bc4",1193]],[565,3,["c5",1186]],[565,3,["Rb1",1187]],[-1,2,["O-O",1188]],[-1,2,["Be2",1189]],[-1,1,["Nc6",1190]],[-1,1,["d5",1191]],[-1,0,["Bxc3+",1192]],[566,0,[]],[568,7,["O-O",1194,"c5",1201]],[-1,2,["Ne2",1195]],[-1,1,["Qd7",1196,"Nc6",1199,"b6",1200]],[569,1,["O-O",1197]],[-1,0,["b6",1198]],[569,0,[]],[570,0,[]],[571,0,[]],[-1,7,["Ne2",1202]],[-1,6,["Nc6",1203,"O-O",1217]],[-1,6,["Be3",1204]],[-1,5,["O-O",1205]],[-1,5,["O-O",1206]],[-1,4,["Bg4",1207,"cxd4",1215]],[-1,4,["f3",1208]],[-1,3,["Na5",1209]],[-1,3,["Bxf7+",1210,"Bd3",1211]],[572,0,[]],[-1,2,["cxd4",1212]],[-1,2,["cxd4",1213]],[-1,1,["Be6",1214]],[573,1,["d5",1220]],[-1,1,["cxd4",1216]],[573,0,[]],[573,6,["O-O",1218]],[-1,5,["Nc6",1219]],[-1,5,["Be3",1206]],[574,0,[]],[567,0,[]],[576,7,["Bg7",1223]],[576,7,["Qa4+",1224,"Bg5",1225,"Bf4",1226,"e3",1229,"Qb3",1236]],[575,0,[]],[577,0,[]],[578,1,["O-O",1227]],[-1,1,["e3",1228]],[579,0,[]],[584,1,["O-O",1230]],[-1,1,["b4",1231,"Bd2",1232,"Bd3",1233,"Qb3",1234]],[581,0,[]],[582,0,[]],[585,0,[]],[588,0,["e6",1235]],[586,0,[]],[589,6,["dxc4",1237]],[-1,6,["Qxc4",1238]],[-1,5,["O-O",1239]],[-1,5,["e4",1240]],[589,4,["Nc6",1241,"a6",1242,"b6",1243,"Na6",1244,"c6",1245,"Bg4",1246]],[590,0,[]],[591,0,[]],[592,0,[]],[593,0,[]],[594,0,[]],[596,4,["Be3",1247]],[-1,3,["Nfd7",1248]],[-1,3,["Be2",1249,"Qb3",1254]],[-1,2,["Nb6",1250]],[-1,2,["Qd3",1251]],[-1,1,["Nc6",1252]],[-1,1,["O-O-O",1253]],[595,0,[]],[596,0,["c5",1255]],[597,0,[]],[-1,4,["Bg7",1257]],[-1,4,["Qb3",1258]],[-1,3,["dxc4",1259]],[-1,3,["Bxc4",1260]],[-1,2,["O-O",1261]],[-1,2,["Nf3",1262]],[-1,1,["Nbd7",1263]],[-1,1,["Ng5",1264]],[587,0,[]],[-1,10,["d5",1266,"Bg7",1267]],[544,0,[]],[-1,10,["g3",1268,"b4",1329]],[757,9,["O-O",1269,"d6",1322,"c5",1326]],[-1,9,["Bg2",1270]],[-1,8,["d5",1271,"c6",1276,"d6",1288]],[-1,2,["cxd5",1272]],[-1,1,["Nxd5",1273]],[-1,1,["O-O",1274]],[547,0,["Nb6",1275]],[547,0,[]],[-1,4,["O-O",1277]],[-1,3,["d5",1278]],[548,3,["cxd5",1279]],[-1,2,["cxd5",1280]],[549,2,["Nc3",1281,"Ne5",1285]],[-1,1,["Nc6",1282,"Ne4",1284]],[549,1,["Bf4",1283]],[549,0,[]],[549,0,[]],[-1,1,["Nc6",1286,"e6",1343,"Bf5",1345,"Ng4",1347]],[-1,1,["Nc3",1287]],[549,0,[]],[-1,8,["O-O",1289]],[-1,7,["c6",1290,"Nc6",1292,"c5",1313,"Nbd7",1319]],[-1,1,["Nc3",1130]],[770,0,[]],[-1,7,["Nc3",1134]],[774,0,[]],[775,6,["d5",1295,"h3",1308]],[-1,5,["Na5",1296]],[-1,5,["Nd2",1297]],[-1,4,["c5",1298]],[-1,4,["Qc2",1299]],[-1,3,["e5",1300,"Rb8",1301]],[776,0,[]],[-1,3,["b3",1302]],[-1,2,["b5",1303]],[-1,2,["Bb2",1304]],[-1,1,["bxc4",1305]],[-1,1,["bxc4",1306]],[-1,0,["Bh6",1307]],[777,0,[]],[-1,2,["Rb8",1309]],[-1,2,["Be3",1310]],[-1,1,["b5",1311]],[-1,1,["Nd2",1312]],[778,0,[]],[782,2,["Nc3",1314]],[784,1,["Nc6",1315]],[-1,1,["dxc5",1316,"d5",1318]],[-1,0,["dxc5",1317]],[785,0,[]],[786,0,[]],[-1,5,["Nc3",1137]],[-1,1,["h3",1321]],[791,0,[]],[-1,9,["Bg2",1323]],[-1,8,["O-O",1288]],[779,0,[]],[780,0,[]],[-1,1,["Bg2",1327]],[-1,0,["Qa5+",1328]],[781,0,[]],[759,0,[]],[758,10,["d5",1331,"Bg7",1348]],[545,6,["Bg2",1332]],[-1,5,["Bg7",1333]],[-1,5,["cxd5",1334,"Nf3",1339]],[-1,2,["Nxd5",1335]],[546,2,["e4",1336]],[-1,1,["Nb6",1337]],[-1,1,["Ne2",1338]],[545,0,[]],[545,4,["O-O",1340]],[-1,4,["O-O",1341]],[-1,3,["c6",1342]],[-1,3,["cxd5",1279]],[549,1,["Nc3",1344]],[549,0,[]],[549,1,["Nc3",1346]],[549,0,[]],[549,0,[]],[-1,10,["Bg2",1349]],[-1,9,["d5",1350,"O-O",1351]],[750,3,["cxd5",1334]],[-1,9,["Nc3",1352]],[-1,8,["d6",1353]],[-1,8,["Nf3",1128]],[772,0,[]],[783,0,[]],[752,0,["b5",1357]],[751,0,[]],[755,0,[]],[761,0,[]],[1,0,[]],[9,14,["c4",1362]],[-1,13,["c5",1363,"b6",1374,"e5",1385,"Bb4+",1386,"Nf6",170]],[-1,5,["d5",1364]],[-1,4,["exd5",1365]],[-1,4,["cxd5",1366]],[-1,3,["d6",1367]],[-1,3,["Nc3",1368]],[-1,2,["g6",1369]],[-1,2,["e4",1370]],[-1,1,["Bg7",1371]],[-1,1,["Nf3",1372]],[-1,0,["Ne7",1373]],[2,0,[]],[4,3,["e4",1375,"Nc3",1383]],[-1,2,["Bb7",1376]],[-1,2,["Bd3",1377,"f3",1379]],[-1,0,["Nc6",1378]],[6,0,[]],[-1,1,["f5",1380]],[-1,1,["exf5",1381]],[-1,0,["Nh6",1382]],[7,0,[]],[-1,0,["d5",1384]],[378,0,[]],[10,0,[]],[11,1,["Nc3",1387]],[12,0,[]],[-1,1,["b6",590]],[610,0,[]],[3,0,[]],[4,2,["c4",1392]],[-1,1,["Bb7",1393]],[-1,1,["Nc3",1394]],[-1,0,["e5",1395]],[5,0,[]],[8,0,[]],[13,3,["c4",1398]],[-1,2,["e5",1399]],[-1,2,["d5",1400,"dxe5",1403]],[-1,0,["Nd4",1401,"Nce7",1402]],[14,0,[]],[15,0,[]],[-1,1,["Nxe5",1404]],[-1,1,["Nc3",1405]],[-1,0,["Nxc4",1406]],[16,0,[]],[26,5,["c4",1408]],[-1,4,["Bg7",1409]],[-1,4,["Nc3",1410,"e4",1428]],[-1,3,["c5",1411,"d6",1424]],[-1,3,["d5",1412,"e3",1423]],[-1,2,["Bxc3+",1413,"d6",1417,"Qa5",1422]],[-1,1,["bxc3",1414]],[-1,0,["f5",1415,"Qa5",1416]],[17,0,[]],[22,0,[]],[-1,2,["e4",1418]],[-1,1,["Bxc3+",1419]],[-1,1,["bxc3",1420]],[-1,0,["Qa5",1421]],[19,0,[]],[21,0,[]],[23,0,[]],[27,1,["e4",1425]],[33,0,["Nc6",1426,"f5",1427]],[35,0,[]],[36,0,[]],[-1,2,["c5",1429,"e5",1432,"d6",1433]],[-1,1,["d5",1430]],[-1,0,["Qa5+",1431]],[20,0,[]],[28,0,[]],[-1,2,["Be3",1434,"Nc3",1437]],[-1,1,["Nf6",1435]],[-1,1,["f3",1436]],[34,0,[]],[-1,1,["c5",1438]],[-1,1,["Nge2",1439]],[-1,0,["Qa5",1440]],[37,0,[]],[18,0,[]],[-1,1,["c4",1443]],[-1,0,["d6",1444]],[25,0,[]],[24,2,["c4",1446]],[29,1,["e5",1447]],[30,1,["dxe5",1448]],[-1,0,["Nc6",1449,"Be6",1450]],[31,0,[]],[32,0,[]],[38,2,["c4",1452]],[-1,1,["cxd4",1453]],[-1,1,["e3",1454]],[39,0,[]],[125,8,["c4",1456]],[125,7,["e6",1457,"g6",1468,"Nf6",1471]],[128,4,["e4",1458,"Nc3",1459,"Nf3",1460]],[126,0,[]],[131,0,[]],[-1,3,["Nf6",1461]],[-1,3,["g3",1462]],[-1,2,["c6",1463]],[-1,2,["Bg2",1464]],[-1,1,["d5",1465]],[-1,1,["O-O",1466]],[-1,0,["Bd6",1467]],[138,0,[]],[-1,1,["Nc3",1469]],[-1,0,["Nh6",1470]],[127,0,[]],[130,7,["Nc3",1472,"g3",1476]],[132,1,["d6",1473]],[-1,1,["Nf3",1474]],[-1,0,["Nc6",1475]],[129,0,[]],[133,6,["d6",1477,"g6",1482,"e6",1486]],[-1,2,["Bg2",1478]],[-1,1,["c6",1479]],[-1,1,["Nc3",1480]],[-1,0,["Qc7",1481]],[134,0,[]],[135,2,["Bg2",1483]],[-1,1,["Bg7",1484]],[-1,1,["Nf3",1485]],[135,0,[]],[-1,6,["Bg2",1487]],[128,5,["d5",1488,"Bb4+",1490,"Be7",1493]],[-1,1,["Nf3",1489]],[128,0,[]],[136,1,["Bd2",1491]],[-1,0,["Be7",1492]],[137,0,[]],[128,5,["Nh3",1494,"Nf3",1495]],[139,0,[]],[-1,4,["O-O",1496]],[128,4,["O-O",1497]],[-1,3,["Ne4",1498,"d5",1499,"d6",1508]],[140,0,[]],[141,3,["Nc3",1500,"b3",1505]],[141,2,["c6",1501]],[141,2,["Qc2",1502]],[-1,1,["Qe8",1503]],[-1,1,["Bg5",1504]],[143,0,[]],[142,1,["c6",1506]],[-1,1,["Ba3",1507]],[141,0,[]],[128,2,["Nc3",1509]],[-1,1,["a5",1510,"Ne4",1511,"Qe8",1512]],[144,0,[]],[145,0,[]],[146,1,["Re1",1513,"Qc2",1514,"b3",1515]],[147,0,[]],[148,0,[]],[149,0,[]],[24,14,["c4",1517]],[242,13,["c5",1518,"Bf5",1534,"Nf6",1547,"b5",1550,"Nc6",1551,"e5",1576,"c6",1601,"dxc4",1829,"e6",1946]],[244,8,["dxc5",1519,"cxd5",1521,"Nf3",1527]],[-1,0,["d4",1520]],[243,0,[]],[-1,2,["Nf6",1522]],[245,2,["e4",1523]],[-1,1,["Nxe4",1524]],[-1,1,["dxc5",1525]],[-1,0,["Qa5+",1526]],[246,0,[]],[-1,7,["Nf6",1528]],[-1,7,["Nc3",1529]],[-1,6,["e6",1530]],[-1,6,["e3",1531]],[-1,5,["Nc6",1532]],[404,5,["Bd3",1533,"a3",2128]],[454,4,["Bd6",2132]],[247,3,["cxd5",1535,"Nc3",1541,"Qb3",1546]],[-1,2,["Bxb1",1536]],[-1,2,["Qa4+",1537]],[-1,1,["c6",1538]],[-1,1,["dxc6",1539]],[-1,0,["Nxc6",1540]],[248,0,[]],[-1,1,["e6",1542]],[-1,1,["Nf3",1543,"Qb3",1545]],[-1,0,["Nc6",1544]],[249,0,[]],[251,0,[]],[250,0,[]],[252,1,["cxd5",1548]],[-1,0,["c6",1549]],[253,0,[]],[254,0,[]],[255,6,["Nc3",1552,"cxd5",1561,"Nf3",1572]],[255,5,["dxc4",1553,"e6",1556,"e5",1560]],[255,1,["Nf3",1554]],[258,0,["Nf6",1555]],[262,0,[]],[-1,5,["Nf3",1557]],[-1,4,["Nf6",1558]],[255,4,["a3",1559,"cxd5",1953,"Bg5",1958]],[255,0,[]],[263,0,[]],[-1,5,["Qxd5",1562]],[256,5,["e3",1563]],[-1,4,["e5",1564]],[-1,4,["Nc3",1565]],[-1,3,["Bb4",1566]],[-1,3,["Bd2",1567]],[-1,2,["Bxc3",1568]],[-1,2,["Bxc3",1569]],[-1,1,["exd4",1570]],[-1,1,["Ne2",1571]],[257,0,[]],[-1,1,["e5",1573,"Bg4",1574]],[259,0,[]],[260,1,["Qa4",1575]],[261,0,[]],[264,6,["dxe5",1577]],[-1,5,["d4",1578]],[-1,5,["Nf3",1579,"e3",1596,"e4",1600]],[270,4,["Nc6",1580,"c5",1595]],[-1,4,["Nbd2",1581,"g3",1591]],[269,3,["Qe7",1582,"f6",1583,"Bg4",1584]],[265,0,[]],[266,0,[]],[-1,3,["h3",1585]],[-1,2,["Bxf3",1586]],[-1,2,["Nxf3",1587]],[-1,1,["Bb4+",1588]],[-1,1,["Bd2",1589]],[-1,0,["Qe7",1590]],[267,0,[]],[273,0,["Be6",1592,"Bf5",1593,"Bg4",1594]],[274,0,[]],[275,0,[]],[276,0,[]],[272,0,[]],[-1,1,["Bb4+",1597]],[-1,1,["Bd2",1598]],[-1,0,["dxe3",1599]],[268,0,[]],[271,0,[]],[277,13,["Nc3",1602,"e4",1685,"cxd5",1686,"Nf3",1695]],[277,12,["dxc4",1603,"e5",1605,"Nf6",1607]],[277,1,["e4",1604]],[281,0,[]],[282,1,["e4",1606]],[283,0,[]],[-1,12,["e3",1608,"Nf3",1679]],[-1,11,["e6",1609,"g6",1671]],[-1,11,["Nf3",1610]],[471,10,["a6",1611,"Nbd7",1612,"Bd6",1821]],[470,5,["Bd3",2030]],[472,10,["Qc2",1613,"Bd3",1630,"b3",1666,"Ne5",2026]],[474,4,["b6",1614,"Bd6",1622]],[-1,4,["b3",1615]],[474,3,["Bb7",1616]],[474,3,["Bd3",1617]],[479,2,["Be7",1618]],[-1,2,["O-O",1619]],[-1,1,["O-O",1620]],[-1,1,["Bb2",1621]],[471,0,[]],[-1,4,["b3",1623,"e4",1800,"g4",1807]],[-1,2,["O-O",1624]],[-1,2,["Bb2",1625]],[-1,1,["Re8",1626,"Qe7",1628]],[-1,1,["Bd3",1627]],[479,0,[]],[-1,1,["Bd3",1629]],[479,0,[]],[471,9,["Be7",1631,"Bd6",1632,"dxc4",1634,"Bb4",1665]],[478,0,[]],[479,1,["Qc2",1633]],[479,0,[]],[-1,9,["Bxc4",1635]],[486,8,["b5",1636]],[481,8,["Bd3",1637]],[-1,7,["Bd6",1638,"Bb7",1644,"a6",1654,"b4",1808]],[-1,3,["O-O",1639]],[-1,2,["Bb7",1640,"O-O",1827]],[-1,2,["a3",1641]],[-1,1,["O-O",1642]],[-1,1,["Qc2",1643]],[479,0,[]],[483,5,["e4",1645]],[-1,4,["b4",1646]],[-1,4,["Na4",1647]],[-1,3,["c5",1648]],[-1,3,["e5",1649]],[-1,2,["Nd5",1650]],[485,2,["O-O",1651]],[-1,1,["cxd4",1652]],[-1,1,["Nxd4",1653]],[484,0,[]],[481,7,["e4",1655]],[-1,6,["c5",1656,"b4",2041]],[481,6,["e5",1657,"d5",1809]],[487,5,["cxd4",1658]],[-1,5,["Nxb5",1659]],[490,4,["Ng4",1660,"Nxe5",1661]],[491,0,[]],[493,4,["Nxe5",1662]],[-1,3,["axb5",1663]],[-1,3,["Qf3",1664,"O-O",1680]],[494,0,[]],[480,0,[]],[-1,2,["Bd6",1667]],[-1,2,["Bb2",1668]],[-1,1,["O-O",1669]],[-1,1,["Bd3",1670,"Be2",2025]],[479,0,[]],[-1,3,["Nf3",1672]],[-1,2,["Bg7",1673]],[-1,2,["Bd3",1674]],[-1,1,["O-O",1675]],[-1,1,["O-O",1676]],[-1,0,["Bf5",1677,"Bg4",1678]],[580,0,[]],[583,0,[]],[301,11,["e6",349,"dxc4",1737,"a6",1776,"g6",1780,"Qb6",1781]],[-1,2,["Qd5",1681]],[-1,2,["Qe2",1682]],[-1,1,["Ba6",1683]],[-1,1,["Bg5",1684]],[492,0,[]],[278,0,[]],[279,5,["cxd5",1687]],[-1,5,["Nc3",1688]],[-1,4,["Nf6",1689]],[-1,4,["f3",1690,"Nf3",1691]],[280,0,[]],[-1,3,["Nc6",1692]],[-1,3,["Bf4",1693]],[-1,2,["Bf5",1694]],[293,2,["e3",1733]],[286,12,["Nf6",1696,"e6",1819]],[-1,12,["Bg5",1697,"Nbd2",1698,"g3",1699,"e3",1707,"cxd5",1731,"Nc3",1679,"Qc2",1810]],[284,0,[]],[285,0,[]],[-1,2,["dxc4",1700,"Bg4",1703]],[-1,1,["Bg2",1701]],[-1,0,["g6",1702]],[286,0,[]],[-1,2,["Bg2",1704]],[-1,1,["e6",1705]],[-1,1,["O-O",1706]],[286,0,[]],[287,11,["Bg4",1708,"Bf5",1709,"e6",1723]],[288,0,[]],[291,4,["cxd5",1710,"Nc3",1721]],[-1,3,["cxd5",1711]],[-1,3,["Nc3",1712,"Qb3",1716]],[292,1,["e6",1713]],[-1,1,["Ne5",1714]],[-1,0,["Nfd7",1715]],[289,0,[]],[-1,2,["Qc8",1717]],[-1,2,["Bd2",1718]],[-1,1,["e6",1719]],[-1,1,["Na3",1720]],[290,0,[]],[-1,0,["e6",1722]],[291,0,[]],[-1,11,["Nbd2",1724,"Nc3",1610]],[377,1,["Nbd7",1725,"Ne4",1728,"g6",1967]],[377,1,["Bd3",1726]],[-1,0,["c5",1727]],[370,0,[]],[-1,1,["Bd3",1729]],[-1,0,["f5",1730]],[372,0,[]],[-1,4,["cxd5",1732]],[279,4,["Nc3",1691]],[-1,1,["e6",1734]],[-1,1,["Qb3",1735]],[-1,0,["Bb4",1736]],[294,0,[]],[302,7,["e3",1738,"e4",1739,"a4",1742]],[295,0,[]],[298,1,["b5",1740]],[-1,1,["e5",1741]],[298,0,[]],[303,6,["Na6",1743,"e6",1744,"Bg4",1745,"Bf5",1746]],[304,0,[]],[305,0,[]],[306,0,[]],[307,6,["Nh4",1747,"Ne5",1748,"e3",1766]],[308,0,[]],[311,5,["Nbd7",1749,"Na6",1760,"e6",1762]],[-1,5,["Nxc4",1750]],[-1,4,["Qc7",1751]],[-1,4,["g3",1752]],[-1,3,["e5",1753]],[309,3,["dxe5",1754]],[-1,2,["Nxe5",1755]],[-1,2,["Bf4",1756]],[-1,1,["Nfd7",1757]],[-1,1,["Bg2",1758]],[-1,0,["g5",1759]],[310,0,[]],[-1,1,["e4",1761]],[312,0,[]],[313,2,["f3",1763]],[-1,1,["Bb4",1764]],[-1,1,["e4",1765]],[314,0,[]],[315,4,["Na6",1767,"e6",1768]],[316,0,[]],[-1,4,["Bxc4",1769]],[-1,3,["Bb4",1770]],[-1,3,["O-O",1771]],[318,2,["O-O",1772]],[-1,2,["Qe2",1773]],[317,1,["Ne4",1774]],[-1,1,["g4",1775]],[319,0,[]],[296,1,["e3",1777,"c5",1779]],[-1,0,["Bf5",1778]],[296,0,[]],[297,0,[]],[299,0,[]],[300,0,[]],[-1,2,["Bh4",1783,"Bxf6",1784]],[461,0,[]],[-1,1,["Qxf6",1785]],[463,1,["Qb3",1786]],[462,0,[]],[468,0,[]],[-1,1,["gxh4",1789]],[-1,1,["Ne5",1790]],[467,0,[]],[-1,4,["e3",1792,"e4",2156,"Rc1",2157]],[368,3,["Qa5",1793]],[506,3,["cxd5",1794,"Nd2",1796,"Bxf6",2165]],[506,0,["Nxd5",1795]],[511,0,[]],[-1,2,["Bb4",1797,"dxc4",1799]],[-1,2,["Qc2",1798]],[508,1,["O-O",2163]],[510,0,[]],[475,3,["dxe4",1801]],[-1,3,["Nxe4",1802]],[-1,2,["Nxe4",1803]],[-1,2,["Qxe4",1804]],[-1,1,["e5",1805]],[-1,1,["dxe5",1806]],[476,0,[]],[477,0,[]],[482,0,[]],[489,0,[]],[-1,6,["e6",1811]],[-1,6,["Nbd2",1812]],[-1,5,["Be7",1813]],[-1,5,["g3",1814]],[-1,4,["Nbd7",1815]],[-1,4,["Bg2",1816]],[-1,3,["O-O",1817]],[-1,3,["O-O",376]],[611,0,[]],[-1,12,["e3",1820,"Qc2",1968,"Nc3",1972]],[-1,11,["Nf6",1723]],[-1,6,["Bd3",1822]],[-1,5,["dxc4",1823]],[-1,5,["Bxc4",1824]],[-1,4,["b5",1825]],[-1,4,["Bd3",1826]],[-1,3,["Nbd7",1638]],[-1,1,["Qc2",1828]],[479,0,[]],[320,11,["Qa4+",1830,"e4",1831,"e3",1844,"Nf3",1862]],[321,0,[]],[335,2,["Nf6",1832,"b5",1833,"e5",1834,"Nc6",1836,"c5",1837,"f5",1843]],[322,0,[]],[323,0,[]],[324,1,["Bxc4",1835]],[325,0,[]],[326,0,[]],[327,2,["d5",1838]],[-1,1,["b5",1839,"Nf6",1840]],[328,0,[]],[-1,1,["Nc3",1841]],[-1,0,["b5",1842]],[329,0,[]],[336,0,[]],[330,10,["e5",1845,"Nf6",1854]],[-1,3,["Bxc4",1846]],[-1,2,["exd4",1847]],[-1,2,["Qb3",1848]],[-1,1,["Qe7",1849]],[-1,1,["a3",1850,"Nf3",1851,"Kf1",1852,"Nd2",1853]],[331,0,[]],[332,0,[]],[333,0,[]],[334,0,[]],[-1,10,["Bxc4",1855]],[-1,9,["e6",1856]],[-1,9,["Nf3",1857]],[-1,8,["c5",1858,"Be7",1876,"a6",1938]],[353,8,["O-O",1859,"Qe2",1929]],[354,7,["a6",1860,"Nc6",1903,"cxd4",1904]],[360,7,["e4",1861,"Nc3",1905,"a4",1906,"dxc5",1907,"Qe2",1909]],[362,0,[]],[340,10,["a6",1863,"Nd7",1871,"c5",1872,"e6",1873,"b5",1883,"Nf6",1884]],[343,3,["e4",1864,"e3",1865]],[337,0,[]],[-1,2,["Bg4",1866,"b5",1870]],[-1,2,["Bxc4",1867]],[-1,1,["e6",1868]],[-1,1,["d5",1869]],[344,0,[]],[345,0,[]],[338,0,[]],[339,0,[]],[341,10,["e3",1874]],[-1,9,["Nf6",1875]],[359,9,["Bxc4",1857]],[-1,3,["O-O",1877]],[-1,2,["O-O",1878,"a6",1945]],[359,2,["Nc3",1879]],[359,1,["a6",1880]],[-1,1,["a4",1881]],[-1,0,["c5",1882]],[361,0,[]],[342,0,[]],[320,10,["Qa4+",1885,"Nc3",1890,"e3",1899]],[346,2,["c6",1886]],[-1,2,["Qxc4",1887]],[346,1,["e6",1888]],[-1,1,["Qc2",1889,"g3",1971]],[346,0,[]],[349,3,["a6",1891,"c5",1893]],[-1,1,["e4",1892]],[347,0,[]],[-1,3,["d5",1894]],[-1,2,["e6",1895]],[-1,2,["e4",1896]],[-1,1,["exd5",1897]],[-1,1,["e5",1898]],[348,0,[]],[340,9,["Bg4",1900,"g6",1901,"Be6",1902,"e6",1875]],[350,0,[]],[351,0,[]],[352,0,[]],[355,0,[]],[356,0,[]],[360,0,[]],[361,0,[]],[-1,0,["Bxc5",1908]],[363,0,[]],[364,6,["b5",1910]],[364,6,["Bb3",1911]],[-1,5,["Nc6",1912,"Bb7",1923]],[-1,5,["Rd1",1913]],[-1,4,["c4",1914]],[-1,4,["Bc2",1915]],[-1,3,["Nb4",1916]],[-1,3,["Nc3",1917]],[-1,2,["Nxc2",1918]],[-1,2,["Qxc2",1919]],[-1,1,["Bb7",1920]],[-1,1,["d5",1921]],[-1,0,["Qc7",1922]],[365,0,[]],[366,2,["Nc3",1924,"Rd1",1925]],[366,0,[]],[-1,1,["Nbd7",1926]],[-1,1,["Nc3",1927]],[-1,0,["Bd6",1928]],[367,0,[]],[-1,4,["a6",1930]],[-1,4,["dxc5",1931]],[-1,3,["Bxc5",1932]],[-1,3,["O-O",1933]],[-1,2,["Nc6",1934]],[-1,2,["e4",1935]],[-1,1,["b5",1936]],[-1,1,["e5",1937]],[357,0,[]],[-1,3,["Nc3",1939]],[-1,2,["b5",1940]],[358,2,["Bb3",1941]],[-1,1,["Bb7",1942]],[-1,1,["O-O",1943]],[358,0,["c5",1944]],[360,0,[]],[359,0,[]],[368,13,["Nf3",1947,"Nc3",1991]],[-1,12,["Nf6",1948,"c6",1819,"c5",1980]],[-1,12,["Nc3",235,"e3",203]],[320,0,[]],[320,1,["Be7",1951]],[368,1,["e4",1952]],[368,0,[]],[-1,2,["exd5",1954]],[-1,2,["Bg5",1955]],[-1,1,["Be7",1956]],[-1,1,["e3",1957]],[427,0,[]],[-1,3,["Be7",1959]],[-1,3,["e3",1960]],[-1,2,["O-O",1961]],[368,2,["Rc1",1962]],[-1,1,["h6",1963]],[-1,1,["Bh4",1964]],[368,0,["Ne4",1965]],[512,0,[]],[542,0,[]],[371,0,[]],[-1,2,["dxc4",1969]],[-1,2,["Qxc4",1970]],[-1,1,["Nf6",1888]],[368,0,[]],[-1,11,["dxc4",1973,"Nf6",349]],[394,4,["a4",1974,"e3",2017,"g3",2022,"Bg5",2023]],[-1,3,["Bb4",1975]],[-1,3,["e3",1976]],[-1,2,["b5",1977,"Bxc3+",2012]],[-1,1,["Bd2",1978]],[-1,0,["Qb6",1979,"a5",2011,"Qe7",2021]],[384,0,[]],[373,9,["cxd5",1981]],[-1,8,["exd5",1982]],[-1,8,["Bg5",1983,"g3",1984]],[374,0,[]],[-1,7,["Nc6",1985]],[-1,7,["Bg2",1986]],[-1,6,["Nf6",1987]],[-1,6,["O-O",1988]],[-1,5,["Be7",1989]],[-1,5,["Nc3",633]],[414,0,[]],[382,12,["Be7",1992,"a6",2009,"c6",2010,"c5",2056,"Nf6",2104]],[379,11,["e4",1993,"Nf3",1996]],[-1,1,["dxe4",1994]],[-1,1,["f3",1995]],[380,0,[]],[-1,10,["Nf6",254]],[436,0,[]],[-1,0,["dxc4",1999]],[514,0,[]],[-1,3,["exd5",2001,"Nxd5",2002]],[527,0,[]],[528,3,["Bxe7",2003]],[-1,2,["Qxe7",2004]],[-1,2,["Nxd5",2005]],[-1,1,["exd5",2006]],[-1,1,["Rc1",2007]],[-1,0,["Be6",2008]],[526,0,[]],[381,0,[]],[386,12,["Nf3",1972,"e3",2027,"e4",2042]],[383,0,[]],[-1,2,["bxc3",2013]],[-1,1,["b5",2014]],[-1,1,["axb5",2015]],[-1,0,["cxb5",2016]],[395,0,[]],[-1,2,["b5",2018]],[-1,2,["a4",2019]],[-1,1,["Bb4",2020]],[-1,1,["Bd2",1978]],[385,0,[]],[396,0,[]],[397,0,["f6",2024]],[398,0,[]],[472,0,[]],[473,0,[]],[-1,11,["f5",2028,"Nf6",1609]],[387,1,["g4",2029]],[388,0,[]],[-1,4,["dxc4",2031]],[-1,4,["Bxc4",2032]],[-1,3,["b5",2033]],[-1,3,["Bd3",2034]],[-1,2,["c5",2035]],[-1,2,["O-O",2036,"a4",2040]],[-1,1,["Bb7",2037]],[-1,1,["Qe2",2038]],[481,0,["Nbd7",2039]],[481,0,[]],[481,0,[]],[488,0,[]],[390,5,["dxe4",2043]],[-1,5,["f3",2044,"Nxe4",2045]],[389,0,[]],[-1,4,["Bb4+",2046]],[-1,4,["Nc3",2047,"Bd2",2048]],[391,0,[]],[392,3,["Qxd4",2049]],[-1,3,["Bxb4",2050]],[-1,2,["Qxe4+",2051]],[-1,2,["Be2",2052]],[-1,1,["c5",2053]],[-1,1,["Bxc5",2054]],[-1,0,["Qxg2",2055]],[393,0,[]],[400,9,["cxd5",2057,"e3",2102]],[-1,8,["exd5",2058,"cxd4",2095]],[399,8,["Nf3",2059,"e4",2090,"dxc5",2091]],[406,7,["Nc6",2060]],[-1,7,["Bg5",2061,"dxc5",2065,"g3",2069]],[-1,1,["Be7",2062]],[399,1,["Bxe7",2063]],[-1,0,["Ngxe7",2064]],[399,0,[]],[-1,1,["d4",2066]],[-1,1,["Na4",2067]],[-1,0,["b5",2068]],[401,0,[]],[410,6,["Nf6",630,"c4",2088]],[-1,1,["Nxd4",2071]],[-1,0,["Bc5",2072]],[408,0,[]],[413,0,[]],[416,0,[]],[-1,3,["Nxd4",2076]],[-1,2,["h6",2077,"Re8",2083]],[-1,2,["Be3",2078]],[-1,1,["Re8",2079,"Bg4",2082]],[422,1,["Rc1",2080]],[-1,0,["Be6",2081]],[419,0,[]],[425,0,[]],[423,0,[]],[-1,1,["d4",2085,"Bxc5",2086]],[420,0,[]],[-1,1,["Na4",2087]],[424,0,[]],[411,1,["e4",2089]],[412,0,[]],[402,0,[]],[-1,1,["d4",2092]],[-1,1,["Na4",2093]],[-1,0,["b5",2094]],[405,0,[]],[403,3,["Qxd4",2096]],[-1,2,["Nc6",2097]],[-1,2,["Qd1",2098]],[-1,1,["exd5",2099]],[-1,1,["Qxd5",2100]],[-1,0,["Be6",2101]],[407,0,[]],[-1,6,["Nf6",2103]],[-1,6,["Nf3",1531]],[433,12,["e3",2105,"Bf4",2113,"cxd5",640,"Nf3",235,"Bg5",681]],[-1,3,["Be7",2106]],[-1,3,["cxd5",2107]],[-1,2,["exd5",2108]],[-1,2,["Bd3",2109]],[-1,1,["O-O",2110]],[-1,1,["Nf3",2111]],[-1,0,["c6",2112]],[427,0,[]],[432,0,[]],[-1,1,["Qc2",2115]],[434,0,["Nf8",2116]],[434,0,[]],[-1,7,["e4",2118]],[-1,6,["Nxc3",2119]],[-1,6,["bxc3",2120]],[-1,5,["c5",2121]],[-1,5,["Nf3",339]],[-1,4,["cxd4",2123]],[-1,3,["Bb4+",2124]],[-1,3,["Bd2",2125]],[-1,2,["Qa5",2126,"Bxd2+",2141]],[458,0,[]],[438,0,[]],[-1,1,["cxd4",2129]],[-1,1,["exd4",2130]],[-1,0,["Bd6",2131]],[450,0,[]],[-1,4,["O-O",2133]],[-1,3,["O-O",2134]],[453,3,["Qe2",2135]],[-1,2,["Qe7",2136]],[-1,2,["dxc5",2137]],[-1,1,["Bxc5",2138]],[-1,1,["e4",2139]],[451,0,[]],[452,3,["cxd4",2148]],[-1,2,["Qxd2",2142]],[-1,1,["O-O",2143]],[-1,1,["Bb5",2144]],[457,0,[]],[495,4,["cxd5",2146,"Nf3",2140]],[497,0,["Qb6",2147]],[498,0,[]],[-1,3,["Qxd4",2149,"Nxd4",2150]],[499,0,[]],[-1,2,["e5",2151]],[-1,2,["Ndb5",2152]],[-1,1,["a6",2153]],[-1,1,["Qa4",2154]],[500,0,[]],[504,5,["Nf3",250,"e3",2160]],[501,0,[]],[-1,1,["Qa5",2158]],[-1,1,["Bd2",2159]],[505,0,[]],[504,4,["c6",2161,"Bb4",2166]],[504,4,["a3",2162,"Nf3",1792]],[502,0,[]],[-1,1,["Bh4",2164]],[507,0,[]],[509,0,[]],[503,0,[]],[-1,9,["e3",2168]],[-1,8,["dxc4",2169,"Nbd7",2206]],[-1,1,["Bxc4",2170]],[368,0,[]],[513,0,[]],[-1,4,["Bd3",2173]],[-1,3,["dxc4",2174]],[-1,3,["Bxc4",2175]],[-1,2,["c5",2176]],[-1,2,["O-O",2177]],[-1,1,["Nc6",2178]],[-1,1,["Rfd1",2179]],[-1,0,["Bd7",2180]],[521,0,[]],[-1,1,["c4",2182]],[-1,0,["Be6",2183]],[524,0,[]],[531,1,["a3",2185,"Rd1",2186]],[531,0,[]],[-1,0,["a6",2187]],[531,0,[]],[-1,2,["cxd5",2189]],[-1,1,["exd5",2190]],[-1,1,["Bd3",2191]],[-1,0,["Re8",2192]],[531,0,[]],[-1,1,["Bh4",2194]],[538,0,[]],[540,0,[]],[-1,1,["Nxe5",2197]],[-1,1,["Nxe5",2198]],[-1,0,["Qxe5",2199]],[542,0,[]],[-1,9,["Nf3",2201]],[-1,8,["O-O",276]],[-1,1,["Bh4",2203]],[-1,0,["c5",2204]],[534,0,[]],[-1,10,["Nf3",350]],[-1,8,["Rc1",2207]],[-1,7,["O-O",288]],[539,0,[]]]};
 /* ---------- openings trainer ---------- */
-// Theory from the Lichess opening database (CC0): Caro-Kann lines for Black, Queen's Gambit (1.d4 … 2.c4) lines for White.
-const REP_SIDES = { b: { title: "Caro-Kann", who: "Black" }, w: { title: "Queen's Gambit", who: "White" } };
-const OPEN_MAX_MOVES = 10, OPEN_MIN_MOVES = 2;
-const O = { side: store.get("oside", "b"), mode: store.get("omode", "learn"), book: null, fen: "", hist: [], mine: 0, misses: 0, missedNow: false, status: "idle", sel: null, targets: [], last: null, arrow: null, name: "", msg: null, token: 0, recent: [], drill: null };
-const oprog = {
-  get() { const p = store.get("oprog", null) || {}; for (const k of ["b", "w"]) { p[k] = p[k] || { lines: 0, perfect: 0, moves: 0, first: 0 }; if (!p[k].level) p[k].level = OPEN_MIN_MOVES; } p.spots = p.spots || {}; return p; },
-  set(p) { store.set("oprog", p); }
-};
-// Book coverage: every line you've finished, per side (move lists joined by spaces). A book line counts
-// as covered once you've played it through, as part of a line at least that long. The first time, it
-// starts from the recent lines the trainer had already saved ("oseen").
-const ocov = {
-  get() {
-    let c = store.get("ocov", null);
-    if (!c) { const seen = store.get("oseen", {}) || {}; c = { b: (seen.b || []).slice(), w: (seen.w || []).slice() }; store.set("ocov", c); }
-    c.b = c.b || []; c.w = c.w || []; return c;
-  },
-  add(side, path) {
-    const c = this.get(), k = path.join(" "); if (!k || c[side].includes(k)) return;
-    c[side] = c[side].filter(x => !k.startsWith(x + " ")).concat(k); store.set("ocov", c);
-  },
-  has(side, path, c) { const k = path.join(" "); return (c || this.get())[side].some(x => x === k || x.startsWith(k + " ")); }
-};
-// Lines you've been shown in Learn mode, per side (full book lines, moves joined by spaces).
-const olearn = {
-  get() { const c = store.get("olearn", null) || {}; c.b = c.b || []; c.w = c.w || []; return c; },
-  add(side, path) { const c = this.get(), k = path.join(" "); if (c[side].includes(k)) return; c[side].push(k); store.set("olearn", c); },
-  has(side, path, c) { return (c || this.get())[side].includes(path.join(" ")); }
-};
-// Lines whose last run on your own (Practice or Random practice) had no misses: the "practiced" ones.
-// A run with a miss takes the line off again. The first time, it starts from the lines the earlier
-// version of the list showed as learned (played through, no missed move still waiting on them).
-const oclean = {
-  get() {
-    let c = store.get("oclean", null);
-    if (!c) { c = { b: [], w: [] }; for (const sd of ["b", "w"]) { try { c[sd] = seedClean(sd); } catch (e) {} } store.set("oclean", c); }
-    c.b = c.b || []; c.w = c.w || []; return c;
-  },
-  set(side, path, on) { const c = this.get(), k = path.join(" "); c[side] = c[side].filter(x => x !== k); if (on) c[side].push(k); store.set("oclean", c); },
-  has(side, path, c) { return (c || this.get())[side].includes(path.join(" ")); }
-};
-function seedClean(side) {
-  const p = oprog.get(), c = ocov.get(), spots = varGroups(p, side), out = [];
-  for (const g of lineGroups(side)) for (const l of g.lines) {
-    const hit = spots.some(sp => sp.line.length <= l.path.length && sp.line.every((m, i) => l.path[i] === m));
-    if (!hit && lineCovered(side, l.path, c)) out.push(l.path.join(" "));
+// Your openings book is data/repertoire.json, built by scripts/repertoire.py the way Chessbook builds one:
+// one move of yours per position, the replies people at your level actually play (Lichess rapid games
+// between players rated about 1300-1800, plus your own opponents' moves), and only positions you reach at
+// least once in N games (the book size setting). Every move of yours is its own flashcard, scheduled with
+// FSRS-4.5 (the scheduler Chessbook uses). Practice gives you the due moves you're most likely to forget
+// in the positions you meet most, then a few new ones. Punish drills still come from your own games.
+const REP_SIDES = { b: { title: "Caro-Kann", who: "Black" }, w: { title: "1.d4", who: "White" } };
+const O = { side: store.get("oside", "b"), mode: store.get("omode", "practice") === "punish" ? "punish" : "practice", fen: "", hist: [], status: "idle", sel: null, targets: [], last: null, arrow: null, msg: null, token: 0, cur: null, missedNow: false };
+const BK = { data: null, busy: null, tried: false, sides: {} };
+const OSET_DEF = { goal: 100, perDay: 10, batch: 10 };
+const DAY = 864e5;
+function oset() {
+  const s = Object.assign({}, OSET_DEF, store.get("oset", null) || {});
+  const goals = (BK.data && BK.data.goals) || [50, 100, 200, 500];
+  if (!goals.includes(+s.goal)) s.goal = OSET_DEF.goal;
+  s.goal = +s.goal; s.perDay = Math.max(1, +s.perDay || OSET_DEF.perDay); s.batch = Math.max(5, +s.batch || OSET_DEF.batch);
+  return s;
+}
+// The book comes from the website (fresh) or this device's saved copy.
+function loadBook() {
+  if (BK.data) return Promise.resolve(BK.data);
+  if (BK.busy) return BK.busy;
+  BK.busy = (async () => {
+    for (const base of SITE_DATA) {
+      try {
+        const r = await fetch(base + "repertoire.json", { cache: "no-cache" });
+        if (r.ok) { const d = await r.json(); if (d && d.b && d.w) { big.set("rep", d); return d; } }
+      } catch (e) { /* try the next place */ }
+    }
+    try { return (await big.get("rep")) || null; } catch (e) { return null; }
+  })().then(d => { BK.data = d; BK.busy = null; BK.tried = true; BK.sides = {}; return d; });
+  return BK.busy;
+}
+const normSan = s => (s || "").replace(/[+#!?]+$/g, "");
+function endOfToday(now) { const d = new Date(now); d.setHours(24, 0, 0, 0); return d.getTime(); }
+function todayKey(now) { const d = new Date(now); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+
+// One side of the book at the size you picked: the moves in it (cards), in book order (depth first from
+// the start, most common replies first), with the path that reaches each one.
+function bookOf(side) {
+  const d = BK.data; if (!d || !d[side]) return null;
+  const goal = oset().goal, key = side + "|" + goal;
+  if (BK.sides[key]) return BK.sides[key];
+  const N = d[side].nodes, min = 1 / goal - 1e-9, inb = i => N[i] != null && N[i].p >= min;
+  const ord = new Array(N.length).fill(-1), cards = []; let k = 0;
+  (function walk(i) {
+    if (ord[i] >= 0 || !inb(i)) return; ord[i] = k++;
+    const n = N[i];
+    if (n.m) { cards.push(i); if (n.c != null) walk(n.c); }
+    else if (n.r) for (const r of n.r.slice().sort((a, b) => b[1] - a[1])) walk(r[3]);
+  })(0);
+  const byId = new Map(cards.map(i => [N[i].k, i]));
+  return (BK.sides[key] = { side, N, cards, ord, byId, inb, goal, start: d[side].start, title: d[side].title, paths: {}, names: d.names });
+}
+function pathTo(bk, i) {
+  if (bk.paths[i]) return bk.paths[i];
+  const out = []; let j = i, guard = 0;
+  while (bk.N[j] && bk.N[j].pa && guard++ < 80) { out.push(bk.N[j].pa[1]); j = bk.N[j].pa[0]; }
+  return (bk.paths[i] = bk.start.concat(out.reverse()));
+}
+// The opponent's move that leads to card i, and whether it was a mistake to punish.
+function incoming(bk, i) {
+  const pa = bk.N[i].pa; if (!pa) return null;
+  const o = bk.N[pa[0]], r = o && o.r && o.r.find(x => x[3] === i);
+  return { san: pa[1], ply: pathTo(bk, i).length - 1, mistake: !!(r && r[4]) };
+}
+// The opening's name at a position ("Advance Variation"); with bare, "" for the plain family name.
+function nodeName(bk, i, bare) {
+  const full = bk.names[bk.N[i].n] || "", nm = full.replace(/^Caro-Kann Defense:?\s*/, "");
+  if (bare) return nm && !/^(Queen's Pawn Game|Caro-Kann Defense)$/.test(nm) ? nm : "";
+  return nm || (bk.side === "b" ? "Caro-Kann" : "Queen's Pawn Game");
+}
+function oneIn(p) { const n = Math.max(1, Math.round(1 / Math.max(p, 1e-6))); return n === 1 ? "almost every game" : "about 1 in " + n.toLocaleString() + " games"; }
+
+/* FSRS-4.5, the spaced repetition model Chessbook switched to in 2024 (default weights, 90% retention).
+   A card is [stability (days), difficulty (1-10), last review, due, reviews, lapses]. A card you've been
+   shown but haven't recalled yet has 0 reviews and is due straight away. Grades: 1 = missed, 3 = right. */
+const FSRS = {
+  w: [0.4872, 1.4003, 3.7145, 13.8206, 5.1618, 1.2298, 0.8975, 0.031, 1.6474, 0.1367, 1.0461, 2.1072, 0.0793, 0.3246, 1.587, 0.2272, 2.8755],
+  F: 19 / 81, C: -0.5, RET: 0.9,
+  r(c, now) { if (!c || !c[4] || !(c[0] > 0)) return 0; const t = Math.max(0, (now - c[2]) / DAY); return Math.pow(1 + this.F * t / c[0], this.C); },
+  ivl(s) { return Math.min(365, Math.max(1, Math.round(s / this.F * (Math.pow(this.RET, 1 / this.C) - 1)))); },
+  d0(g) { return Math.min(10, Math.max(1, this.w[4] - (g - 3) * this.w[5])); },
+  grade(c, g, now) {
+    const w = this.w; let s, d;
+    if (!c || !c[4] || !(c[0] > 0)) { s = w[g - 1]; d = this.d0(g); }
+    else {
+      const R = this.r(c, now), S = c[0], D = c[1];
+      if (g === 1) s = Math.min(S, w[11] * Math.pow(D, -w[12]) * (Math.pow(S + 1, w[13]) - 1) * Math.exp(w[14] * (1 - R)));
+      else s = S * (Math.exp(w[8]) * (11 - D) * Math.pow(S, -w[9]) * (Math.exp(w[10] * (1 - R)) - 1) * (g === 2 ? w[15] : 1) * (g === 4 ? w[16] : 1) + 1);
+      d = w[7] * this.d0(3) + (1 - w[7]) * (D - w[6] * (g - 3)); d = Math.min(10, Math.max(1, d));
+    }
+    s = Math.max(0.1, s);
+    const rd = x => Math.round(x * 1000) / 1000;
+    return [rd(s), rd(d), now, now + this.ivl(s) * DAY, ((c && c[4]) || 0) + 1, ((c && c[5]) || 0) + (g === 1 ? 1 : 0)];
   }
+};
+// Card progress (synced): { cardId: [s, d, last, due, reps, lapses] }. New moves shown today: onew.
+const ocards = { get() { return store.get("ocards", null) || {}; }, set(v) { store.set("ocards", v); } };
+function newLeft(side) {
+  const n = store.get("onew", null) || {}, now = Date.now();
+  return Math.max(0, oset().perDay - (n.d === todayKey(now) ? (n[side] || 0) : 0));
+}
+function bumpNew(side) {
+  const now = Date.now(), n = store.get("onew", null) || {};
+  const out = n.d === todayKey(now) ? n : { d: todayKey(now) }; out[side] = (out[side] || 0) + 1; store.set("onew", out);
+}
+// Chessbook's mastery: each move scores by its review interval on a log scale, full marks at 100 days.
+function cardScore(c) { if (!c || !c[4]) return 0; const iv = Math.max(0, (c[3] - c[2]) / DAY); return Math.min(1, Math.log(1 + iv) / Math.log(101)); }
+function cardStage(c, eod) { return !c ? "new" : c[3] <= eod ? "due" : "ok"; }
+function bookCounts(side) {
+  const bk = bookOf(side); if (!bk) return null;
+  const C = ocards.get(), now = Date.now(), eod = endOfToday(now);
+  const n = { all: bk.cards.length, new: 0, due: 0, ok: 0, mastery: 0, learned: 0 };
+  for (const i of bk.cards) {
+    const c = C[bk.N[i].k], st = cardStage(c, eod); n[st]++; n.mastery += cardScore(c);
+    if (c && c[4] && (c[3] - c[2]) / DAY >= 7) n.learned++;
+  }
+  n.mastery = n.all ? Math.round(100 * n.mastery / n.all) : 0;
+  n.fresh = Math.min(n.new, newLeft(side));
+  return n;
+}
+
+/* ---------- Practice sessions ----------
+   Chessbook's "recommended moves": the due moves ranked by how often you reach the position times how
+   likely you are to have forgotten the move, a batch of them in book order, then new moves (up to your
+   daily limit, most common first). Each line replays from the start and stops where it's your move. A
+   new move is shown first, then asked again from memory a little later. A miss (a wrong move, another
+   sound move that isn't your book move, or "Show move") counts as forgotten and comes back once more
+   before the session ends. */
+const SS = { items: [], at: 0, right: 0, total: 0, active: false, done: false };
+function sessionItems(side, opts) {
+  const bk = bookOf(side); if (!bk) return [];
+  const C = ocards.get(), now = Date.now(), eod = endOfToday(now), set = oset();
+  let items = [];
+  if (opts && opts.only != null) {
+    const i = opts.only, c = C[bk.N[i].k];
+    items = c ? [{ i, kind: "review" }] : [{ i, kind: "learn" }];
+  } else {
+    const due = bk.cards.filter(i => { const c = C[bk.N[i].k]; return c && c[3] <= eod; })
+      .map(i => ({ i, score: bk.N[i].p * (1 - FSRS.r(C[bk.N[i].k], now)) })).sort((a, b) => b.score - a.score).slice(0, set.batch);
+    items = due.map(x => ({ i: x.i, kind: "review" }));
+    const room = set.batch - items.length, left = newLeft(side);
+    if (room > 0 && left > 0) {
+      const gm = gameMisses(bk);   // new moves you got wrong in your recent games come first
+      const fresh = bk.cards.filter(i => !C[bk.N[i].k]).sort((a, b) => (gm.has(b) - gm.has(a)) || bk.N[b].p - bk.N[a].p || bk.ord[a] - bk.ord[b]).slice(0, Math.min(room, left));
+      items = items.concat(fresh.map(i => ({ i, kind: "learn" })));
+    }
+    if (!items.length && opts && opts.anyway) {
+      // Nothing due: the moves you're most likely to have forgotten, weighted by how often they come up.
+      items = bk.cards.filter(i => C[bk.N[i].k]).map(i => ({ i, score: bk.N[i].p * (1 - FSRS.r(C[bk.N[i].k], now)) }))
+        .sort((a, b) => b.score - a.score).slice(0, set.batch).map(x => ({ i: x.i, kind: "review" }));
+    }
+    items.sort((a, b) => bk.ord[a.i] - bk.ord[b.i]);
+  }
+  // Every new move comes back from memory two moves later (or at the end).
+  const out = [], wait = [];
+  for (const it of items) {
+    out.push(it);
+    for (const w of wait) w.n--;
+    while (wait.length && wait[0].n <= 0) out.push({ i: wait.shift().i, kind: "recall" });
+    if (it.kind === "learn") wait.push({ i: it.i, n: 2 });
+  }
+  for (const w of wait) out.push({ i: w.i, kind: "recall" });
   return out;
 }
-// A line that ends on the opponent's move finishes after your last move, so that shorter path counts too.
-function lineCovered(side, path, c) {
-  const opp = (path.length - 1) % 2 === 0 ? side === "b" : side === "w";
-  return ocov.has(side, path, c) || (opp && c[side].includes(path.slice(0, -1).join(" ")));
+function startSession(opts) {
+  const items = sessionItems(O.side, opts || {});
+  O.mode = "practice"; store.set("omode", "practice");
+  SS.items = items; SS.at = 0; SS.right = 0; SS.total = 0; SS.done = false; SS.active = items.length > 0; SS.single = !!(opts && opts.only != null);
+  if (!items.length) { O.token++; showStart(); return; }
+  runItem();
 }
-// All the lines "Next line" can give you at a level: your main book move each time, every opponent reply.
-function bookLines(side, target, all) {
-  const nodes = repBook(side).nodes, real = repBook(side).real, plans = [];
-  const best = n => { let b = null, bd = -1; for (const [san, ck] of n.moves) { const d = nodes[ck].depth; if (d > bd) { bd = d; b = san; } } return b; };
-  (function walk(at, path, mine, fam) {
-    if (plans.length > 3000) return;
-    const n = nodes[at];
-    if (!n.moves.size || mine >= target) { plans.push({ path, mine, fam }); return; }
-    if ((path.length % 2 === 0) === (side === "w")) { const san = best(n); walk(n.moves.get(san), path.concat(san), mine + 1, fam); return; }
-    const r = real.get(at);
-    for (const [san, ck] of n.moves) walk(ck, path.concat(san), mine, fam + Math.log1p(r && r.get(san) || 0));
-  })(0, [], 0, 0);
-  const minLen = Math.min(target, Math.max(3, Math.ceil(target / 2)));
-  const pool = all ? plans : plans.filter(p => p.mine >= minLen);
-  return pool.length ? pool : plans;
+function showStart() {
+  const bk = bookOf(O.side); O.cur = null; O.status = "idle"; O.arrow = null; O.sel = null; O.targets = []; O.missedNow = false;
+  const c = new Chess(); O.hist = [];
+  if (bk) for (const san of bk.start) { const m = c.move(san, { sloppy: true }); if (m) O.hist.push({ san: m.san, by: m.color === O.side ? "me" : "cpu", ok: true, pre: true }); }
+  O.fen = c.fen(); O.last = null; renderOpenings();
 }
-// REP_DATA[side] is a precomputed position graph: node = [nameIndex, myTheoryMovesLeft, [san, childIndex, san, childIndex, …]].
-function buildRep(side) {
-  const nodes = REP_DATA[side].map(([ni, depth, flat]) => {
-    const moves = new Map(); for (let i = 0; i < flat.length; i += 2) moves.set(flat[i], flat[i + 1]);
-    return { name: ni >= 0 ? REP_DATA.names[ni] : "", depth, moves };
-  });
-  // What your real opponents played in each position (from your games as this colour).
-  const real = new Map(); let total = 0;
-  for (const g of S.games) {
-    // Read the moves straight from the PGN text: replaying every game on the board took ~45 ms a game
-    // (tens of seconds for a big library) and froze the page the first time Openings opened.
-    if (g.example || g.me !== side || g.headers.FEN || !g.tokens) continue;
-    let at = 0; total++;
-    for (let i = 0; i < Math.min(24, g.tokens.length); i++) {
-      const san = g.tokens[i]; const isMine = (i % 2 === 0) === (side === "w");
-      if (!isMine) { const m = real.get(at) || new Map(); m.set(san, (m.get(san) || 0) + 1); real.set(at, m); }
-      const nx = nodes[at].moves.get(san); if (nx == null) break; at = nx;
+function pathSan() { return O.hist.map(h => normSan(h.san)); }
+function runItem() {
+  const it = SS.items[SS.at]; if (!it) return endSession();
+  const bk = bookOf(O.side); if (!bk) return;
+  const path = pathTo(bk, it.i).map(normSan), cur = pathSan();
+  const t = ++O.token;
+  O.cur = it; O.missedNow = false; O.arrow = null; O.msg = null; O.sel = null; O.targets = [];
+  const cont = cur.length <= path.length && cur.every((s, k) => s === path[k]);
+  if (!cont) { O.hist = []; O.fen = new Chess().fen(); O.last = null; }
+  O.status = "cpu"; renderOpenings();
+  const rest = path.slice(cont ? cur.length : 0);
+  let k = 0;
+  const step = () => {
+    if (t !== O.token) return;
+    if (k >= rest.length) {
+      O.status = "mine";
+      if (it.kind === "learn") { const m = new Chess(O.fen).move(bk.N[it.i].m, { sloppy: true }); O.arrow = m ? { from: m.from, to: m.to } : null; }
+      renderOpenings(); return;
     }
-  }
-  return { nodes, real, total };
+    const c = new Chess(O.fen), m = c.move(rest[k++], { sloppy: true });
+    if (!m) { SS.at++; return runItem(); }     // shouldn't happen: skip a broken line
+    O.fen = c.fen(); O.last = { from: m.from, to: m.to }; O.hist.push({ san: m.san, by: m.color === O.side ? "me" : "cpu", ok: true, pre: true });
+    sound.play(m.san); renderOpenings();
+    setTimeout(step, rest.length - k === 1 ? 520 : 170);
+  };
+  setTimeout(step, cont ? 300 : 380);
 }
-function repBook(side) {
-  O.books = O.books || {};
-  if (!O.books[side]) O.books[side] = buildRep(side);
-  return O.books[side];
+function requeue(i) {
+  const at = Math.min(SS.items.length, SS.at + 4);
+  SS.items.splice(at, 0, { i, kind: "again" });
 }
-function oNode() { return O.at == null ? null : O.book.nodes[O.at]; }
-function theoryMoves() { const n = oNode(); return n ? [...n.moves.keys()] : []; }
-// The theory move to show first: the one with the most theory after it.
-function mainMove() {
-  const n = oNode(); if (!n) return null; let best = null, bd = -1;
-  for (const [san, ck] of n.moves) { const d = O.book.nodes[ck].depth; if (d > bd) { bd = d; best = san; } }
-  return best;
-}
-function pathSan() { return O.hist.map(h => h.san); }
-// How many of my moves this line runs.
-function lineTarget() { return O.drill ? O.drill.filter((_, i) => (i % 2 === 0) === (O.side === "w")).length : 0; }
-// The move this line plays next, as a chess.js move (null past the end of the line).
-function wantMove() {
-  const san = O.drill && O.drill[O.hist.length]; if (!san) return null;
-  try { return new Chess(O.fen).move(san); } catch (e) { return null; }
-}
-
-
-function openingsStart(drillPath, mode, step) {
-  if (!drillPath) return startMode(O.mode, true);
-  O.token++; O.book = repBook(O.side); if (mode) O.mode = mode;
-  O.step = O.mode === "learn" ? (step || "watch") : null;
-  const c = new Chess(); O.at = 0; O.hist = []; O.mine = 0; O.misses = 0; O.missedNow = false; O.sel = null; O.targets = []; O.last = null; O.arrow = null; O.msg = null; O.name = "";
-  O.drill = drillPath; O.target = lineTarget(); O.plan = null;
-  O.fen = c.fen();
-  if (c.turn() === O.side) { O.status = "mine"; renderOpenings(); }
-  else { O.status = "cpu"; renderOpenings(); setTimeout(cpuMove, 500, O.token); }
-}
-
-function cpuMove(token) {
-  if (token !== O.token) return;
-  const n = oNode(); if (!n || !n.moves.size) return lineDone("Theory ends here.");
-  const real = O.book.real.get(O.at);
-  const here = pathSan().join(" ");
-  const route = O.drill || O.plan, onRoute = route && pathSan().every((san, i) => san === route[i]);
-  const want = onRoute && n.moves.has(route[O.hist.length]) ? route[O.hist.length] : null;
-  const need = O.target - O.mine;                                     // my moves still to play in this line
-  const cands = [...n.moves].map(([san, ck]) => {
-    let w = 1 + (real && real.get(san) || 0);                       // like your real opponents
-    const d = O.book.nodes[ck].depth;                                 // prefer lines with real theory left to learn
-    w *= d >= need ? 1 : 0.01;                                       // lines deep enough for this level
-    if (want) w = san === want ? 1 : 0;                              // practising: follow the variation
-    const rep = O.recent.filter(p => p.startsWith((here ? here + " " : "") + san)).length;
-    w /= 1 + 0.8 * rep;                                              // and something different from last time
-    return [san, w];
-  });
-  let r = Math.random() * cands.reduce((a, [, w]) => a + w, 0), pick = cands[0][0];
-  for (const [san, w] of cands) { r -= w; if (r <= 0) { pick = san; break; } }
-  const c = new Chess(O.fen); const m = c.move(pick);
-  O.at = n.moves.get(m.san); O.fen = c.fen(); O.last = { from: m.from, to: m.to }; O.hist.push({ san: m.san, by: "cpu", ok: true });
-  const nn = oNode(); if (nn && nn.name) O.name = nn.name;
-  sound.play(m.san);
-  if (!nn || !nn.moves.size) return lineDone("Theory ends here.");
-  O.status = "mine"; renderOpenings();
-}
-
-function spotKey() { return O.side + "|" + pathSan().join(" "); }
-function recordMove(firstTry) {
-  const p = oprog.get(); const s = p[O.side]; s.moves++; if (firstTry) s.first++;
-  const k = spotKey(); const sp = p.spots[k];
-  if (!firstTry) {
-    const t = theoryMoves();
-    p.spots[k] = { side: O.side, path: pathSan(), name: O.name, moves: t, main: mainMove(), miss: (sp ? sp.miss : 0) + 1, streak: 0, at: Date.now() };
-  } else if (sp) { sp.streak = (sp.streak || 0) + 1; if (sp.streak >= 3) delete p.spots[k]; }
-  oprog.set(p);
-}
-
 function oTryMove(from, to) {
-  if (O.status !== "mine") return;
-  const c = new Chess(O.fen); const m = c.move({ from, to, promotion: "q" });
+  if (O.status !== "mine" || !O.cur) return;
+  const it = O.cur, bk = bookOf(O.side), n = bk.N[it.i];
+  const c = new Chess(O.fen), m = c.move({ from, to, promotion: "q" });
   O.sel = null; O.targets = [];
   if (!m) { renderOpenings(); return; }
   sound.play(m.san);
-  const learning = O.mode === "learn" && O.step === "watch", theory = theoryMoves(), want = wantMove(), target = want ? want.san : mainMove();
-  if (m.san === target) {
-    const firstTry = !O.missedNow;
-    if (!learning) { recordMove(firstTry); if (!firstTry) O.misses++; }
-    O.at = oNode().moves.get(m.san);
-    O.hist.push({ san: m.san, by: "me", ok: learning || firstTry }); O.mine++; O.missedNow = false; O.arrow = null;
-    O.fen = c.fen(); O.last = { from: m.from, to: m.to };
-    const nn = oNode(); if (nn && nn.name) O.name = nn.name;
-    const others = theory.filter(s => s !== m.san);
-    O.msg = { cls: "good", html: '<b>' + esc(m.san) + '</b> is the book move.' + (others.length ? ' Also playable here: <b>' + others.map(esc).join("</b>, <b>") + '</b>.' : "") };
-    if (O.mine >= O.target) return lineDone("That's the whole line.");
-    if (!nn || !nn.moves.size) return lineDone("Theory ends here.");
-    O.status = "cpu"; renderOpenings(); setTimeout(cpuMove, 450, O.token);
-    return;
-  }
-  // Not this line's move: show it briefly, take it back, point at the line's move, and let them play it.
-  // Another book move isn't a miss (it's theory, just a different line), and nothing counts in Learn mode.
-  const alt = theory.includes(m.san);
-  const startFen = O.fen, token = O.token, lastBefore = O.last;
+  const want = new Chess(O.fen).move(n.m, { sloppy: true });
+  if (want && m.san === want.san) return acceptMove(m, c);
+  // Not your book move: show it for a moment, take it back and point at your move.
+  const soft = (n.ok || []).map(normSan).includes(normSan(m.san));
+  const learning = it.kind === "learn", startFen = O.fen, lastBefore = O.last, t = O.token;
   O.status = "wrong"; O.fen = c.fen(); O.last = { from: m.from, to: m.to }; renderOpenings();
-  if (!alt) $("oboard").classList.add("flash-bad");
+  if (!soft && !learning) $("oboard").classList.add("flash-bad");
   setTimeout(() => {
-    if (token !== O.token) return;
+    if (t !== O.token) return;
     $("oboard").classList.remove("flash-bad");
-    O.fen = startFen; O.last = lastBefore;
-    if (!alt && !learning) O.missedNow = true;
-    const mm = target ? new Chess(O.fen).move(target) : null;
-    O.arrow = mm ? { from: mm.from, to: mm.to } : null;
-    const others = theory.filter(s => s !== target && s !== m.san);
-    O.msg = alt ? { cls: "info", html: '<b>' + esc(m.san) + '</b> is also a book move, but this line goes <b>' + esc(target || "?") + '</b>. Play it to continue.' }
-      : learning ? { cls: "info", html: 'Follow the arrow: this line plays <b>' + esc(target || "?") + '</b> here.' }
-      : { cls: "bad", html: '<b>' + esc(m.san) + '</b> isn’t theory here. The book move is <b>' + esc(target || "?") + '</b>' + (others.length ? ' (also playable: <b>' + others.map(esc).join("</b>, <b>") + '</b>)' : "") + '. Play it to continue.' };
+    O.fen = startFen; O.last = lastBefore; O.missedNow = O.missedNow || !learning;
+    O.arrow = want ? { from: want.from, to: want.to } : null;
+    const yours = "<b>" + esc(plyNum(O.hist.length) + (want ? want.san : n.m)) + "</b>";
+    O.msg = learning ? { cls: "info", html: "Follow the arrow: your move here is " + yours + "." }
+      : soft ? { cls: "info", html: "OK, <b>" + esc(m.san) + "</b> is sound too, but your book move here is " + yours + ". Play it to go on." + (it.kind === "again" ? "" : " This one counts as a miss.") }
+      : { cls: "bad", html: "<b>" + esc(m.san) + "</b> isn’t your book move. Your move here is " + yours + ". Play it to go on." };
     O.status = "mine"; renderOpenings();
   }, 700);
 }
+function acceptMove(m, c) {
+  const it = O.cur, bk = bookOf(O.side), n = bk.N[it.i], now = Date.now(), first = !O.missedNow, t = O.token;
+  O.hist.push({ san: m.san, by: "me", ok: first }); O.fen = c.fen(); O.last = { from: m.from, to: m.to }; O.arrow = null;
+  const C = ocards.get();
+  let html, cls = first ? "good" : "info";
+  if (it.kind === "learn") {
+    if (!C[n.k]) { C[n.k] = [0, 0, 0, now, 0, 0]; ocards.set(C); bumpNew(O.side); }
+    html = "It comes back from memory in a moment.";
+  } else if (it.kind === "again") {
+    html = first ? "<b>" + esc(m.san) + "</b>. Got it this time." : "That’s the move. It’s due again tomorrow.";
+  } else {
+    const g = first ? 3 : 1, nc = FSRS.grade(C[n.k], g, now); C[n.k] = nc; ocards.set(C);
+    SS.total++; if (first) SS.right++;
+    const days = Math.round((nc[3] - now) / DAY);
+    html = first ? "<b>" + esc(m.san) + "</b> is right. Next time: in " + days + " day" + (days === 1 ? "" : "s") + "."
+      : "Missed this one. It comes back once more in this session and again tomorrow.";
+    if (!first) requeue(it.i);
+  }
+  O.msg = { cls, html }; O.status = "between"; O.missedNow = false; renderOpenings();
+  if (first && it.kind !== "learn") { $("oboard").classList.add("flash-good"); setTimeout(() => $("oboard").classList.remove("flash-good"), 500); }
+  setTimeout(() => { if (t !== O.token) return; SS.at++; runItem(); }, first ? 1100 : 1700);
+}
+function endSession() {
+  O.token++; O.status = "done"; O.cur = null; O.arrow = null; SS.active = false; SS.done = true;
+  const n = bookCounts(O.side);
+  const next = n.due ? n.due + " more due today." : n.fresh ? n.fresh + " new move" + (n.fresh === 1 ? "" : "s") + " left for today." : "That’s everything for today.";
+  O.msg = { cls: SS.total && SS.right === SS.total ? "good" : "info", html: (SS.total ? "You got <b>" + SS.right + " of " + SS.total + "</b> right first time. " : "") + next };
+  if (SS.total && SS.right === SS.total && !SS.single) confetti();
+  renderOpenings();
+}
+function showMove() {
+  if (O.status !== "mine" || !O.cur) return;
+  const bk = bookOf(O.side), n = bk.N[O.cur.i], w = new Chess(O.fen).move(n.m, { sloppy: true }); if (!w) return;
+  O.arrow = { from: w.from, to: w.to };
+  if (O.cur.kind !== "learn") { O.missedNow = true; O.msg = { cls: "info", html: "Your move here is <b>" + esc(plyNum(O.hist.length) + w.san) + "</b>. Play it to go on (this one counts as missed)." }; }
+  renderOpenings();
+}
+
+/* ---------- your games: what happened in the opening, and they count as reviews ----------
+   Like Chessbook's connected accounts: a game where you played your book move counts as a review of a
+   due move, and a game where you left your book counts as a miss. Only games after you first opened the
+   new trainer count (ogame keeps the newest game seen per side). */
+function walkGame(bk, g) {
+  const N = bk.N, tk = g.tokens.map(normSan), st = bk.start.map(normSan);
+  if (!st.every((s, k) => tk[k] === s)) return null;
+  let i = 0, ply = st.length; const mine = [];
+  for (;;) {
+    const n = N[i], san = tk[ply];
+    if (san == null) return { kind: "end", ply, mine };
+    if (n.m) {
+      if (san === normSan(n.m)) { mine.push({ i, ok: true }); if (n.c == null || !bk.inb(n.c)) return { kind: "through", ply: ply + 1, mine }; i = n.c; ply++; continue; }
+      mine.push({ i, ok: false });
+      return { kind: "me", ply, played: g.tokens[ply], want: n.m, node: i, soft: (n.ok || []).map(normSan).includes(san), mine };
+    }
+    if (n.r) {
+      const r = n.r.find(x => normSan(x[0]) === san);
+      if (r && bk.inb(r[3])) { i = r[3]; ply++; continue; }
+      return { kind: "opp", ply, played: g.tokens[ply], p: r ? n.p * r[1] : 0, node: i, mine };
+    }
+    return { kind: "through", ply, mine };
+  }
+}
+function gameMisses(bk) {
+  const out = new Set(); let k = 0;
+  for (const g of sideGames(bk.side)) { const w = walkGame(bk, g); if (!w) continue; if (w.kind === "me") out.add(w.node); if (++k >= 40) break; }
+  return out;
+}
+function sideGames(side) { return S.games.filter(g => !g.example && g.me === side && g.tokens && !(g.headers && g.headers.FEN)); }
+function gameTime(g) { const k = g.sortKey || ""; return Date.UTC(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8), +k.slice(8, 10) || 0, +k.slice(10, 12) || 0, +k.slice(12, 14) || 0); }
+function applyGames() {
+  for (const side of ["b", "w"]) {
+    const bk = bookOf(side); if (!bk) continue;
+    const marks = store.get("ogame", null) || {}, games = sideGames(side); if (!games.length) continue;
+    const newest = games.reduce((a, g) => g.sortKey > a ? g.sortKey : a, "");
+    if (!marks[side]) { marks[side] = newest; store.set("ogame", marks); continue; }
+    const fresh = games.filter(g => g.sortKey > marks[side]).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    if (!fresh.length) continue;
+    const C = ocards.get(); let changed = false;
+    for (const g of fresh) {
+      const w = walkGame(bk, g), when = gameTime(g); if (!w || !when) continue;
+      for (const x of w.mine) {
+        const id = bk.N[x.i].k, c = C[id]; if (!c || when <= c[2]) continue;
+        if (x.ok) { if (!c[4] || FSRS.r(c, when) <= FSRS.RET) { C[id] = FSRS.grade(c, 3, when); changed = true; } }
+        else { C[id] = FSRS.grade(c, 1, when); changed = true; }
+      }
+    }
+    if (changed) ocards.set(C);
+    marks[side] = newest; store.set("ogame", marks);
+  }
+}
+
+/* ---------- rendering ---------- */
+function renderOpenings() {
+  if (!$("oprompt")) return;
+  updateOpeningEval();
+  const meta = REP_SIDES[O.side], bk = bookOf(O.side);
+  document.querySelectorAll("#oside button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === O.side)));
+  renderBoard(O.fen || new Chess().fen(), O.last, O.arrow, null, { el: "oboard", flip: O.side === "b", sel: O.sel, targets: O.targets, hint: O.mode === "punish" ? O.phint : null });
+  $("oShow").hidden = O.mode !== "punish";
+  if (O.mode === "punish") {
+    renderPunishCard(meta);
+    $("oHint").hidden = false; $("oHint").textContent = "Hint"; $("oHint").disabled = O.status !== "solving";
+    $("oShow").disabled = !(O.status === "solving" || O.status === "wrong");
+    $("oNext").textContent = "Next drill"; $("oNext").disabled = false;
+  } else {
+    renderPracticeCard(meta, bk);
+    $("oHint").textContent = "Show move"; $("oHint").hidden = !SS.active; $("oHint").disabled = !(O.status === "mine" && O.cur && O.cur.kind !== "learn");
+    const n = bk && bookCounts(O.side);
+    $("oNext").textContent = SS.active ? "End session" : !n ? "Practice" : n.due || n.fresh ? (SS.done ? "Keep going" : "Start") : "Practice anyway";
+    $("oNext").disabled = !bk;
+  }
+  renderModes();
+  renderStats(bk);
+  renderGamesPanel(bk);
+  renderMap(meta, bk);
+  renderMissed(bk);
+  renderSettings(bk);
+}
+function plyNum(i) { return i % 2 === 0 ? (i / 2 + 1) + "." : Math.floor(i / 2 + 1) + "..."; }
+function renderModes() {
+  const n = bookCounts(O.side), pc = punishCounts();
+  const btn = (mode, title, sub, count, off) => '<button type="button" class="omode' + (O.mode === mode ? " on" : "") + '" data-mode="' + mode + '" aria-pressed="' + (O.mode === mode) + '"' + (off ? " disabled" : "") + '>' +
+    '<span class="omode-t">' + title + '</span><span class="omode-s">' + sub + '</span><span class="omode-c">' + count + '</span></button>';
+  const pcount = !n ? "Loading…" : n.due ? "<b>" + n.due + "</b> due" + (n.fresh ? " · <b>" + n.fresh + "</b> new" : "")
+    : n.fresh ? "<b>" + n.fresh + "</b> new today" : n.new ? "Done for today" : "All learned";
+  $("omodes").innerHTML =
+    btn("practice", "Practice", "Due moves first, then new ones", pcount, false) +
+    btn("punish", "Punish", "Their mistakes, your games", !pc.all ? "None yet" : pc.missed ? '<span class="omiss-n">' + pc.missed + ' missed chance' + (pc.missed === 1 ? "" : "s") + '</span>' : pc.left ? "<b>" + pc.left + "</b> to solve" : "All solved", !pc.all);
+}
+function renderStats(bk) {
+  const n = bk && bookCounts(O.side);
+  $("ostats").innerHTML = !n ? "" : '<div><b>' + n.mastery + '%</b>mastery</div><div><b>' + n.learned + '</b>of ' + n.all + ' moves learned</div><div><b>' + n.due + '</b>due today</div>';
+}
+function lineStrip() {
+  let h = "";
+  O.hist.forEach((x, i) => {
+    if (i % 2 === 0) h += '<span class="onum">' + (i / 2 + 1) + '.</span>';
+    h += '<span class="omv ' + (x.by === "me" ? (x.pre ? "cpu" : x.ok ? "me ok" : "me miss") : "cpu") + '">' + esc(x.san) + '</span> ';
+  });
+  if (O.status === "mine" || O.status === "wrong") { const i = O.hist.length; h += (i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "") + '<span class="omv cur">?</span>'; }
+  return h || '<span class="omuted">The line plays from the start.</span>';
+}
+function renderPracticeCard(meta, bk) {
+  const eyebrow = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + '</div>';
+  if (!bk) {
+    $("oprompt").innerHTML = eyebrow + '<p class="ask">' + (BK.tried ? "Your book isn’t built yet." : "Loading your book…") + '</p>' +
+      (BK.tried ? '<div class="ctx">The website builds it from your games and Lichess games at your level. Try again in a few minutes.</div>' : "");
+    return;
+  }
+  const it = O.cur, now = Date.now();
+  if (!it) {
+    const n = bookCounts(O.side), set = oset();
+    let ask, sub;
+    if (O.status === "done") { ask = "Session done."; sub = ""; }
+    else if (n.due) { ask = n.due + " move" + (n.due === 1 ? " is" : "s are") + " due."; sub = "Practice brings back the moves you’re most likely to forget in the positions you reach most, " + Math.min(set.batch, n.due) + " at a time" + (n.fresh ? ", then new ones" : "") + "."; }
+    else if (n.fresh) { ask = "Ready for " + n.fresh + " new move" + (n.fresh === 1 ? "" : "s") + "."; sub = "You see each new move once with an arrow, then play it from memory a little later. Up to " + set.perDay + " new moves a day (change it below)."; }
+    else if (n.new) { ask = "You’re done for today."; sub = "Your next reviews come back on their own. “Practice anyway” runs through the moves you’re most likely to forget."; }
+    else { ask = "You’ve learned your whole book."; sub = "Make it bigger in Book settings below, or keep it fresh with Practice anyway."; }
+    $("oprompt").innerHTML = eyebrow + '<div class="onow"><div class="onow-t"><b>Today</b><span> · ' + n.all + ' moves in your book</span></div></div>' +
+      '<p class="ask">' + esc(ask) + '</p>' + (sub ? '<div class="ctx">' + esc(sub) + '</div>' : "") +
+      (O.msg && O.status === "done" ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "");
+    return;
+  }
+  const n = bk.N[it.i], inc = incoming(bk, it.i), revealed = O.status === "between" || it.kind === "learn";
+  const kind = { learn: "New move", recall: "From memory", review: "Review", again: "Once more" }[it.kind];
+  const chips = '<div class="osteps"><span class="ostep on">' + kind + '</span>' + (inc && inc.mistake ? '<span class="ostep warn">Punish it</span>' : "") + '</div>';
+  let ask = "";
+  if (O.status === "cpu") ask = O.hist.length < pathTo(bk, it.i).length - 1 ? "Playing the line…" : "Your opponent is moving…";
+  else if (O.status === "mine") ask = it.kind === "learn" ? "New move: play " + plyNum(O.hist.length) + (new Chess(O.fen).move(n.m, { sloppy: true }) || { san: n.m }).san + "."
+    : inc && inc.mistake && !O.missedNow ? "They played " + plyNum(inc.ply) + inc.san + ". Punish it." : O.missedNow ? "Play your book move." : "Your move.";
+  else if (O.status === "wrong") ask = "Not quite…";
+  else if (O.status === "between") ask = it.kind === "learn" ? "That’s your move." : O.hist[O.hist.length - 1] && O.hist[O.hist.length - 1].ok ? "Right." : "Got it.";
+  let where = "You reach this position " + oneIn(n.p) + " of this opening" + (n.g ? " (" + n.g + " of your games)" : "") + ".";
+  let after = "";
+  if (revealed && n.u && normSan(n.u[0]) !== normSan(n.m)) after += "<p>You usually play <b>" + esc(n.u[0]) + "</b> here. Stockfish rates it " + (n.u[1] / 100).toFixed(1) + " pawns worse than its best move, so your book plays <b>" + esc(n.m) + "</b>.</p>";
+  if (revealed && n.src === "usual") where += " Your book move is the one you usually play here.";
+  if (revealed && n.note) after = '<p>' + esc(n.note) + '</p>' + after;
+  $("oprompt").innerHTML = eyebrow +
+    '<div class="onow"><div class="onow-t"><b>' + esc(nodeName(bk, it.i)) + '</b></div><div class="onow-n">' + (SS.single ? "One move" : "Move " + Math.min(SS.at + 1, SS.items.length) + " of " + SS.items.length) + '</div></div>' +
+    chips + '<p class="ask">' + esc(ask) + '</p>' +
+    '<div class="ostrip">' + lineStrip() + '</div>' +
+    (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "") +
+    (after ? '<div class="why"><span class="why-h">The idea</span>' + after + '</div>' : "") +
+    '<div class="ctx onote">' + esc(where) + '</div>';
+}
+
+// The book: one row per variation (most common first), with what each needs, and every move inside.
+function bookGroups(bk) {
+  if (bk.groups) return bk.groups;
+  const N = bk.N, S0 = bk.start.length, rows = new Map();
+  for (const i of bk.cards) {
+    const p = pathTo(bk, i), k1 = p[S0] || "";
+    if (!rows.has(k1)) rows.set(k1, []);
+    rows.get(k1).push(i);
+  }
+  const groups = [];
+  for (const [k1, ids] of rows) {
+    // Big branches split at the opponent's next move; small leftovers stay together.
+    if (ids.length > 14) {
+      const sub = new Map();
+      for (const i of ids) { const p = pathTo(bk, i), k2 = p.length > S0 + 2 ? p.slice(S0, S0 + 3).join(" ") : k1; if (!sub.has(k2)) sub.set(k2, []); sub.get(k2).push(i); }
+      const rest = [];
+      for (const [k2, s] of sub) { if (s.length >= 3 || k2 === k1) groups.push({ key: k2, ids: s }); else rest.push(...s); }
+      if (rest.length) { const main = groups.find(g => g.key === k1); if (main) main.ids.push(...rest); else groups.push({ key: k1, ids: rest, other: true }); }
+    } else groups.push({ key: k1, ids });
+  }
+  for (const g of groups) {
+    g.ids.sort((a, b) => bk.ord[a] - bk.ord[b]);
+    const top = g.ids.reduce((a, i) => (N[i].p > N[a].p || (N[i].p === N[a].p && pathTo(bk, i).length < pathTo(bk, a).length)) ? i : a, g.ids[0]);
+    g.top = top; g.p = N[top].p; g.games = N[top].g || 0;
+    const moves = g.key.split(" "), first = S0;
+    g.moves = moves.map((m, j) => { const ply = first + j; return (ply % 2 === 0 ? (ply / 2 + 1) + "." : j === 0 ? Math.floor(ply / 2 + 1) + "..." : "") + m; }).join(" ");
+    g.name = nodeName(bk, top, true);
+  }
+  // A name only when it tells this group apart from the others; otherwise its moves.
+  const seen = new Map(); for (const g of groups) if (g.name) seen.set(g.name, (seen.get(g.name) || 0) + 1);
+  for (const g of groups) { g.title = g.name && seen.get(g.name) === 1 ? g.name : g.moves; g.sub = g.title !== g.moves ? g.moves : g.name && !g.moves.startsWith(g.name) ? g.name : ""; }
+  groups.sort((a, b) => b.p - a.p);
+  return (bk.groups = groups);
+}
+function renderMap(meta, bk) {
+  if (!bk) { $("ocov").innerHTML = ""; return; }
+  const C = ocards.get(), eod = endOfToday(Date.now()), groups = bookGroups(bk), n = bookCounts(O.side);
+  O.lgrp = O.lgrp || {}; const openSet = O.lgrp[O.side] = O.lgrp[O.side] || {};
+  const curId = O.cur ? bk.N[O.cur.i].k : null;
+  let h = '<div class="omaphead"><div class="section-label">Your ' + esc(meta.title) + ' book · most common first</div>' +
+    '<div class="olegend"><span><i class="odot st-prac"></i>' + n.ok + ' learned</span><span><i class="odot st-learn"></i>' + n.due + ' due</span><span><i class="odot st-new"></i>' + n.new + ' new</span></div></div><div class="omap">';
+  groups.forEach((g, gi) => {
+    const sts = g.ids.map(i => cardStage(C[bk.N[i].k], eod)), cnt = s => sts.filter(x => x === s).length;
+    const w = s => (100 * cnt(s) / Math.max(1, sts.length)).toFixed(2);
+    const need = [cnt("due") ? '<span class="oneed wait">' + cnt("due") + ' due</span>' : "", cnt("new") ? '<span class="oneed">' + cnt("new") + ' new</span>' : ""].filter(Boolean).join(" · ") || '<span class="oneed ok">All learned</span>';
+    const open = !!openSet[g.key];
+    h += '<div class="ovar' + (open ? " open" : "") + '"><button type="button" class="ovar-head" data-lgrp="' + gi + '" aria-expanded="' + open + '">' +
+      '<span class="ovar-t"><span class="ovar-nm">' + esc(g.title) + '</span><span class="ovar-g">' + (g.sub ? esc(g.sub) + ' · ' : "") + esc(oneIn(g.p)) + (g.games ? ' · faced in ' + g.games + ' of your games' : "") + '</span></span>' +
+      '<span class="ostack mini"><i class="st-prac" style="width:' + w("ok") + '%"></i><i class="st-learn" style="width:' + w("due") + '%"></i></span>' +
+      '<span class="ovar-need">' + need + '</span><span class="ochev" aria-hidden="true">' + (open ? "▴" : "▾") + '</span></button>';
+    if (open) h += '<ul class="olines">' + g.ids.map((i, j) => {
+      const nd = bk.N[i], c = C[nd.k], st = sts[j], p = pathTo(bk, i), from = Math.max(bk.start.length, p.length - 4);
+      const lbl = st === "new" ? "New · tap to learn" : st === "due" ? "Due · tap to practice" : (d => "Next in " + d + " day" + (d === 1 ? "" : "s") + " · tap to practice")(Math.max(1, Math.round((c[3] - Date.now()) / DAY)));
+      return '<li><button type="button" class="oline st-' + (st === "ok" ? "prac" : st === "due" ? "learn" : "new") + (nd.k === curId ? " now" : "") + '" data-card="' + i + '">' +
+        '<i class="odot st-' + (st === "ok" ? "prac" : st === "due" ? "learn" : "new") + '"></i><span class="oline-t"><span class="onm">' + esc(plyNum(p.length) + nd.m) + (nd.src === "usual" ? ' <span class="ost">· your usual move</span>' : "") + '</span>' +
+        '<span class="opath">after ' + sanLine(p, from) + '</span><span class="ost">' + esc(lbl) + ' · ' + esc(oneIn(nd.p)) + '</span></span></button></li>';
+    }).join("") + '</ul>';
+    h += '</div>';
+  });
+  h += '</div><div class="omuted">Tap a variation to see its moves, and a move to practice it.</div>';
+  const old = $("ocov").querySelector(".omap"), keep = old && O.lscroll === O.side ? old.scrollTop : 0;
+  $("ocov").innerHTML = h;
+  const box = $("ocov").querySelector(".omap"); if (box) box.scrollTop = keep;
+  O.lscroll = O.side;
+}
+// Moves ("3.e5 Bf5 4.Nf3") from ply `from` on.
+function sanLine(path, from) {
+  const out = [];
+  for (let i = from || 0; i < path.length; i++) {
+    const num = i % 2 === 0 ? (i / 2 + 1) + "." : i === (from || 0) ? Math.floor(i / 2 + 1) + "..." : "";
+    out.push('<span class="onum">' + num + '</span>' + esc(path[i]));
+  }
+  return out.join(" ");
+}
+function renderMissed(bk) {
+  if (!bk) { $("omiss").innerHTML = ""; return; }
+  const C = ocards.get();
+  const rows = bk.cards.map(i => ({ i, c: C[bk.N[i].k] })).filter(r => r.c && r.c[5] > 0)
+    .sort((a, b) => b.c[5] - a.c[5] || b.c[2] - a.c[2]).slice(0, 5);
+  $("omiss").innerHTML = '<div class="section-label">Moves you keep missing</div>' + (rows.length
+    ? '<ul class="omisslist">' + rows.map(r => { const p = pathTo(bk, r.i), from = Math.max(bk.start.length, p.length - 4);
+      return '<li><button type="button" class="omissrow" data-card="' + r.i + '"><span class="omiss-mv">' + esc(plyNum(p.length) + bk.N[r.i].m) + '</span>' +
+        '<span class="omiss-ctx">' + esc(nodeName(bk, r.i)) + ' · after ' + sanLine(p, from) + '</span><span class="omiss-n">missed ' + r.c[5] + '×</span></button></li>'; }).join("") +
+      '</ul><div class="omuted">Tap one to practice it.</div>'
+    : '<div class="omuted">Nothing here yet. Moves you miss in practice or in your games show up here.</div>');
+}
+function renderGamesPanel(bk) {
+  if (!bk) { $("ogames").innerHTML = ""; return; }
+  const rows = [];
+  for (const g of sideGames(O.side)) {
+    const w = walkGame(bk, g); if (!w) continue;
+    rows.push({ g, w }); if (rows.length >= 6) break;
+  }
+  const when = g => (g.date || "").replace(/^(\d{4})\.(\d\d)\.(\d\d)$/, (m, y, mo, d) => new Date(+y, +mo - 1, +d).toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+  const opp = g => g.me === "w" ? g.black : g.white;
+  $("ogames").innerHTML = '<div class="section-label">From your games</div>' + (rows.length
+    ? '<ul class="omisslist">' + rows.map(({ g, w }) => {
+      let what, cls = "", data = "";
+      if (w.kind === "me") { what = "You played " + plyNum(w.ply) + w.played + ". Your book: " + plyNum(w.ply) + w.want + "."; cls = "bad"; data = ' data-card="' + w.node + '"'; }
+      else if (w.kind === "opp") { what = "Your opponent left your book with " + plyNum(w.ply) + w.played + (w.p ? " (" + oneIn(w.p) + ")" : " (rare at your level)") + "."; data = ' data-game="' + esc(g.id) + '" data-ply="' + w.ply + '"'; }
+      else { what = "You played your book all the way (" + Math.max(0, w.mine.length) + " move" + (w.mine.length === 1 ? "" : "s") + ")."; cls = "good"; data = ' data-game="' + esc(g.id) + '" data-ply="' + w.ply + '"'; }
+      return '<li><button type="button" class="omissrow ogame ' + cls + '"' + data + '><span class="omiss-mv res ' + g.res + '">' + ({ W: "W", L: "L", D: "½" }[g.res] || "·") + '</span>' +
+        '<span class="omiss-ctx"><b>' + esc(opp(g)) + '</b> · ' + esc(when(g)) + '<span class="ogame-w">' + esc(what) + '</span></span></button></li>';
+    }).join("") + '</ul><div class="omuted">Red rows open that move for practice. The others open the game. Games count as reviews: playing your move on a due card counts as right, leaving your book counts as a miss.</div>'
+    : '<div class="omuted">No games in this opening yet.</div>');
+}
+function renderSettings(bk) {
+  const d = BK.data; if (!d || !bk) { $("oset").innerHTML = ""; return; }
+  const set = oset(), N = d[O.side].nodes;
+  const count = goal => N.filter(n => n.m && n.p >= 1 / goal - 1e-9).length;
+  const sm = d.sample || {}, games = sm.games ? sm.games[O.side] : 0;
+  $("oset").innerHTML = '<div class="section-label">Book settings</div>' +
+    '<label for="oGoal">Book size <select id="oGoal">' + (d.goals || [50, 100, 200, 500]).map(gl => '<option value="' + gl + '"' + (gl === set.goal ? " selected" : "") + '>1 in ' + gl + ' games · ' + count(gl) + ' moves</option>').join("") + '</select></label>' +
+    '<label for="oPerDay">New moves a day <select id="oPerDay">' + [5, 10, 15, 20].map(v => '<option value="' + v + '"' + (v === set.perDay ? " selected" : "") + '>' + v + '</option>').join("") + '</select></label>' +
+    '<label for="oBatch">Moves per session <select id="oBatch">' + [10, 15, 20].map(v => '<option value="' + v + '"' + (v === set.batch ? " selected" : "") + '>' + v + '</option>').join("") + '</select></label>' +
+    '<div class="omuted">Your book keeps every position you reach at least once in that many games of this opening, counting what ' +
+    (games ? games.toLocaleString() + ' ' : '') + 'Lichess rapid games between players rated ' + (sm.minElo || 1300) + '–' + (sm.maxElo || 1800) + (sm.month ? ' (' + esc(sm.month) + ')' : '') + ' and your own opponents played. Your moves are the ones you usually play when Stockfish agrees they’re sound. Built ' + esc(d.built || "") + '.</div>';
+}
+
+/* ---------- wiring ---------- */
+function openingsRefresh() {
+  if (!window.Chess) return;
+  if (!BK.data) {
+    renderOpenings();
+    loadBook().then(d => { if (!d) { renderOpenings(); return; } applyGames(); if (O.mode === "punish") punishStart(); else showStart(); });
+    return;
+  }
+  applyGames();
+  if (O.mode === "punish" && !O.pz) return punishStart();
+  if (O.mode === "practice" && !SS.active && !O.fen) return showStart();
+  renderOpenings();
+}
+$("oboard").addEventListener("click", e => {
+  const can = O.mode === "punish" ? O.status === "solving" : O.status === "mine";
+  const el = e.target.closest(".sq[data-sq]"); if (!el || !can) return;
+  const sq = el.dataset.sq; const c = new Chess(O.fen);
+  if (O.sel && O.targets.includes(sq)) { (O.mode === "punish" ? punishTry : oTryMove)(O.sel, sq); return; }
+  const pc = c.get(sq);
+  if (pc && pc.color === c.turn()) { O.sel = sq; O.targets = c.moves({ square: sq, verbose: true }).map(m => m.to); }
+  else { O.sel = null; O.targets = []; }
+  renderOpenings();
+});
+$("oside").addEventListener("click", e => {
+  const b = e.target.closest("button[data-side]"); if (!b || b.dataset.side === O.side) return;
+  O.side = b.dataset.side; store.set("oside", O.side); O.token++; SS.active = false; SS.done = false; O.pz = null; O.msg = null;
+  if (O.mode === "punish") punishStart(); else showStart();
+});
+$("oShow").onclick = () => punishShow();
+$("oNext").onclick = () => {
+  if (O.mode === "punish") return punishStart();
+  if (SS.active) return endSession();
+  const n = bookCounts(O.side); if (!n) return;
+  startSession({ anyway: !n.due && !n.fresh }); toBoard();
+};
+$("oHint").onclick = () => {
+  if (O.mode === "punish") {
+    if (O.status !== "solving") return;
+    const u = O.pline[O.pstep]; if (!u) return;
+    O.phint = u.slice(0, 2); const pc = new Chess(O.fen).get(O.phint);
+    O.msg = { cls: "info", html: "Hint: move your " + (pc ? PNAME[pc.type] : "piece") + " on <b>" + O.phint + "</b>." }; renderOpenings(); return;
+  }
+  showMove();
+};
+$("omodes").addEventListener("click", e => {
+  const b = e.target.closest("button[data-mode]"); if (!b || b.disabled) return;
+  if (b.dataset.mode === "punish") { O.token++; SS.active = false; punishStart(); toBoard(); return; }
+  if (O.mode === "practice" && !SS.active) { const n = bookCounts(O.side); if (n) { startSession({ anyway: !n.due && !n.fresh }); toBoard(); } return; }
+  if (O.mode !== "practice") { O.mode = "practice"; store.set("omode", "practice"); O.pz = null; O.msg = null; showStart(); }
+});
+function toBoard() { const top = $("oboard").getBoundingClientRect().top; if (top < 0 || top > innerHeight * .6) $("oboard").scrollIntoView({ behavior: "smooth", block: "start" }); }
+function practiceCard(i) { const bk = bookOf(O.side); if (!bk || bk.N[i] == null || !bk.N[i].m) return; O.pz = null; startSession({ only: i }); toBoard(); }
+$("ocov").addEventListener("click", e => {
+  const t = e.target.closest("[data-lgrp],[data-card]"); if (!t) return;
+  if (t.dataset.card != null) return practiceCard(+t.dataset.card);
+  const bk = bookOf(O.side), g = bk && bookGroups(bk)[+t.dataset.lgrp]; if (!g) return;
+  O.lgrp[O.side][g.key] = !O.lgrp[O.side][g.key]; renderOpenings();
+});
+$("omiss").addEventListener("click", e => { const b = e.target.closest("[data-card]"); if (b) practiceCard(+b.dataset.card); });
+$("ogames").addEventListener("click", e => {
+  const b = e.target.closest("[data-card],[data-game]"); if (!b) return;
+  if (b.dataset.card != null) return practiceCard(+b.dataset.card);
+  const g = S.games.find(x => x.id === b.dataset.game); if (!g) return;
+  location.hash = "#review"; select(g); go(+b.dataset.ply || 0);
+});
+$("oset").addEventListener("change", e => {
+  const s = oset();
+  if (e.target.id === "oGoal") s.goal = +e.target.value;
+  else if (e.target.id === "oPerDay") s.perDay = +e.target.value;
+  else if (e.target.id === "oBatch") s.batch = +e.target.value;
+  else return;
+  store.set("oset", s);
+  if (e.target.id === "oGoal") { BK.sides = {}; O.token++; SS.active = false; showStart(); } else renderOpenings();
+});
+if (/[?&]debug\b/.test(location.search)) window.__op = { O, SS, BK, bookOf, pathTo, ocards, FSRS, bookCounts, sessionItems, walkGame };   // for tests
+// Reset asks first, in a dialog that shows what would be lost. "No" is the default button.
+$("oReset").onclick = () => {
+  $("resetList").innerHTML = ["b", "w"].map(sd => { const n = bookCounts(sd); return n ? "<li><b>" + esc(REP_SIDES[sd].title) + "</b>: " + (n.all - n.new) + " moves started, " + n.learned + " learned, " + n.mastery + "% mastery</li>" : ""; }).join("");
+  $("resetDlg").showModal(); $("resetNo").focus();
+};
+$("resetNo").onclick = () => $("resetDlg").close();
+$("resetYes").onclick = () => {
+  $("resetDlg").close();
+  store.set("ocards", {}); sync.reset("ocards"); store.set("onew", null); sync.reset("onew");
+  O.token++; SS.active = false; SS.done = false; showStart();
+};
 
 function confetti(id) {
   // A burst of green confetti from the middle of a board (openings by default), clipped to the board.
@@ -2931,46 +3366,6 @@ function confetti(id) {
   })(t0);
 }
 
-function lineDone(why) {
-  O.status = "done"; O.arrow = null;
-  const line = O.drill || pathSan(), key = line.join(" ");
-  O.recent.push(key); if (O.recent.length > 6) O.recent.shift();
-  if (O.mode === "learn" && O.step === "watch") {
-    // Step 1 done: nothing is scored. Step 2 (the same line, from memory) starts by itself.
-    olearn.add(O.side, line); O.justLearned = key;
-    O.msg = { cls: "info", html: "You’ve seen the whole line. Step 2 starts in a moment: play it from memory." };
-    renderOpenings();
-    const t = O.token; setTimeout(() => { if (t === O.token && O.status === "done") openingsStart(line, "learn", "memory"); }, 1800);
-    return;
-  }
-  confetti();
-  ocov.add(O.side, line); oclean.set(O.side, line, !O.misses);
-  const p = oprog.get(); const s = p[O.side]; s.lines++; if (!O.misses && O.mine) s.perfect++;
-  let up;
-  if (!O.misses) {
-    // A clean run clears every missed move on this line, so it counts as practiced.
-    for (const [k, sp] of Object.entries(p.spots)) if (sp.side === O.side && sp.path.every((m, i) => line[i] === m)) delete p.spots[k];
-    up = O.mode === "random" ? " Still solid." : O.mode === "learn" ? " <b>Learned and practiced.</b> It now comes up in Random practice." : " <b>Practiced!</b> This line now comes up in Random practice.";
-  } else up = O.mode === "random" ? " It goes back under Learned until you play it again with no misses." : " It stays under Learned: Practice brings it back until you play it with no misses.";
-  oprog.set(p);
-  const right = O.mine - O.misses;
-  O.msg = { cls: O.misses ? "info" : "good", html: why + ' You got <b>' + right + ' of ' + O.mine + '</b> moves right first time.' + up };
-  renderOpenings();
-  if (!O.misses && O.mine) { $("oboard").classList.add("flash-good"); setTimeout(() => $("oboard").classList.remove("flash-good"), 700); }
-}
-
-function moveListHTML() {
-  if (!O.hist.length) return '<span class="omuted">No moves yet.</span>';
-  let html = "", ply = 0;
-  for (const h of O.hist) {
-    if (ply % 2 === 0) html += '<span class="onum">' + (ply / 2 + 1) + '.</span>';
-    const cls = h.by === "me" ? (h.ok ? "me ok" : "me miss") : "cpu";
-    html += '<span class="omv ' + cls + '">' + esc(h.san) + (h.by === "me" && !h.pre ? (h.ok ? ' ✓' : ' ✗') : "") + '</span>';
-    ply++;
-  }
-  return html;
-}
-
 // Openings eval bar: Stockfish looks at each new position (results cached), and the bar glides
 // to the new value with the same transition as Game review's.
 const oEvals = new Map();
@@ -2989,272 +3384,6 @@ function updateOpeningEval() {
   engine.analyse(fen, 12).then(r => done(toEval(fen, r))).catch(() => {}).finally(() => { if (oEvalFen === fen) oEvalFen = null; });
 }
 
-function renderOpenings() {
-  if (!O.book) return;
-  updateOpeningEval();
-  const showing = O.mode === "learn" && O.step === "watch", want = O.status === "mine" ? wantMove() : null;
-  if (showing && want) O.arrow = { from: want.from, to: want.to };   // Watch: always show the move
-  renderBoard(O.fen, O.last, O.arrow, null, { el: "oboard", flip: O.side === "b", sel: O.sel, targets: O.targets, hint: O.mode === "punish" ? O.phint : null });
-  document.querySelectorAll("#oside button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === O.side)));
-  const meta = REP_SIDES[O.side], info = lineInfo(O.side, O.drill);
-  $("oShow").hidden = O.mode !== "punish";
-  if (O.mode === "punish") {
-    renderPunishCard(meta);
-    $("oHint").textContent = "Hint"; $("oHint").disabled = O.status !== "solving";
-    $("oShow").disabled = !(O.status === "solving" || O.status === "wrong");
-    $("oNext").textContent = "Next drill";
-  } else {
-  $("oHint").textContent = "Show book move";
-  let ask = "";
-  if (O.status === "mine") ask = showing ? "Play " + plyNum(O.hist.length) + (want ? want.san : "") + "." : O.missedNow ? "Play the book move." : "Your move.";
-  else if (O.status === "cpu") ask = "Opponent is thinking…";
-  else if (O.status === "wrong") ask = "Not quite…";
-  else if (O.status === "done") ask = showing ? "Now play it from memory." : O.misses ? "Line finished." : "Perfect line!";
-  const head = info ? '<div class="onow"><div class="onow-t"><b>' + esc(info.g.title) + '</b><span> · ' + esc(info.l.title) + '</span></div><div class="onow-n">Line ' + (info.li + 1) + ' of ' + info.g.lines.length + '</div></div>' : "";
-  const steps = O.mode === "learn"
-    ? '<div class="osteps"><span class="ostep ' + (showing ? "on" : "done") + '">' + (showing ? "" : "✓ ") + 'Step 1 · Watch</span><i class="osteparr" aria-hidden="true">→</i><span class="ostep' + (showing ? "" : " on") + '">Step 2 · From memory</span></div>'
-    : '<div class="osteps"><span class="ostep on">' + (O.mode === "random" ? "Random practice · a line you’ve practiced" : "Practice · on your own") + '</span></div>';
-  $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + '</div>' + head + steps +
-    '<p class="ask">' + esc(ask) + '</p>' +
-    '<div class="ostrip">' + lineStripHTML(showing) + '</div>' +
-    (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "");
-  $("oHint").disabled = O.status !== "mine" || showing;
-  $("oNext").textContent = O.status === "done" ? (showing ? "Play from memory" : "Next line") : "Restart line";
-  }
-  const s = oprog.get()[O.side];
-  const pct = s.moves ? Math.round(100 * s.first / s.moves) : null;
-  $("ostats").innerHTML = '<div><b>' + s.lines + '</b>lines played</div><div><b>' + s.perfect + '</b>perfect lines</div><div><b>' + (pct == null ? "–" : pct + "%") + '</b>moves right first time</div>';
-  renderModes(renderMap(meta));
-  renderMissed();
-}
-function plyNum(i) { return i % 2 === 0 ? (i / 2 + 1) + "." : Math.floor(i / 2 + 1) + "..."; }
-// The whole line as a strip: moves played so far (green right first time, red missed), your current
-// move, then what's left. Watch shows every move; from memory hides the moves you haven't reached.
-function lineStripHTML(showing) {
-  const line = O.drill || [], reveal = showing || O.status === "done";
-  let h = "";
-  for (let i = 0; i < line.length; i++) {
-    const n = i % 2 === 0 ? '<span class="onum">' + (i / 2 + 1) + '.</span>' : "";
-    if (i < O.hist.length) { const x = O.hist[i]; h += n + '<span class="omv ' + (x.by === "me" ? (x.ok ? "me ok" : "me miss") : "cpu") + '">' + esc(x.san) + '</span> '; }
-    else if (i === O.hist.length && (O.status === "mine" || O.status === "wrong")) h += n + '<span class="omv cur">' + (reveal ? esc(line[i]) : "?") + '</span> ';
-    else h += n + '<span class="omv up">' + (reveal ? esc(line[i]) : "·") + '</span> ';
-  }
-  return h;
-}
-function lineInfo(side, path) {
-  if (!path) return null;
-  const groups = lineGroups(side), k = repBook(side).byKey.get(path.join(" "));
-  return k ? { g: groups[k[0]], l: groups[k[0]].lines[k[1]], gi: k[0], li: k[1] } : null;
-}
-
-// Learn: new lines, watch then from memory. Practice: learned lines, on your own. Random practice: a
-// random line you've already practiced. Learn waits while LEARN_BLOCK learned lines need practice.
-const LEARN_BLOCK = 2;
-function renderModes(n) {
-  const blocked = n.learn >= LEARN_BLOCK;
-  const btn = (mode, title, sub, count, off) => '<button type="button" class="omode' + (O.mode === mode ? " on" : "") + '" data-mode="' + mode + '" aria-pressed="' + (O.mode === mode) + '"' + (off ? " disabled" : "") + '>' +
-    '<span class="omode-t">' + title + '</span><span class="omode-s">' + sub + '</span><span class="omode-c">' + count + '</span></button>';
-  $("omodes").innerHTML =
-    btn("learn", "Learn", "Watch, then from memory", !n.new ? "All learned" : blocked ? '<span class="owarn">Practice ' + n.learn + ' waiting first</span>' : "<b>" + (n.all - n.new) + "/" + n.all + "</b> learned", !n.new) +
-    btn("practice", "Practice", "Learned lines, on your own", n.learn ? "<b>" + n.learn + "</b> to practice" : "None waiting", !n.learn) +
-    btn("random", "Random practice", "Lines you’ve practiced", n.prac ? "<b>" + n.prac + "</b> line" + (n.prac === 1 ? "" : "s") : "None yet", !n.prac) +
-    (pc => btn("punish", "Punish", "Their mistakes, your games", !pc.all ? "None yet" : pc.missed ? '<span class="omiss-n">' + pc.missed + ' missed chance' + (pc.missed === 1 ? "" : "s") + '</span>' : pc.left ? "<b>" + pc.left + "</b> to solve" : "All solved", !pc.all))(punishCounts());
-}
-
-// The whole book as a list you can open: every 10-move line, grouped where the opponent branches off.
-// A line is "learned" once you've played it through and no move you missed on it is still on your
-// list, "to practice" while one is, and "not played" before you've played it through.
-function lineGroups(side) {
-  const book = repBook(side);
-  if (book.groups) return book.groups;
-  const nodes = book.nodes, groups = [];
-  const nameAt = path => { let at = 0, nm = ""; for (const san of path) { at = nodes[at].moves.get(san); if (at == null) break; if (nodes[at].name) nm = nodes[at].name; } return nm; };
-  const strip = n => side === "b" ? n.replace(/^Caro-Kann Defense:?\s*/, "") : n;
-  // Split a bunch of lines at the first opponent move where they differ, until each group is small
-  // enough to scan. Replies with fewer than 3 lines go together in an "Other … moves" group.
-  (function split(ls, from, branch) {
-    let c = from; while (ls.every(l => l.path.length > c && l.path[c] === ls[0].path[c])) c++;
-    const prefix = ls[0].path.slice(0, c);
-    if (ls.length <= 16) { groups.push({ prefix, lines: ls, branch }); return; }
-    const by = new Map(); for (const l of ls) { const k = l.path[c] || ""; if (!by.has(k)) by.set(k, []); by.get(k).push(l); }
-    const rest = [];
-    for (const part of by.values()) { if (part.length < 3) rest.push(...part); else split(part, c + 1, c); }
-    if (rest.length) groups.push({ prefix, lines: rest, branch: c, other: true });
-  })(bookLines(side, OPEN_MAX_MOVES, true), 0, 0);
-  const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
-  for (const g of groups) {
-    g.key = g.prefix.join(" ") + (g.other ? " +" : "");
-    // Queen's Gambit has many groups: sort them under Black's first move.
-    g.sect = side === "w" ? (g.other && g.branch <= 1 ? "Other first moves" : "Against 1..." + g.lines[0].path[1]) : "";
-    // Name a group after what most of its lines become (transpositions included), else its starting position.
-    const most = cut => { const fam = new Map(); for (const l of g.lines) { const f = cut(strip(nameAt(l.path))).trim(); if (f) fam.set(f, (fam.get(f) || 0) + 1); }
-      let top = ""; for (const [f, k] of fam) if (k >= .6 * g.lines.length && (!top || k > fam.get(top))) top = f; return top; };
-    const top = most(n => n.split(",")[0]) || most(n => n.split(":")[0]);
-    g.title = g.other ? "Other " + ord(Math.floor(g.branch / 2) + 1) + " moves for " + (g.branch % 2 ? "Black" : "White")
-      : top || strip(nameAt(g.prefix)) || g.prefix.slice(g.branch).map((m, j) => { const i = g.branch + j; return (i % 2 === 0 ? (i / 2 + 1) + "." : j === 0 ? Math.floor(i / 2 + 1) + "..." : "") + m; }).join(" ");
-    for (const l of g.lines) {
-      let nm = strip(nameAt(l.path));
-      if (!g.other && g.title && nm.startsWith(g.title)) nm = nm.slice(g.title.length).replace(/^[,:]\s*/, "");
-      else { const op = g.title.split(":")[0]; if (g.title.includes(":") && nm.startsWith(op + ":")) nm = nm.slice(op.length + 1).trim(); }
-      l.title = nm || "Main line";
-    }
-  }
-  // Order by your own games: how often your opponents went into each group (counted at the last
-  // opponent move of its starting moves), and inside a group, the reply they chose most at each branch.
-  const real = book.real, isOpp = i => (i % 2 === 0) !== (side === "w");
-  const nodeAt = path => { let at = 0; for (const san of path) { at = nodes[at].moves.get(san); if (at == null) return -1; } return at; };
-  const seen = path => { let at = 0, n = null; for (let i = 0; i < path.length; i++) { if (isOpp(i)) { const r = real.get(at); n = (r && r.get(path[i])) || 0; } at = nodes[at].moves.get(path[i]); if (at == null) break; } return n == null ? (book.total || 0) : n; };
-  const first = new Map();
-  groups.forEach((g, i) => {
-    g.idx = i; if (!first.has(g.sect)) first.set(g.sect, i);
-    g.count = g.other ? [...new Set(g.lines.map(l => l.path[g.prefix.length]))].reduce((a, san) => a + seen(g.prefix.concat(san)), 0) : seen(g.prefix);
-    g.lines.sort((a, b) => { for (let k = 0; k < Math.min(a.path.length, b.path.length); k++) if (a.path[k] !== b.path[k]) { const r = real.get(nodeAt(a.path.slice(0, k))); return ((r && r.get(b.path[k])) || 0) - ((r && r.get(a.path[k])) || 0); } return 0; });
-  });
-  for (const g of groups) g.sectCount = side === "w" ? (g.other && g.branch <= 1 ? g.count : seen(g.lines[0].path.slice(0, 2))) : 0;
-  groups.sort((a, b) => (b.sectCount - a.sectCount) || (first.get(a.sect) - first.get(b.sect)) || (b.count - a.count) || (a.idx - b.idx));
-  book.byKey = new Map(); groups.forEach((g, gi) => g.lines.forEach((l, li) => book.byKey.set(l.path.join(" "), [gi, li])));
-  return (book.groups = groups);
-}
-// Moves from ply `from` on, numbered ("3.e5 Bf5 4.Nf3" or "3...Bf5 4.Nf3"); plies in `mark` in bold.
-function sanLine(path, from, mark) {
-  let out = [];
-  for (let i = from || 0; i < path.length; i++) {
-    const num = i % 2 === 0 ? (i / 2 + 1) + "." : i === (from || 0) ? Math.floor(i / 2 + 1) + "..." : "";
-    const san = esc(path[i]);
-    out.push('<span class="onum">' + num + '</span>' + (mark && mark.has(i) ? "<b>" + san + "</b>" : san));
-  }
-  return out.join(" ");
-}
-// Stage of every book line: "new", "learn" (shown in Learn mode, or last played on your own with a
-// miss) or "prac" (last played on your own with no misses). Missed moves are shown on learned lines.
-function lineStates(side, p, c, L, K) {
-  L = L || olearn.get(); K = K || oclean.get();
-  const spots = Object.values(p.spots).filter(v => v.side === side).map(v => ({ line: v.path.concat(v.main || v.moves[0] || []), at: v.path.length, miss: v.miss || 1 }));
-  return lineGroups(side).map(g => g.lines.map(l => {
-    const st = oclean.has(side, l.path, K) ? "prac" : lineCovered(side, l.path, c) || olearn.has(side, l.path, L) ? "learn" : "new";
-    const hit = st === "learn" ? spots.filter(sp => sp.line.length <= l.path.length && sp.line.every((m, i) => l.path[i] === m)) : [];
-    return { st, miss: hit.reduce((a, sp) => a + sp.miss, 0), missAt: new Set(hit.map(sp => sp.at)) };
-  }));
-}
-// Open/closed state of the list (and filter) is per device: it's only about what's on screen.
-function listUI() {
-  if (!O.lui) { O.lui = store.get("olist", null) || {}; if (!["all", "new", "learn", "prac"].includes(O.lui.filter)) O.lui.filter = "all"; O.lgrp = { b: {}, w: {} }; }
-  return O.lui;
-}
-function closeList() { const ui = listUI(); if (ui.open) { ui.open = false; store.set("olist", { open: false, filter: ui.filter }); } }
-function toBoard() { const top = $("oboard").getBoundingClientRect().top; if (top < 0 || top > innerHeight * .6) $("oboard").scrollIntoView({ behavior: "smooth", block: "start" }); }
-// The map: one row per variation, most played first, with a block per line coloured by stage and what
-// the variation still needs. Queen's Gambit rows sit under folding "Against 1..." sections.
-function renderMap(meta) {
-  const side = O.side, p = oprog.get(), c = ocov.get(), groups = lineGroups(side), st = lineStates(side, p, c);
-  const n = { all: 0, new: 0, learn: 0, prac: 0 }; for (const g of st) for (const x of g) { n.all++; n[x.st]++; }
-  O.lgrp = O.lgrp || { b: {}, w: {} }; O.lsec = O.lsec || { b: {}, w: {} };
-  const info = lineInfo(side, O.drill), curG = info ? info.gi : -1, curL = info ? info.li : -1;
-  const games = k => k ? "faced in " + k + " game" + (k === 1 ? "" : "s") : "not in your games yet";
-  const need = sts => {
-    const fix = sts.filter(x => x.st === "learn" && x.miss).length, wt = sts.filter(x => x.st === "learn" && !x.miss).length, nw = sts.filter(x => x.st === "new").length, out = [];
-    if (fix) out.push('<span class="oneed fix">' + fix + ' to fix</span>');
-    if (wt) out.push('<span class="oneed wait">' + wt + ' learned</span>');
-    if (nw) out.push('<span class="oneed">' + nw + ' new</span>');
-    return out.length ? out.slice(0, 2).join(" · ") : '<span class="oneed ok">All practiced</span>';
-  };
-  const stacked = sts => { const k = s => (100 * sts.filter(x => x.st === s).length / Math.max(1, sts.length)).toFixed(2);
-    return '<i class="st-prac" style="width:' + k("prac") + '%"></i><i class="st-learn" style="width:' + k("learn") + '%"></i>'; };
-  let h = '<div class="omaphead"><div class="section-label">Your ' + esc(meta.title) + ' map · most played first</div>' +
-    '<div class="olegend"><span><i class="odot st-prac"></i>' + n.prac + ' practiced</span><span><i class="odot st-learn"></i>' + n.learn + ' learned</span><span><i class="odot st-new"></i>' + n.new + ' new</span></div></div>';
-  let body = "", sect = null, sectOpen = true;
-  groups.forEach((g, gi) => {
-    if (g.sect && g.sect !== sect) {
-      sect = g.sect;
-      const idx = groups.map((_, i) => i).filter(i => groups[i].sect === sect), all = idx.flatMap(i => st[i]);
-      const set = O.lsec[side][sect]; sectOpen = set != null ? set : idx.includes(curG);
-      body += '<button type="button" class="osec' + (sectOpen ? " open" : "") + '" data-lsect="' + esc(sect) + '" aria-expanded="' + sectOpen + '">' +
-        '<span class="ovar-t"><span class="ovar-nm">' + esc(sect) + '</span><span class="ovar-g">' + games(g.sectCount) + ' · ' + all.length + ' lines</span></span>' +
-        '<span class="ostack mini">' + stacked(all) + '</span><span class="ovar-need">' + need(all) + '</span><span class="ochev" aria-hidden="true">' + (sectOpen ? "▴" : "▾") + '</span></button>';
-    }
-    if (!sectOpen) return;
-    const open = !!O.lgrp[side][g.key];
-    body += '<div class="ovar' + (open ? " open" : "") + (g.sect ? " insect" : "") + '"><button type="button" class="ovar-head" data-lgrp="' + gi + '" aria-expanded="' + open + '">' +
-      '<span class="ovar-t"><span class="ovar-nm">' + esc(g.title) + '</span><span class="ovar-g">' + games(g.count) + '</span></span>' +
-      '<span class="oblks">' + st[gi].map((x, li) => '<i class="oblk st-' + x.st + (gi === curG && li === curL ? " now" : "") + '"></i>').join("") + '</span>' +
-      '<span class="ovar-need">' + need(st[gi]) + '</span><span class="ochev" aria-hidden="true">' + (open ? "▴" : "▾") + '</span></button>';
-    if (open) body += '<div class="opath ovar-pre">' + sanLine(g.prefix, 0) + (g.other ? " …" : "") + '</div><ul class="olines">' + g.lines.map((l, li) => { const x = st[gi][li];
-      return '<li><button type="button" class="oline st-' + x.st + (gi === curG && li === curL ? " now" : "") + '" data-lline="' + gi + '.' + li + '">' +
-        '<i class="odot st-' + x.st + '"></i><span class="oline-t"><span class="onm">' + (li + 1) + '. ' + esc(l.title) + '</span>' +
-        '<span class="opath">' + sanLine(l.path, g.prefix.length, x.missAt) + '</span>' +
-        (x.st === "new" ? '<span class="ost">New · tap to learn</span>'
-          : x.st === "learn" ? (x.miss ? '<span class="ost miss">Missed ' + x.miss + '× · tap to practice</span>' : '<span class="ost">Learned · tap to practice</span>')
-          : '<span class="ost">Practiced · tap to practice again</span>') + '</span></button></li>'; }).join("") + '</ul>';
-    body += '</div>';
-  });
-  h += '<div class="omap">' + body + '</div>' +
-    '<div class="omuted">' + (n.prac >= n.all ? 'You’ve practiced every ' + esc(meta.title) + ' line in the book. Time to add more. ' : '') + 'Tap a variation to see its lines, and a line to play it. Green moves are the ones you missed.</div>';
-  // The map scrolls inside its own box; keep its scroll position when it redraws after a move or tap.
-  const old = $("ocov").querySelector(".omap"), keep = old && O.lscroll === side ? old.scrollTop : 0;
-  $("ocov").innerHTML = h;
-  const box = $("ocov").querySelector(".omap"); if (box) box.scrollTop = keep;
-  O.lscroll = side;
-  return n;
-}
-// The moves you've missed most (on your own), where they come up, and a tap to practice a line through them.
-function spotGroups(side, v) {
-  const key = v.path.concat(v.main || v.moves[0] || []).join(" ") + " ";
-  return lineGroups(side).filter(g => g.lines.some(l => (l.path.join(" ") + " ").startsWith(key))).length;
-}
-function spotLine(side, v) {
-  const key = v.path.concat(v.main || v.moves[0] || []).join(" ") + " ", groups = lineGroups(side);
-  for (let gi = 0; gi < groups.length; gi++) for (let li = 0; li < groups[gi].lines.length; li++)
-    if ((groups[gi].lines[li].path.join(" ") + " ").startsWith(key)) return { g: groups[gi], l: groups[gi].lines[li] };
-  return null;
-}
-function renderMissed() {
-  const side = O.side;
-  const rows = Object.entries(oprog.get().spots).filter(([, v]) => v.side === side && (v.miss || 0) > 0)
-    .map(([k, v]) => ({ k, v, hit: spotLine(side, v) })).filter(r => r.hit)
-    .sort((a, b) => b.v.miss - a.v.miss || (b.v.at || 0) - (a.v.at || 0)).slice(0, 5);
-  const ctx = path => { const from = Math.max(0, path.length - 4); return path.slice(from).map((san, j) => { const i = from + j; return (i % 2 === 0 ? (i / 2 + 1) + "." : j === 0 ? Math.floor(i / 2 + 1) + "..." : "") + san; }).join(" "); };
-  $("omiss").innerHTML = '<div class="section-label">Moves you keep missing</div>' + (rows.length
-    ? '<ul class="omisslist">' + rows.map(r => '<li><button type="button" class="omissrow" data-miss="' + esc(r.k) + '">' +
-      '<span class="omiss-mv">' + esc(plyNum(r.v.path.length) + (r.v.main || r.v.moves[0] || "")) + '</span>' +
-      '<span class="omiss-ctx">' + esc((n => n > 1 ? "In " + n + " variations" : r.hit.g.title)(spotGroups(side, r.v))) + (r.v.path.length ? ' · after ' + esc(ctx(r.v.path)) : "") + '</span>' +
-      '<span class="omiss-n">missed ' + r.v.miss + '×</span></button></li>').join("") + '</ul><div class="omuted">Tap one to practice a line that goes through it.</div>'
-    : '<div class="omuted">Nothing here right now. Moves you miss when you play on your own show up here.</div>');
-}
-
-// One card per variation: spots on the same line (one a continuation of another) are merged.
-function varGroups(p, side) {
-  const spots = Object.values(p.spots).filter(v => v.side === side).map(v => ({ ...v, line: v.path.concat(v.main || v.moves[0] || []) }))
-    .sort((a, b) => b.line.length - a.line.length);
-  const groups = [];
-  for (const sp of spots) {
-    const g = groups.find(g => sp.line.every((m, i) => g.line[i] === m));
-    if (g) { g.miss += sp.miss; g.missAt.add(sp.path.length); g.at = Math.max(g.at, sp.at); }
-    else groups.push({ line: sp.line, name: sp.name, miss: sp.miss, missAt: new Set([sp.path.length]), at: sp.at });
-  }
-  return groups.sort((a, b) => b.miss - a.miss || b.at - a.at);
-}
-// Which line each mode serves next, in map order (most played first). Learn: the next new line.
-// Practice: the line you just learned, then lines with missed moves, then map order. Random practice:
-// any practiced line, leaning toward replies your real opponents play, and not one of the last few.
-function pickLine(mode) {
-  const want = { learn: "new", practice: "learn", random: "prac" }[mode]; if (!want) return null;
-  const st = lineStates(O.side, oprog.get(), ocov.get()), all = [];
-  lineGroups(O.side).forEach((g, gi) => g.lines.forEach((l, li) => all.push({ l, x: st[gi][li], i: all.length })));
-  const cur = O.drill ? O.drill.join(" ") : "";
-  let pool = all.filter(r => r.x.st === want); if (!pool.length) return null;
-  if (pool.length > 1) pool = pool.filter(r => r.l.path.join(" ") !== cur);
-  if (mode === "learn") return pool[0].l.path;
-  if (mode === "practice") {
-    const jl = pool.find(r => r.l.path.join(" ") === O.justLearned); if (jl) return jl.l.path;
-    return pool.slice().sort((a, b) => b.x.miss - a.x.miss || a.i - b.i)[0].l.path;
-  }
-  const keep = Math.min(O.recent.length, pool.length - 1), recent = new Set(O.recent.slice(O.recent.length - keep));
-  const fresh = pool.filter(r => !recent.has(r.l.path.join(" "))); if (fresh.length) pool = fresh;
-  const w = r => 1 + (r.l.fam || 0);
-  let r = Math.random() * pool.reduce((a, q) => a + w(q), 0);
-  for (const q of pool) { r -= w(q); if (r <= 0) return q.l.path; }
-  return pool[pool.length - 1].l.path;
-}
 // ---------- Punish: your opponents' opening mistakes, from your own games ----------
 // Every opponent move in your first 12 moves (Caro-Kann as Black, 1.d4 as White) that lost a pawn or
 // more and left you at +0.8 or better becomes a drill, once per position. Drills you missed in a game
@@ -3298,10 +3427,10 @@ function punishList() { O.pzc = O.pzc || {}; return O.pzc[O.side] || (O.pzc[O.si
 function punishCounts() { const L = punishList(), done = opun.get(); return { all: L.length, missed: L.filter(d => d.missed && done[d.id] !== "solved").length, left: L.filter(d => done[d.id] !== "solved").length }; }
 function punishStart(id) {
   const list = punishList();
-  if (!list.length) return startMode("learn", true);
+  if (!list.length) { O.mode = "practice"; store.set("omode", "practice"); O.pz = null; return showStart(); }
   const done = opun.get(), cur = O.pz ? O.pz.id : null;
   const d = (id && list.find(x => x.id === id)) || list.find(x => done[x.id] !== "solved" && x.id !== cur) || list.find(x => x.id !== cur) || list[0];
-  O.token++; O.book = repBook(O.side); O.mode = "punish"; store.set("omode", "punish"); O.step = null; O.drill = null; O.pz = d;
+  O.token++; O.mode = "punish"; store.set("omode", "punish"); O.cur = null; SS.active = false; O.pz = d;
   Object.assign(O, { hist: [], mine: 0, misses: 0, missedNow: false, sel: null, targets: [], arrow: null, msg: null, phint: null, pstep: 0, ptries: 0, revealed: false, plast: null });
   O.pline = d.pv ? trimLine(d.fen, d.pv) : [];
   O.fen = d.prevFen; O.last = null; O.status = "intro"; renderOpenings();
@@ -3413,109 +3542,7 @@ function renderPunishCard(meta) {
     (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "") +
     '<div class="ctx onote">' + note + '</div>';
 }
-function waitingLines() { return lineStates(O.side, oprog.get(), ocov.get()).flat().filter(x => x.st === "learn").length; }
-// Start a line in a mode. With fallback, a mode with nothing to serve hands over to the next one.
-// While LEARN_BLOCK or more learned lines wait for practice, Learn sends you to Practice and says why.
-function startMode(mode, fallback) {
-  if (mode === "punish") return punishStart();
-  const waiting = waitingLines(), blocked = waiting >= LEARN_BLOCK;
-  let order = [mode].concat(fallback ? ["practice", "learn", "random"].filter(m => m !== mode) : []), note = false;
-  if (blocked) {
-    if (order[0] === "learn") { order = ["practice"].concat(order.filter(m => m !== "learn" && m !== "practice")); note = true; }
-    else order = order.filter(m => m !== "learn");
-  }
-  for (const m of order) {
-    const path = pickLine(m); if (!path) continue;
-    O.mode = m; store.set("omode", m); openingsStart(path, m);
-    if (note && m === "practice") { O.msg = { cls: "info", html: 'You have <b>' + waiting + ' learned lines</b> waiting. Practice them on your own first. Learn opens again when fewer than ' + LEARN_BLOCK + ' are waiting.' }; renderOpenings(); }
-    return;
-  }
-}
 
-function openingsRefresh() {
-  if (!window.Chess) return;
-  if (!O.book || O.bookSide !== O.side) { O.bookSide = O.side; startMode(O.mode, true); }
-  else renderOpenings();
-}
-
-$("oboard").addEventListener("click", e => {
-  const can = O.mode === "punish" ? O.status === "solving" : O.status === "mine";
-  const el = e.target.closest(".sq[data-sq]"); if (!el || !can) return;
-  const sq = el.dataset.sq; const c = new Chess(O.fen);
-  if (O.sel && O.targets.includes(sq)) { (O.mode === "punish" ? punishTry : oTryMove)(O.sel, sq); return; }
-  const pc = c.get(sq);
-  if (pc && pc.color === c.turn()) { O.sel = sq; O.targets = c.moves({ square: sq, verbose: true }).map(m => m.to); }
-  else { O.sel = null; O.targets = []; }
-  renderOpenings();
-});
-$("oside").addEventListener("click", e => {
-  const b = e.target.closest("button[data-side]"); if (!b || b.dataset.side === O.side) return;
-  O.side = b.dataset.side; store.set("oside", O.side); O.bookSide = O.side; O.recent = []; O.drill = null; O.justLearned = null; startMode(O.mode, true);
-});
-$("oShow").onclick = () => punishShow();
-$("oNext").onclick = () => {
-  if (O.mode === "punish") return punishStart();
-  if (O.status === "done") {
-    if (O.mode === "learn" && O.step === "watch") return openingsStart(O.drill, "learn", "memory");
-    return startMode(O.mode, true);
-  }
-  openingsStart(O.drill, O.mode, O.step);   // restart the same line (and the same step)
-};
-$("oHint").onclick = () => {
-  if (O.mode === "punish") {
-    if (O.status !== "solving") return;
-    const u = O.pline[O.pstep]; if (!u) return;
-    O.phint = u.slice(0, 2); const pc = new Chess(O.fen).get(O.phint);
-    O.msg = { cls: "info", html: "Hint: move your " + (pc ? PNAME[pc.type] : "piece") + " on <b>" + O.phint + "</b>." }; renderOpenings(); return;
-  }
-  if (O.status !== "mine" || (O.mode === "learn" && O.step === "watch")) return;
-  const w = wantMove() || (mainMove() && new Chess(O.fen).move(mainMove())); if (!w) return;
-  O.arrow = { from: w.from, to: w.to }; O.missedNow = true;
-  O.msg = { cls: "info", html: 'The book move is <b>' + esc(w.san) + '</b>. Play it to continue (this one counts as missed).' };
-  renderOpenings();
-};
-$("omodes").addEventListener("click", e => {
-  const b = e.target.closest("button[data-mode]"); if (!b || b.disabled) return;
-  startMode(b.dataset.mode, false); toBoard();
-});
-$("ocov").addEventListener("click", e => {
-  const t = e.target.closest("[data-lsect],[data-lgrp],[data-lline]"); if (!t) return;
-  const d = t.dataset;
-  if (d.lline) {
-    const [gi, li] = d.lline.split(".").map(Number), l = lineGroups(O.side)[gi].lines[li]; if (!l) return;
-    // New lines open in Learn (unless lines are waiting for practice); learned and practiced ones in Practice.
-    const x = lineStates(O.side, oprog.get(), ocov.get())[gi][li];
-    if (x.st === "new" && waitingLines() >= LEARN_BLOCK) startMode("learn", false);
-    else { const mode = x.st === "new" ? "learn" : "practice"; store.set("omode", mode); openingsStart(l.path, mode); }
-    toBoard();
-    return;
-  }
-  if (d.lsect != null) {
-    const m = O.lsec[O.side], info = lineInfo(O.side, O.drill);
-    const was = m[d.lsect] != null ? m[d.lsect] : !!(info && info.g.sect === d.lsect); m[d.lsect] = !was;
-  } else if (d.lgrp) { const g = lineGroups(O.side)[+d.lgrp], m = O.lgrp[O.side]; m[g.key] = !m[g.key]; }
-  renderOpenings();
-});
-$("omiss").addEventListener("click", e => {
-  const b = e.target.closest("[data-miss]"); if (!b) return;
-  const v = oprog.get().spots[b.dataset.miss], hit = v && spotLine(O.side, v); if (!hit) return;
-  store.set("omode", "practice"); openingsStart(hit.l.path, "practice"); toBoard();
-});
-// Reset asks first, in a dialog that shows what would be lost. "No" is the default button.
-$("oReset").onclick = () => {
-  const p = oprog.get(), c = ocov.get(), L = olearn.get();
-  $("resetList").innerHTML = ["b", "w"].map(sd => {
-    const st = lineStates(sd, p, c, L).flat(), pr = st.filter(x => x.st === "prac").length, lr = st.filter(x => x.st === "learn").length;
-    return "<li><b>" + esc(REP_SIDES[sd].title) + "</b>: " + pr + " lines practiced, " + lr + " learned, " + p[sd].lines + " lines played</li>";
-  }).join("");
-  $("resetDlg").showModal(); $("resetNo").focus();
-};
-$("resetNo").onclick = () => $("resetDlg").close();
-$("resetYes").onclick = () => {
-  $("resetDlg").close();
-  store.set("oprog", null); sync.reset("oprog"); store.set("ocov", { b: [], w: [] }); sync.reset("ocov");
-  store.set("olearn", { b: [], w: [] }); sync.reset("olearn"); store.set("oclean", { b: [], w: [] }); sync.reset("oclean"); O.justLearned = null; startMode("learn", true);
-};
 
 (async function boot() {
   loader.start();
@@ -3557,7 +3584,7 @@ $("resetYes").onclick = () => {
     const keep = id && S.games.find(g => g.id === id);
     if (keep) { S.sel = keep; renderList(); if (view === "review") renderReview(); else S.reviewStale = true; } else select(S.games[0]);
     savedNote();
-    O.books = {}; O.pzc = {};                         // re-read your real opponents' moves and mistakes
+    O.pzc = {};                                       // re-read your opponents' mistakes (Punish)
     if (view === "trainer") trainerRefresh(); else if (view === "openings") openingsRefresh();
     loader.done();
   });
@@ -3565,7 +3592,8 @@ $("resetYes").onclick = () => {
   // Sync wiring
   sync.onPulled = changed => {
     if (changed.includes("tprog") && view === "trainer") trainerRefresh();
-    if ((changed.includes("oprog") || changed.includes("ocov") || changed.includes("olearn") || changed.includes("oclean") || changed.includes("opun") || changed.includes("ohold")) && view === "openings" && O.book) renderOpenings();
+    if (changed.includes("oset")) BK.sides = {};
+    if (["ocards", "onew", "ogame", "oset", "opun"].some(k => changed.includes(k)) && view === "openings" && !SS.active) renderOpenings();
   };
   $("syncBtn").onclick = () => { sync.label(); $("syncDlg").showModal(); };
   $("syncDlg").addEventListener("click", e => { if (e.target.closest("[data-close]")) $("syncDlg").close(); });

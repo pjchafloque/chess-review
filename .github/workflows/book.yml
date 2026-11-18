@@ -1,0 +1,73 @@
+name: Openings book
+
+# Rebuilds data/repertoire.json, the book the Openings tab trains (scripts/repertoire.py), with your
+# newest games. Moves you've already learned stay as they are. Run it by hand with "sample" ticked to
+# also take a fresh sample of Lichess games at your level (scripts/lichess_sample.py, ~30 minutes).
+on:
+  schedule:
+    - cron: "41 7 * * 1"   # Mondays
+  workflow_dispatch:
+    inputs:
+      sample:
+        description: "Also take a fresh sample of Lichess games at your level"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: openings-book
+  cancel-in-progress: false
+
+env:
+  CHESS_USER: chaflox
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  build:
+    name: Build the openings book
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache Stockfish 19
+        uses: actions/cache@v4
+        with:
+          path: ~/stockfish19
+          key: stockfish-19-linux-x86-64-universal
+      - name: Install Stockfish 19 and python-chess
+        timeout-minutes: 10
+        run: |
+          if [ ! -x ~/stockfish19/stockfish ]; then
+            mkdir -p ~/stockfish19
+            curl -fsSL --retry 3 -o /tmp/sf.tar.gz https://github.com/official-stockfish/Stockfish/releases/download/sf_19/stockfish-linux-x86-64-universal.tar.gz
+            tar -xzf /tmp/sf.tar.gz -C /tmp
+            cp /tmp/stockfish/stockfish-linux-x86-64-universal ~/stockfish19/stockfish
+            chmod +x ~/stockfish19/stockfish
+          fi
+          echo "STOCKFISH=$HOME/stockfish19/stockfish" >> "$GITHUB_ENV"
+          pip install chess==1.11.2
+          command -v zstd || (sudo apt-get update && sudo apt-get install -y zstd)
+      - name: Sample Lichess rapid games, both players 1300-1800
+        if: ${{ github.event.inputs.sample == 'true' }}
+        run: python scripts/lichess_sample.py --out data/lichess-sample.json --minutes 35 --b-games 60000 --w-games 200000
+      - name: Build the book
+        run: python scripts/repertoire.py --sample data/lichess-sample.json
+      - name: Commit
+        run: |
+          git config user.name "chess-review bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/repertoire.json data/repertoire-evals.json data/lichess-sample.json
+          if git diff --cached --quiet; then
+            echo "Nothing new."
+          else
+            git commit -m "Rebuild the openings book"
+            git pull --rebase
+            git push
+          fi

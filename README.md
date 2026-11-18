@@ -15,3 +15,12 @@ Personal chess.com game review: https://pjchafloque.github.io/chess-review/
 - Book moves come from `scripts/openings.tsv`: the Lichess opening list
   (https://github.com/lichess-org/chess-openings, CC0) merged with eco.json
   (https://github.com/hayatbiralem/eco.json, MIT).
+- The Openings tab trains `data/repertoire.json`, built by `scripts/repertoire.py` the way Chessbook builds
+  a book: one move of yours per position (the move you usually play when Stockfish 19 rates it within
+  0.35 pawns of its best, otherwise the move most players at your level choose, otherwise Stockfish's),
+  and the replies people actually play, from Lichess rapid games between players rated 1300-1800
+  (`scripts/lichess_sample.py`, the Lichess database is CC0) blended with your own opponents' moves.
+  It keeps positions you reach at least once in 500 games; the page cuts it at the size you pick.
+  Each of your moves is a flashcard scheduled with FSRS-4.5. `.github/workflows/book.yml` rebuilds the
+  book every Monday with your newest games (Stockfish results are cached in `data/repertoire-evals.json`).
+  The one-line plans shown in the tab are in `scripts/repertoire-notes.tsv`.
