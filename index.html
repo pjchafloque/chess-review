@@ -3102,7 +3102,7 @@ function renderPracticeCard(meta, bk) {
       (O.msg && O.status === "done" ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "");
     return;
   }
-  const n = bk.N[it.i], inc = incoming(bk, it.i), revealed = O.status === "between" || it.kind === "learn";
+  const n = bk.N[it.i], inc = incoming(bk, it.i), revealed = O.status === "between" || (it.kind === "learn" && O.status !== "cpu");
   const kind = { learn: "New move", recall: "From memory", review: "Review", again: "Once more" }[it.kind];
   const chips = '<div class="osteps"><span class="ostep on">' + kind + '</span>' + (inc && inc.mistake ? '<span class="ostep warn">Punish it</span>' : "") + '</div>';
   let ask = "";
