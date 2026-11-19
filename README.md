@@ -31,3 +31,14 @@ Personal chess.com game review: https://pjchafloque.github.io/chess-review/
   Each of your moves is a flashcard scheduled with FSRS-4.5. `.github/workflows/book.yml` rebuilds the
   book every Monday with your newest games (Stockfish results are cached in `data/repertoire-evals.json`).
   The one-line plans shown in the tab are in `scripts/repertoire-notes.tsv`.
+- Explanations: the coach explains every inaccuracy, mistake and blunder in words worked out from the
+  Stockfish lines and checked on the board (what your move allowed, what the better move does, and the
+  pattern when there is one: fork, pin, skewer, discovered attack, hanging or trapped piece, removing
+  the defender, back-rank or smothered mate, promotion). The pattern definitions follow Lichess's
+  puzzle tagger (https://github.com/ornicar/lichess-puzzler, `tagger/cook.py`). Code: the
+  "move explanations" section of `index.html`.
+- Sounds: the move sounds are synthesized in the page (no files). The background music in `music/` is
+  Erik Satie's Gymnopédie No. 1 and No. 3 (1888, public domain), from the Mutopia Project's
+  public-domain editions typeset by Evin Robertson, played on the Salamander Grand Piano samples by
+  Alexander Holm (CC BY 3.0, https://creativecommons.org/licenses/by/3.0/) and rendered by
+  `scripts/music/`. See `music/README.md`.

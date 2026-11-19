@@ -709,6 +709,52 @@ details.pzrules summary { text-align: left; }
   .tactions .btn { flex: 1 1 auto; min-width: 0; padding: 11px 10px; font-size: 15px; white-space: nowrap; }
 }
 @media (prefers-reduced-motion: reduce) { .library, body.sheet .library { transition: none; } }
+
+/* Pattern words in explanations (fork, pin, ...): tap to see them on the board. */
+.pat { font: inherit; letter-spacing: inherit; color: var(--link); background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.pat:hover { text-decoration-style: solid; }
+.nw { white-space: nowrap; }
+/* Music button in the top bar. */
+.subnav-in .tabs { margin-left: auto; }
+.musicbtn { flex: none; width: 34px; height: 34px; margin: 0 -6px 0 0; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.musicbtn svg { width: 19px; height: 19px; display: block; }
+.musicbtn[aria-pressed="true"] { color: var(--accent); }
+@media (hover: hover) { .musicbtn:hover { background: var(--surface-3); } }
+
+/* Phones: the coach strip (2026-11-19). The cards under the board (coach, explore panel, puzzle, Openings)
+   used to sit behind the bottom bar. Now a slim strip just above the bar always shows the verdict and a
+   one-line reason; tapping it opens the full card as a sheet above it. */
+.coachbar, .coachveil { display: none; }
+@media (max-width: 699px) {
+  :root { --bar-h: 62px; --strip-h: 58px; }
+  body { padding-bottom: calc(var(--bar-h) + var(--strip-h) + 26px); }
+  .coachbar {
+    display: flex; position: fixed; left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); bottom: calc(var(--bar-h) + 8px); z-index: 44;
+    align-items: center; gap: 11px; min-height: 54px; padding: 8px 12px 8px 11px; border: 1px solid var(--card-line); border-radius: 16px;
+    background: color-mix(in srgb, var(--surface) 97%, transparent); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .12); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  }
+  .coachbar[hidden] { display: none; }
+  .coachbar .ki { width: 30px; height: 30px; font-size: 13px; }
+  .cbtxt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .cbttl, .cbbrief { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cbttl { font-size: 15px; font-weight: 600; line-height: 1.27; letter-spacing: -.02em; }
+  .cbbrief { font-size: 14px; line-height: 1.29; letter-spacing: -.016em; color: var(--muted); }
+  .cbbrief:empty { display: none; }
+  .cbchev { flex: none; width: 18px; height: 18px; color: var(--muted); transition: transform .25s; }
+  body.coach-open .cbchev { transform: rotate(180deg); }
+  #insight, #xpanel, #tprompt, #oprompt {
+    position: fixed; left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); bottom: calc(var(--bar-h) + var(--strip-h) + 14px); z-index: 46; margin: 0;
+    max-height: calc(100vh - var(--nav-h) - var(--bar-h) - var(--strip-h) - 30px); max-height: calc(100dvh - var(--nav-h) - var(--bar-h) - var(--strip-h) - 30px);
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; box-shadow: 0 12px 40px rgba(0, 0, 0, .2);
+    transform: translateY(24px); opacity: 0; visibility: hidden; pointer-events: none; transition: transform .28s cubic-bezier(.32, .72, 0, 1), opacity .2s, visibility 0s linear .28s;
+  }
+  body.coach-open #insight, body.coach-open #xpanel, body.coach-open #tprompt, body.coach-open #oprompt { transform: none; opacity: 1; visibility: visible; pointer-events: auto; transition: transform .28s cubic-bezier(.32, .72, 0, 1), opacity .2s; }
+  .coachveil { display: block; position: fixed; inset: 0; z-index: 43; background: rgba(0, 0, 0, .28); opacity: 0; pointer-events: none; touch-action: none; transition: opacity .25s; }
+  body.coach-open .coachveil { opacity: 1; pointer-events: auto; }
+  body.sheet .coachbar { visibility: hidden; }
+}
+@media (max-width: 699px) and (prefers-reduced-motion: reduce) { #insight, #xpanel, #tprompt, #oprompt, .coachveil, .cbchev { transition: none !important; } }
 </style>
 
 <div class="loadbar on boot" id="loadbar" role="progressbar" aria-label="Loading your games" aria-hidden="false"></div>
@@ -716,6 +762,7 @@ details.pzrules summary { text-align: left; }
   <div class="subnav-in">
     <a class="brandlink" href="#review"><span class="logo" aria-hidden="true"></span><span class="brandname">PChess</span></a>
     <nav class="tabs" aria-label="Sections"><a href="#review" data-view="review" data-label="Game review" aria-current="page">Game review</a><a href="#puzzles" data-view="trainer" data-label="Puzzles">Puzzles</a><a href="#openings" data-view="openings" data-label="Openings">Openings</a></nav>
+    <button class="musicbtn" id="bMusic" type="button" aria-pressed="false" aria-label="Background music"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17.5V5.2l10-2v12.3"/><circle cx="6.5" cy="17.5" r="2.6" fill="currentColor"/><circle cx="16.5" cy="15.5" r="2.6" fill="currentColor"/></svg></button>
   </div>
 </header>
 <div class="app">
@@ -886,6 +933,12 @@ details.pzrules summary { text-align: left; }
     </div>
   </section>
 </div>
+<div class="coachveil" id="coachveil"></div>
+<button class="coachbar" id="coachbar" type="button" aria-expanded="false" aria-label="Coach" hidden>
+  <span class="ki" id="cbIco" aria-hidden="true"></span>
+  <span class="cbtxt"><span class="cbttl" id="cbTtl"></span><span class="cbbrief" id="cbBrief"></span></span>
+  <svg class="cbchev" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 14.5 5.5-5.5 5.5 5.5"/></svg>
+</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 <script>if (!window.Chess) document.write('<script src="https://cdn.jsdelivr.net/npm/chess.js@0.10.3/chess.min.js"><\/script>');</script>
@@ -1065,44 +1118,145 @@ const sync = {
   }
 };
 
-/* ---------- move sounds (made with Web Audio, no files) ---------- */
+/* ---------- sounds ----------
+   Move sounds are made here with Web Audio, no files. A wooden knock is a handful of resonances that die
+   away within a few milliseconds plus a short contact tick (modal synthesis), tuned against the spectrum
+   and decay of a real piece landing on a board: most of the sound between 450 and 1500 Hz, gone in about
+   40 ms. A capture adds a harder piece-on-piece click before the knock, castling is two knocks, a check
+   is a little brighter. Three variants of each, slightly detuned per move, so repeats don't sound canned. */
+function knockBuffer(sr, kind, seed) {
+  let s = seed >>> 0 || 1; const rnd = () => ((s = Math.imul(s ^ (s >>> 15), 2246822519) + 0x6d2b79f5 >>> 0) / 4294967296);
+  const vary = (x, p) => x * (1 + (rnd() * 2 - 1) * p);
+  const len = Math.floor(sr * (kind === "capture" ? 0.2 : kind === "castle" ? 0.26 : 0.16)), out = new Float32Array(len);
+  // One impact at time t0 (seconds): modes = [freq Hz, decay ms, amplitude]; contact = pulse length in ms.
+  const hit = (t0, modes, contact, noiseAmp, gain) => {
+    const i0 = Math.floor(t0 * sr), tc = contact / 1000;
+    const ms = modes.map(([f, d, a]) => [vary(f, 0.025), vary(d, 0.12) / 1000, vary(a, 0.1), rnd() * 6.283]);
+    let lp = 0; const k = Math.exp(-2 * Math.PI * 2800 / sr);
+    for (let i = i0; i < len; i++) {
+      const t = (i - i0) / sr;
+      // the piece is in contact for a fraction of a millisecond: a raised-cosine onset
+      const on = t < tc ? 0.5 - 0.5 * Math.cos(Math.PI * t / tc) : 1;
+      let v = 0;
+      for (const [f, d, a, ph] of ms) v += a * Math.exp(-t / d) * Math.sin(6.2832 * f * t + ph * 0.15);
+      // contact noise: a very short, darkened tick (not hiss)
+      const nz = t < 0.004 ? (rnd() * 2 - 1) * Math.exp(-t / 0.0007) * noiseAmp : 0;
+      lp = (1 - k) * nz + k * lp;
+      out[i] += gain * (on * v + lp);
+    }
+  };
+  const board = [[96, 16, 0.22], [470, 4.4, 0.7], [640, 3.8, 1.0], [835, 3.3, 0.8], [1090, 2.8, 0.55], [1490, 2.2, 0.3], [2280, 1.5, 0.1]];
+  const piece = [[880, 6.5, 0.8], [1060, 6, 1.0], [1420, 4.8, 0.75], [1960, 3.4, 0.5], [2780, 2.2, 0.28], [3900, 1.4, 0.14]];
+  const shift = (m, r) => m.map(([f, d, a]) => [f * r, d, a]);
+  if (kind === "capture") { hit(0.002, piece, 0.32, 0.28, 1.0); hit(0.021, shift(board, 0.95), 0.5, 0.2, 0.85); }
+  else if (kind === "castle") { hit(0.002, shift(board, 1.04), 0.5, 0.22, 0.85); hit(0.095, shift(board, 0.94), 0.5, 0.22, 0.8); }
+  else if (kind === "check") { hit(0.002, shift(board, 1.06), 0.45, 0.25, 1.0); hit(0.003, shift(piece, 1.25), 0.32, 0.1, 0.3); }
+  else hit(0.002, board, 0.5, 0.22, 1.0);
+  // fade the last 15 ms and normalise to a fixed peak
+  const f = Math.floor(sr * 0.015); for (let i = 0; i < f; i++) out[len - 1 - i] *= i / f;
+  let pk = 0; for (const v of out) pk = Math.max(pk, Math.abs(v));
+  for (let i = 0; i < len; i++) out[i] *= 0.8 / pk;
+  return out;
+}
 const sound = {
-  on: store.get("sound", true), ctx: null,
+  on: store.get("sound", true), ctx: null, bufs: null,
   ac() {
     if (!this.ctx) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; this.ctx = new A(); }
     if (this.ctx.state === "suspended") this.ctx.resume();
     return this.ctx;
   },
-  // One wooden knock: a short filtered noise burst plus a quick low tone.
-  knock(t, freq, vol) {
-    const c = this.ctx, len = Math.floor(c.sampleRate * 0.06);
-    const buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
-    const n = c.createBufferSource(); n.buffer = buf;
-    const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq * 3; f.Q.value = 1.2;
-    const ng = c.createGain(); ng.gain.value = vol;
-    n.connect(f); f.connect(ng); ng.connect(c.destination); n.start(t);
-    const o = c.createOscillator(); o.type = "sine";
-    o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * 0.6, t + 0.08);
-    const og = c.createGain(); og.gain.setValueAtTime(vol * 0.6, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
-    o.connect(og); og.connect(c.destination); o.start(t); o.stop(t + 0.1);
+  buffers() {
+    if (this.bufs) return this.bufs;
+    const c = this.ctx, sr = c.sampleRate; this.bufs = {};
+    for (const k of ["move", "capture", "check", "castle"]) this.bufs[k] = [1, 2, 3].map(n => {
+      const d = knockBuffer(sr, k, n * 7919 + k.length * 104729), b = c.createBuffer(1, d.length, sr);
+      if (b.copyToChannel) b.copyToChannel(d, 0); else b.getChannelData(0).set(d);
+      return b;
+    });
+    return this.bufs;
   },
-  // Captures get a sharper double knock; everything else one soft knock.
   play(san) {
     if (!this.on || !san) return;
     try {
-      const c = this.ac(); if (!c) return; const t = c.currentTime + 0.005;
-      if (san.includes("x")) { this.knock(t, 300, 0.9); this.knock(t + 0.045, 520, 0.7); }
-      else this.knock(t, 360, 0.7);
+      const c = this.ac(); if (!c) return;
+      const kind = /^O-O/.test(san) ? "castle" : san.includes("x") ? "capture" : /[+#]/.test(san) ? "check" : "move";
+      const list = this.buffers()[kind], src = c.createBufferSource(), g = c.createGain();
+      src.buffer = list[Math.floor(Math.random() * list.length)];
+      src.playbackRate.value = 0.97 + Math.random() * 0.06;
+      g.gain.value = san === "back" ? 0.5 : 0.85;
+      src.connect(g); g.connect(c.destination); src.start(c.currentTime + 0.004);
     } catch (e) {}
   },
   label() {
     const b = document.getElementById("bSound"); if (!b) return;
-    b.innerHTML = this.on ? '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a7.6 7.6 0 0 1 0 11"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" fill="currentColor"/><path d="m16 9.5 5 5"/><path d="m21 9.5-5 5"/></svg>'; b.title = this.on ? "Sound on (click to mute)" : "Sound off (click to turn on)";
+    b.innerHTML = this.on ? '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a7.6 7.6 0 0 1 0 11"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" fill="currentColor"/><path d="m16 9.5 5 5"/><path d="m21 9.5-5 5"/></svg>'; b.title = this.on ? "Move sounds on (click to mute)" : "Move sounds off (click to turn on)";
     b.setAttribute("aria-pressed", String(this.on));
   },
   toggle() { this.on = !this.on; store.set("sound", this.on); this.label(); if (this.on) this.play("e4"); }
 };
+// iPhone: let the site's sounds mix with other audio and follow the silent switch, like game sounds do.
+try { if (navigator.audioSession) navigator.audioSession.type = "ambient"; } catch (e) {}
+
+/* ---------- background music ----------
+   Erik Satie's Gymnopédie No. 1 and No. 3 (1888, public domain), from the Mutopia Project's public-domain
+   editions (typeset by Evin Robertson), played on the Salamander Grand Piano samples (Alexander Holm,
+   CC BY 3.0) and rendered to music/*.mp3 by scripts/music/render.py. The two pieces take turns. On by
+   default; it starts with the first tap or key press (browsers don't let a page start sound by itself),
+   fades in, and pauses while the page is hidden. The ♪ button in the top bar turns it off and on. */
+const music = {
+  tracks: [{ src: "music/gymnopedie-1.mp3", title: "Satie, Gymnopédie No. 1" }, { src: "music/gymnopedie-3.mp3", title: "Satie, Gymnopédie No. 3" }],
+  on: store.get("music", true), el: null, gain: null, idx: (+store.get("musicTrack", 0) || 0) % 2, started: false, level: 0.3, t: 0,
+  setup() {
+    if (this.el) return;
+    const el = this.el = new Audio(); el.preload = "auto"; el.src = this.tracks[this.idx].src;
+    el.addEventListener("ended", () => {
+      this.idx = (this.idx + 1) % this.tracks.length; store.set("musicTrack", this.idx); el.src = this.tracks[this.idx].src; this.label();
+      clearTimeout(this.t); this.t = setTimeout(() => { if (this.on && !document.hidden) this.play(); }, 3000);
+    });
+    // Through Web Audio when it can: iPhones ignore an audio element's own volume.
+    try { const c = sound.ac(); if (c && c.createMediaElementSource) { const s = c.createMediaElementSource(el); this.gain = c.createGain(); this.gain.gain.value = 0; s.connect(this.gain); this.gain.connect(c.destination); } } catch (e) { this.gain = null; }
+    if (!this.gain) el.volume = 0;
+  },
+  fade(to, secs) {
+    if (this.gain) { const c = sound.ctx, g = this.gain.gain, t = c.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(to, t + secs); return; }
+    const el = this.el, from = el.volume, t0 = performance.now();
+    const step = () => { const k = Math.min(1, (performance.now() - t0) / (secs * 1000)); el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); if (k < 1) requestAnimationFrame(step); };
+    step();
+  },
+  play() {
+    this.setup(); sound.ac(); clearTimeout(this.t);
+    const pr = this.el.play(); if (pr && pr.catch) pr.catch(() => { this.started = false; });
+    this.fade(this.level, 3); this.started = true; this.label();
+  },
+  pause() {
+    if (!this.el) return;
+    this.fade(0, 0.4); clearTimeout(this.t);
+    this.t = setTimeout(() => { if (!this.on || document.hidden) this.el.pause(); }, 450);
+  },
+  toggle() {
+    this.on = !this.on; store.set("music", this.on);
+    if (this.on) this.play(); else this.pause();
+    this.label();
+  },
+  label() {
+    const b = document.getElementById("bMusic"); if (!b) return;
+    b.setAttribute("aria-pressed", String(this.on));
+    b.title = (this.on ? "Music on (" : "Music off (") + this.tracks[this.idx].title + "). Piano: Salamander Grand Piano by Alexander Holm, CC BY 3.0.";
+  }
+};
+// The first tap or key press anywhere starts the music (if it's on).
+{
+  const kick = e => {
+    if (e.target && e.target.closest && e.target.closest("#bMusic")) return;
+    for (const t of ["pointerup", "touchend", "keydown"]) document.removeEventListener(t, kick, true);
+    if (music.on && !music.started && !document.hidden) music.play();
+  };
+  for (const t of ["pointerup", "touchend", "keydown"]) document.addEventListener(t, kick, true);
+}
+document.addEventListener("visibilitychange", () => {
+  if (!music.el || !music.on || !music.started) return;
+  if (document.hidden) music.el.pause(); else music.play();
+});
 
 // Games and reviews go to IndexedDB, which holds far more than localStorage's ~5 MB.
 const big = {
@@ -1707,6 +1861,544 @@ function uciToSan(fen, uci) {
   try { const c = new Chess(fen); const m = c.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || "q" }); return m ? m.san : uci; } catch (e) { return uci; }
 }
 
+/* ---------- move explanations ----------
+   Plain-language reasons, worked out from Stockfish's lines and checked on the board. For a move that
+   gave something away: what it allowed (the opponent's best line after it) and what the better move
+   would have done (Stockfish's line before it). Material is counted move by move along the line, and a
+   pattern is named only when the position shows it, using the definitions of Lichess's puzzle tagger
+   (github.com/ornicar/lichess-puzzler, tagger/cook.py): fork, pin, skewer, discovered attack, double
+   check, hanging piece, trapped piece, removing the defender, back-rank and smothered mate, promotion.
+   Every pattern also carries a picture (a position from the line plus arrows) for the board. */
+const XV = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 99 };
+const upFirst = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const otherSide = c => c === "w" ? "b" : "w";
+// Squares the piece on s attacks (pins ignored; sliders stop at the first piece).
+function xAttacks(b, s) {
+  const p = b[s]; if (!p) return [];
+  const t = p.toLowerCase(), f = s & 7, r = s >> 3, out = [];
+  const add = (ff, rr) => { if (ff >= 0 && ff < 8 && rr >= 0 && rr < 8) out.push(rr * 8 + ff); };
+  if (t === "p") { const d = p === "P" ? 1 : -1; add(f - 1, r + d); add(f + 1, r + d); }
+  else if (t === "n") for (const [df, dr] of KNIGHT_D) add(f + df, r + dr);
+  else if (t === "k") { for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) if (df || dr) add(f + df, r + dr); }
+  else for (const [df, dr, kinds] of RAYS) {
+    if (!kinds.includes(t)) continue;
+    let ff = f + df, rr = r + dr;
+    while (ff >= 0 && ff < 8 && rr >= 0 && rr < 8) { const i = rr * 8 + ff; out.push(i); if (b[i]) break; ff += df; rr += dr; }
+  }
+  return out;
+}
+function xAttackers(b, t, side) {
+  const out = [];
+  for (let s = 0; s < 64; s++) { const p = b[s]; if (p && pcColor(p) === side && xAttacks(b, s).includes(t)) out.push(s); }
+  return out;
+}
+// cook.py's is_defended: one of its own pieces attacks the square, also from behind an enemy slider
+// that attacks it (once that slider takes, the piece behind it takes back).
+function xDefended(b, t) {
+  const me = pcColor(b[t]), opp = otherSide(me);
+  if (xAttackers(b, t, me).length) return true;
+  for (const a of xAttackers(b, t, opp)) {
+    if (!"bqr".includes(b[a].toLowerCase())) continue;
+    const c = b.slice(); c[a] = null; if (xAttackers(c, t, me).length) return true;
+  }
+  return false;
+}
+const xHanging = (b, t) => !xDefended(b, t);
+function xLowerTake(b, t) {
+  const v = XV[b[t].toLowerCase()];
+  return xAttackers(b, t, otherSide(pcColor(b[t]))).some(a => b[a].toLowerCase() !== "k" && XV[b[a].toLowerCase()] < v);
+}
+// cook.py's is_in_bad_spot: attacked, and either undefended or attacked by something cheaper.
+function xBadSpot(b, t) { return xAttackers(b, t, otherSide(pcColor(b[t]))).length > 0 && (xHanging(b, t) || xLowerTake(b, t)); }
+// Pieces of `side` pinned to their own king: square -> { by: the pinner's square, line: king ... pinner }.
+function xPins(b, side) {
+  const out = new Map(), k = b.indexOf(side === "w" ? "K" : "k"); if (k < 0) return out;
+  for (const [df, dr, kinds] of RAYS) {
+    let f = (k & 7) + df, r = (k >> 3) + dr, own = -1; const line = [k];
+    while (f >= 0 && f < 8 && r >= 0 && r < 8) {
+      const i = r * 8 + f, p = b[i]; line.push(i);
+      if (p) {
+        if (own < 0) { if (pcColor(p) !== side) break; own = i; }
+        else { if (pcColor(p) !== side && kinds.includes(p.toLowerCase())) out.set(own, { by: i, line: line.slice() }); break; }
+      }
+      f += df; r += dr;
+    }
+  }
+  return out;
+}
+// Pieces (not pawns) of `side` pinned to a bigger piece behind them (a queen or rook, not the king).
+// Lichess only tags pins to the king, but these win material the same way.
+function xRelPins(b, side) {
+  const out = new Map(), opp = otherSide(side);
+  for (let s = 0; s < 64; s++) {
+    const p = b[s]; if (!p || pcColor(p) !== opp || !"bqr".includes(p.toLowerCase())) continue;
+    for (const [df, dr, kinds] of RAYS) {
+      if (!kinds.includes(p.toLowerCase())) continue;
+      let f = (s & 7) + df, r = (s >> 3) + dr, first = -1;
+      while (f >= 0 && f < 8 && r >= 0 && r < 8) {
+        const i = r * 8 + f, q = b[i];
+        if (q) {
+          if (pcColor(q) !== side) break;
+          if (first < 0) first = i;
+          else {
+            const tq = q.toLowerCase(), tf = b[first].toLowerCase();
+            if (tq !== "k" && XV[tf] >= 3 && "qr".includes(tq) && XV[tq] > XV[tf] && (XV[tq] > XV[p.toLowerCase()] || xHanging(b, i))) out.set(first, { by: s, behind: i });
+            break;
+          }
+        }
+        f += df; r += dr;
+      }
+    }
+  }
+  return out;
+}
+function xBetween(a, b) {
+  const af = a & 7, ar = a >> 3, bf = b & 7, br = b >> 3, df = Math.sign(bf - af), dr = Math.sign(br - ar), out = [];
+  if (a === b || !(af === bf || ar === br || Math.abs(bf - af) === Math.abs(br - ar))) return out;
+  let f = af + df, r = ar + dr;
+  while (f !== bf || r !== br) { out.push(r * 8 + f); f += df; r += dr; }
+  return out;
+}
+const xKing = (b, side) => b.indexOf(side === "w" ? "K" : "k");
+function xCheckers(b, side) { const k = xKing(b, side); return k < 0 ? [] : xAttackers(b, k, otherSide(side)); }
+// cook.py's is_trapped: in a bad spot, not pinned and not in check, and every move it has is bad too.
+function xTrapped(fen, b, sq) {
+  const p = b[sq]; if (!p || "pk".includes(p.toLowerCase())) return false;
+  const c = new Chess(fen); if (c.in_check() || c.turn() !== pcColor(p)) return false;
+  if (xPins(b, pcColor(p)).has(sq) || !xBadSpot(b, sq)) return false;
+  for (const m of c.moves({ square: idxSq(sq), verbose: true })) {
+    if (m.captured && XV[m.captured] >= XV[p.toLowerCase()]) return false;
+    const b2 = b.slice(); b2[sqIdx(m.to)] = p; b2[sq] = null;
+    if (!xBadSpot(b2, sqIdx(m.to))) return false;
+  }
+  return true;
+}
+// What the side that just moved threatens: its best capture if it could move again (static exchange
+// count) or a mate in one. Not worked out while the other side is in check.
+function xThreat(fen) {
+  const parts = fen.split(" "), mover = parts[1] === "w" ? "b" : "w";
+  if (new Chess(fen).in_check()) return null;
+  const f2 = [parts[0], mover, parts[2], "-", "0", parts[5]].join(" ");
+  let c; try { c = new Chess(f2); } catch (e) { return null; }
+  if (!c || c.fen().split(" ")[1] !== mover) return null;
+  const b = boardArr(f2); let best = null;
+  for (const m of c.moves({ verbose: true })) {
+    if (m.san.indexOf("#") >= 0) return { mate: true, m };
+    if (!m.captured) continue;
+    const v = seeFrom(b, sqIdx(m.to), sqIdx(m.from));
+    if (v > 0 && (!best || v > best.v)) best = { v, m };
+  }
+  return best;
+}
+
+// Replays a line with the board before and after every ply. pre = the move just played before the line
+// (the move being explained), so material and patterns can count it.
+function playLine(fen, pv, pre) {
+  const c = new Chess(fen), side = c.turn(), plies = [];
+  for (const u of pv || []) {
+    const f0 = c.fen(), m = uciMove(c, u); if (!m) break;
+    plies.push({ m, uci: u, fen0: f0, fen1: c.fen(), b0: boardArr(f0), b1: boardArr(c.fen()), check: c.in_check(), mate: c.in_checkmate() });
+    if (c.game_over()) break;
+  }
+  return { fen, side, plies, pre: pre || null };
+}
+// Where the line has paid off for the side that plays it: a mate, or the biggest material gain once the
+// other side has answered (so a piece taken straight back doesn't count), within the first ten plies. If
+// the line ends on its own move, the other side's best capture there (static exchange count) is taken
+// off. explainLine then checks the gain against Stockfish's eval.
+function lineResult(L) {
+  const P = L.plies, n = P.length, side = L.side, last = n ? P[n - 1] : null;
+  if (last && last.mate && last.m.color === side) return { mate: true, mateIn: Math.ceil(n / 2), at: n - 1, show: n - 1, gain: 0, regain: 0, won: [], lost: [], caps: [] };
+  let net = 0; const caps = [], promoted = new Set(), pts = [];
+  if (L.pre && L.pre.m.captured) { net -= XV[L.pre.m.captured]; caps.push({ k: -1, by: otherSide(side), type: L.pre.m.captured, sq: sqIdx(L.pre.m.to) }); }
+  if (L.pre && L.pre.m.promotion) { net -= XV[L.pre.m.promotion] - 1; promoted.add(sqIdx(L.pre.m.to)); }
+  const start = net;
+  P.forEach((p, k) => {
+    const m = p.m, to = sqIdx(m.to), from = sqIdx(m.from);
+    let ct = m.captured || "", csq = m.flags.indexOf("e") >= 0 ? to + (m.color === "w" ? -8 : 8) : to;
+    const v = (ct ? XV[ct] : 0) + (m.promotion ? XV[m.promotion] - 1 : 0);
+    net += m.color === side ? v : -v;
+    if (ct && promoted.has(csq)) { promoted.delete(csq); ct = "p"; }   // a queen that was a pawn a moment ago counts as the pawn
+    if (promoted.has(from)) { promoted.delete(from); promoted.add(to); }
+    if (m.promotion) promoted.add(to);
+    if (ct) caps.push({ k, by: m.color, type: ct, sq: csq, moved: k >= 0 && !L.plies.slice(0, k).some(q => sqIdx(q.m.to) === csq) });
+    let here = net;
+    if (m.color === side) {
+      if (k !== n - 1) return;
+      let worst = 0;    // their best capture now
+      for (let s = 0; s < 64; s++) { const q = p.b1[s]; if (!q || pcColor(q) !== side) continue; const a = leastAttacker(p.b1, s, otherSide(side)); if (a >= 0) worst = Math.max(worst, seeFrom(p.b1, s, a)); }
+      here -= worst;
+    }
+    pts.push({ k, here });
+  });
+  const ok = pts.filter(x => x.k <= 9);
+  let max = start; for (const x of ok) if (x.here > max) max = x.here;
+  const enough = max - (max >= 4 ? 1 : 0), pick = ok.find(x => x.here >= enough && x.here > start);
+  const at = pick ? pick.k : -1, gain = pick ? pick.here : start;
+  // What changed hands up to that point, like-for-like trades cancelled ("a knight for a pawn").
+  const upto = caps.filter(c => c.k <= at);
+  const w = upto.filter(c => c.by === side), l = upto.filter(c => c.by !== side);
+  const same = (a, b) => a === b || (XV[a] === 3 && XV[b] === 3);
+  for (let i = 0; i < w.length; i++) { const j = l.findIndex(c => same(c.type, w[i].type)); if (j >= 0) { w.splice(i, 1); l.splice(j, 1); i--; } }
+  const promo = P.slice(0, at + 1).some(p => p.m.color === side && p.m.promotion) && promoted.size > 0;
+  // Show the line up to the last capture or promotion that made the gain; quiet moves after it add nothing.
+  let show = at;
+  while (show > 0 && !P[show].m.captured && !P[show].m.promotion) show--;
+  return { mate: false, mateIn: 0, gain, regain: gain - start, at, show, won: w, lost: l, promo, caps };
+}
+
+/* Patterns. Each: { kind, k: the ply that makes it, fig: { k, arrows } for the picture, plus details }. */
+function patternsIn(L, upto) {
+  const side = L.side, opp = otherSide(side), out = [], P = L.plies, end = Math.min(upto, P.length - 1);
+  // The first time we capture one of these pieces within a few plies (following them if they move).
+  const capLater = (k, squares, within, follow) => {
+    let at = squares.slice();
+    for (let j = k + 1; j <= Math.min(end, k + within); j++) {
+      const m = P[j].m, f = sqIdx(m.from), t = sqIdx(m.to);
+      if (m.color === side) { if (m.captured && at.includes(t)) return j; }
+      else if (follow) at = at.map(s => s === f ? t : s);
+      else if (at.includes(f)) at = at.filter(s => s !== f);
+    }
+    return -1;
+  };
+  const seenPins = new Set();
+  for (let k = 0; k <= end; k++) {
+    const p = P[k]; if (p.m.color !== side) continue;
+    const b1 = p.b1, to = sqIdx(p.m.to), from = sqIdx(p.m.from), t = p.m.piece;
+    const castle = p.m.flags.indexOf("k") >= 0 || p.m.flags.indexOf("q") >= 0;
+    const checkers = p.check ? xCheckers(b1, opp) : [], ks = xKing(b1, opp);
+    if (checkers.length >= 2) out.push({ kind: "double check", k, fig: { k, arrows: checkers.map(s => [s, ks]) } });
+    else if (checkers.length === 1 && checkers[0] !== to && !castle) out.push({ kind: "discovered check", k, by: checkers[0], fig: { k, arrows: [[checkers[0], ks]] } });
+    // Fork (cook.py): the moved piece (not the king), not itself in a bad spot, attacks two or more
+    // pieces that are worth more than it, hanging, or the king. Named once it wins one of them.
+    if (t !== "k" && !xBadSpot(b1, to)) {
+      const targets = [];
+      for (const s of xAttacks(b1, to)) {
+        const q = b1[s]; if (!q || pcColor(q) !== opp) continue; const qt = q.toLowerCase();
+        if (qt === "p") continue;
+        if (XV[qt] > XV[t] || (xHanging(b1, s) && !xAttackers(b1, to, opp).includes(s))) targets.push(s);
+      }
+      if (targets.length >= 2) {
+        const j = capLater(k, targets, 4, true);
+        if (j >= 0) out.push({ kind: "fork", k, sq: to, targets, won: j, fig: { k, arrows: targets.map(s => [to, s]) } });
+      }
+    }
+    // Pins: a piece of theirs pinned to its king (or to a bigger piece) that we then win.
+    for (const [s, pin] of xPins(b1, opp)) {
+      const key = s + ":" + pin.by; if (seenPins.has(key)) continue; seenPins.add(key);
+      if (!b1[pin.by] || pcColor(b1[pin.by]) !== side) continue;
+      const j = capLater(k, [s], 6);
+      if (j >= 0) out.push({ kind: "pin", k, sq: s, by: pin.by, to: "king", won: j, fig: { k, arrows: [[pin.by, s], [s, pin.line[0]]] } });
+    }
+    for (const [s, pin] of xRelPins(b1, opp)) {
+      const key = s + ":" + pin.by + ":r"; if (seenPins.has(key)) continue; seenPins.add(key);
+      if (pin.by !== to && !xBetween(pin.by, s).includes(from)) continue;   // made by this move
+      const j = capLater(k, [s, pin.behind], 6);
+      if (j >= 0) out.push({ kind: "pin", k, sq: s, by: pin.by, behind: pin.behind, to: PNAME[b1[pin.behind].toLowerCase()], won: j, fig: { k, arrows: [[pin.by, s], [s, pin.behind]] } });
+    }
+    if (p.m.promotion) out.push({ kind: "promotion", k, sq: to, fig: { k, arrows: [[from, to]] } });
+    if (!p.m.captured || k === 0) continue;
+    const capd = p.m.captured, prev = P[k - 1], prev2 = k >= 2 ? P[k - 2] : null;
+    // Skewer (cook.py): a slider takes a piece standing behind one that just had to step off the line.
+    // Our slider has just arrived, and the piece in front was the king in check or a piece it had to save.
+    if ("bqr".includes(t) && prev2 && prev2.m.color === side && sqIdx(prev2.m.to) === from && prev.m.to !== p.m.to && xBetween(from, to).includes(sqIdx(prev.m.from))
+      && XV[prev.m.piece] > XV[capd] && xBadSpot(prev.b1, to) && !p.mate && (prev.m.piece === "k" ? prev2.check : xBadSpot(prev2.b1, sqIdx(prev.m.from)))) {
+      out.push({ kind: "skewer", k: k - 2, cap: k, front: sqIdx(prev.m.from), back: to, frontPiece: prev.m.piece, fig: { k: k - 2, arrows: [[from, sqIdx(prev.m.from)], [sqIdx(prev.m.from), to]] } });
+    }
+    // Discovered attack (cook.py): our move before this one stepped off the line this capture travels along.
+    if (prev2 && prev2.m.color === side && prev.m.to !== p.m.to && xBetween(from, to).includes(sqIdx(prev2.m.from)) && prev2.m.to !== p.m.to && sqIdx(prev2.m.to) !== from && prev2.m.flags.indexOf("k") < 0 && prev2.m.flags.indexOf("q") < 0)
+      out.push({ kind: "discovered attack", k: k - 2, cap: k, by: from, target: to, fig: { k: k - 2, arrows: [[from, to]] } });
+    // Trapped piece (cook.py): what we take had nowhere safe to go before their last move.
+    if (capd !== "p" && prev2) {
+      let sq = to; if (prev.m.to === p.m.to) sq = sqIdx(prev.m.from);
+      if (xTrapped(prev.fen0, prev.b0, sq)) out.push({ kind: "trapped", k: k - 1, cap: k, sq, fig: { k: k - 2, arrows: [[from, sq]] } });
+    }
+    // Removing the defender: two moves ago a piece of theirs guarded this square; we took it or chased it off.
+    if (prev2 && prev2.m.color === side && !prev.check) {
+      const gb = prev2.b0;
+      for (const d of xAttackers(gb, to, opp)) {
+        if (d === to) continue;
+        const takenD = sqIdx(prev2.m.to) === d && !!prev2.m.captured;
+        const chased = sqIdx(prev.m.from) === d && prev.m.to !== p.m.to && xAttacks(prev2.b1, sqIdx(prev2.m.to)).includes(d);
+        if ((takenD || chased) && !xAttackers(prev.b1, to, opp).length && gb[to] && pcColor(gb[to]) === opp) {
+          out.push({ kind: "removing the defender", how: takenD ? "takes" : "chases", k: k - 2, cap: k, defender: d, target: to, fig: { k: k - 2, arrows: [[sqIdx(prev2.m.to), d], [d, to]] } });
+          break;
+        }
+      }
+    }
+  }
+  // Mate patterns, on the final position of a mating line.
+  const last = P[P.length - 1];
+  if (last && last.mate && last.m.color === side) {
+    const b = last.b1, ks = xKing(b, opp), kf = ks & 7, kr = ks >> 3, back = opp === "w" ? 0 : 7, chk = xCheckers(b, opp);
+    const around = []; for (let df = -1; df <= 1; df++) for (let dr = -1; dr <= 1; dr++) if ((df || dr) && kf + df >= 0 && kf + df < 8 && kr + dr >= 0 && kr + dr < 8) around.push((kr + dr) * 8 + kf + df);
+    if (last.m.piece === "n" && chk.length === 1 && around.every(s => b[s] && pcColor(b[s]) === opp)) out.push({ kind: "smothered mate", k: P.length - 1, fig: { k: P.length - 1, arrows: [[sqIdx(last.m.to), ks]] } });
+    else if (kr === back && chk.some(s => (s >> 3) === back)) {
+      const up = opp === "w" ? 1 : -1, front = [ks + 8 * up]; if (kf < 7) front.push(ks + 8 * up + 1); if (kf > 0) front.push(ks + 8 * up - 1);
+      if (front.every(s => b[s] && pcColor(b[s]) === opp && !xAttackers(b, s, side).length)) out.push({ kind: "back-rank mate", k: P.length - 1, fig: { k: P.length - 1, arrows: chk.map(s => [s, ks]) } });
+    }
+  }
+  return out;
+}
+// Which pattern explains the result: one that wins the material it's about (or mates), the clearest first.
+const PAT_ORDER = ["back-rank mate", "smothered mate", "fork", "skewer", "pin", "discovered attack", "double check", "trapped", "removing the defender", "discovered check", "promotion"];
+function xMainPattern(pats, res) {
+  const ok = pats.filter(p => res.mate ? ["back-rank mate", "smothered mate", "double check", "discovered check", "promotion"].includes(p.kind) : (p.cap != null ? p.cap : p.won != null ? p.won : p.k) <= res.at);
+  ok.sort((a, b) => PAT_ORDER.indexOf(a.kind) - PAT_ORDER.indexOf(b.kind) || a.k - b.k);
+  return ok[0] || null;
+}
+
+/* Words. The player whose games these are is "you"; the other side is "White" or "Black". */
+function xNames(me) {
+  const who = c => c === me ? "you" : sideName(c), whose = c => c === me ? "your" : sideName(c) + "’s";
+  const pieceOn = (b, s, owner) => {
+    const p = b[s]; if (!p) return "the piece on " + idxSq(s);
+    const c = pcColor(p), nm = PNAME[p.toLowerCase()];
+    if (nm === "king") return c === me ? "your king" : owner ? whose(c) + " king" : "the king";
+    return (c === me ? "your " : owner ? whose(c) + " " : "the ") + nm + " on " + idxSq(s);
+  };
+  return { me, who, whose, pieceOn };
+}
+// What was won: "your knight on e5", "two pawns", "the exchange (a rook for a bishop)", "a bishop for a pawn".
+// Long trades are summed up instead: "a pawn overall".
+const NET_WORDS = ["", "a pawn", "two pawns", "a piece", "a piece and a pawn", "a rook", "a rook and a pawn", "a lot of material"];
+function xMaterial(res, N, L) {
+  const w = res.won, l = res.lost, types = w.map(c => c.type), lt = l.map(c => c.type);
+  if (types.length === 1 && types[0] === "r" && lt.length === 1 && (lt[0] === "n" || lt[0] === "b")) return "the exchange (a rook for a " + PNAME[lt[0]] + ")";
+  if (!types.length) return res.promo ? "a new queen" + (lt.length ? " for " + nounList(lt, null) : "") : "material";
+  if (types.length === 1 && lt.length <= 1) {
+    const c = w[0], b = c.k >= 0 ? L.plies[c.k].b0 : L.pre.b0;
+    const stayed = c.k < 0 || !L.plies.slice(0, c.k).some(q => sqIdx(q.m.to) === c.sq);   // still on its square from the start
+    const q = res.promo ? " and gets a new queen" : "";
+    if (b[c.sq] && stayed) return N.pieceOn(b, c.sq) + (lt.length ? " for " + nounList(lt, null) : "") + q;
+    const own = otherSide(L.side) === N.me ? "your " : "a ";
+    return own + PNAME[types[0]] + (lt.length ? " for " + nounList(lt, null) : "") + q;
+  }
+  const q = res.promo ? " and gets a new queen" : "";
+  if (types.length > 3 || lt.length > 1 && types.length > 1) { const g = Math.round(res.gain); return (g >= 9 ? "a queen’s worth of material" : NET_WORDS[Math.min(7, g)] || "material") + " overall" + q; }
+  return nounList(types, otherSide(L.side) === N.me && types.length === 1 ? "your" : null) + (lt.length ? " for " + nounList(lt, null) : "") + q;
+}
+function xMoveText(P, k) { const p = P[k], n = p.fen0.split(" ")[5]; return p.m.color === "w" ? n + ". " + p.m.san : n + "… " + p.m.san; }
+function xLineHtml(L, upto) { return "<b>" + esc(lineSan(L.fen, L.plies.slice(0, upto + 1).map(p => p.uci))) + "</b>"; }
+const patWord = (i, label) => '<button type="button" class="pat" data-fig="' + i + '">' + esc(label) + '</button>';
+// One sentence about a pattern (HTML). figs collects the pictures that the pattern words open.
+function xPatternSentence(L, pt, N, figs, base) {
+  const P = L.plies, mv = k => "<b>" + esc(xMoveText(P, k)) + "</b>";
+  const add = label => patWord(figs.push(Object.assign({ base, start: L.fen, mine: L.side === N.me, line: P.slice(0, pt.fig.k + 1).map(p => p.uci), kind: pt.kind }, pt.fig)) - 1, label);
+  const b1 = P[pt.k] ? P[pt.k].b1 : null;
+  switch (pt.kind) {
+    case "fork": {
+      const king = pt.targets.find(s => b1[s].toLowerCase() === "k"), names = pt.targets.filter(s => s !== king).map(s => N.pieceOn(b1, s));
+      const list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
+      return mv(pt.k) + " is a " + add("fork") + ": " + (king != null ? "it checks " + N.pieceOn(b1, king) + " and attacks " + list + "." : "it attacks " + list + " at once.");
+    }
+    case "pin": {
+      const to = pt.to === "king" ? (pcColor(b1[pt.sq]) === N.me ? "your king" : "the king") : (pcColor(b1[pt.sq]) === N.me ? "your " : "the ") + pt.to;
+      return upFirst(N.pieceOn(b1, pt.sq)) + " is " + add("pinned") + " to " + to + " by " + N.pieceOn(b1, pt.by, true) + ", so it can’t get out of the way.";
+    }
+    case "skewer": return mv(pt.k) + " is a " + add("skewer") + ": the " + PNAME[pt.frontPiece] + " has to move, and " + N.pieceOn(P[pt.cap - 1].b1, pt.back) + " behind it is lost.";
+    case "discovered attack": { const b = P[pt.k].b1; return mv(pt.k) + " is a " + add("discovered attack") + ": it gets out of the way, so " + N.pieceOn(b, pt.by, true) + " hits " + N.pieceOn(b, pt.target) + "."; }
+    case "discovered check": return mv(pt.k) + " is a " + add("discovered check") + ": the " + PNAME[P[pt.k].b1[pt.by].toLowerCase()] + " behind it gives the check.";
+    case "double check": return mv(pt.k) + " is a " + add("double check") + ": the king is in check from two pieces at once and has to move.";
+    case "trapped": return upFirst(N.pieceOn(P[pt.cap - 1].b0, pt.sq)) + " is " + add("trapped") + ": it has nowhere safe to go.";
+    case "removing the defender": {
+      const b = P[pt.k].b0;
+      return mv(pt.k) + (pt.how === "takes" ? " takes " : " drives away ") + N.pieceOn(b, pt.defender) + ", which was guarding " + idxSq(pt.target) + ' <span class="nw">(' + add("removing the defender") + ").</span>";
+    }
+    case "promotion": return "The pawn " + add("promotes") + " with " + mv(pt.k) + ".";
+    case "back-rank mate": return "It’s a " + add("back-rank mate") + ": the king is stuck behind its own pawns.";
+    case "smothered mate": return "It’s a " + add("smothered mate") + ": the king is boxed in by its own pieces.";
+  }
+  return "";
+}
+// When the line starts by taking something: was the piece simply hanging (undefended), and why?
+function xHangingNote(L, res, N) {
+  const P = L.plies, side = L.side, pre = L.pre, p = P[0];
+  if (!p || !p.m.captured || p.m.flags.indexOf("e") >= 0 || res.at < 0) return null;
+  const t = sqIdx(p.m.to); if (!p.b0[t] || seeFrom(p.b0, t, sqIdx(p.m.from)) <= 0) return null;
+  if (pre && pre.m.captured && sqIdx(pre.m.to) === t) return null;    // taking back after a capture is a trade, not a hanging piece
+  const hanging = xHanging(p.b0, t), owner = pcColor(p.b0[t]);
+  let why = "", mover = "";
+  if (pre && pre.m.color === owner) {
+    const pm = pre.m, pf = sqIdx(pm.from), pt = sqIdx(pm.to), pb0 = pre.b0, pb1 = pre.b1;
+    mover = PNAME[(pb0[pf] || "p").toLowerCase()];
+    if (pt === t) why = "moved";
+    else if (xAttacks(pb0, pf).includes(t) && !xAttacks(pb1, pt).includes(t)) why = "guard";
+    else if (xAttackers(pb0, t, owner).some(d => xBetween(d, t).includes(pt))) why = "blocked";
+    else if (!xAttackers(pb0, t, side).length && xAttackers(pb1, t, side).some(a => xBetween(a, t).includes(pf))) why = "opened";
+    else if (xBadSpot(pb0, t)) why = "already";
+  }
+  let cheap = "";
+  if (!hanging) { let best = 99; for (const a of xAttackers(p.b0, t, side)) { const v = XV[p.b0[a].toLowerCase()]; if (v < best) { best = v; cheap = PNAME[p.b0[a].toLowerCase()]; } } }
+  return { k: 0, sq: t, hanging, why, mover, cheap, lower: !hanging && xLowerTake(p.b0, t), piece: N.pieceOn(p.b0, t) };
+}
+// Facts about one move: castling, a capture, a check, what it attacks, a piece it saves, what it threatens.
+function quietFacts(fen, uci, N, prevTo) {
+  const c = new Chess(fen), m = uciMove(c, uci); if (!m) return [];
+  const b0 = boardArr(fen), b1 = boardArr(c.fen()), side = m.color, opp = otherSide(side), to = sqIdx(m.to), from = sqIdx(m.from), facts = [];
+  if (m.flags.indexOf("k") >= 0 || m.flags.indexOf("q") >= 0) facts.push(side === N.me ? "gets your king to safety" : "gets the king to safety");
+  if (m.captured) facts.push(prevTo != null && prevTo === to ? "takes back" : "takes " + N.pieceOn(b0, m.flags.indexOf("e") >= 0 ? to + (side === "w" ? -8 : 8) : to));
+  if (c.in_check()) facts.push("gives check");
+  const att = [];
+  for (const s of xAttacks(b1, to)) {
+    const q = b1[s]; if (!q || pcColor(q) !== opp || q.toLowerCase() === "k") continue;
+    if (b0[s] === q && b0[from] === b1[to] && xAttacks(b0, from).includes(s)) continue;   // it attacked that piece already
+    if (XV[q.toLowerCase()] > XV[m.piece] || xHanging(b1, s)) att.push(s);
+  }
+  if (att.length) facts.push("attacks " + att.slice(0, 2).map(s => N.pieceOn(b1, s)).join(" and "));
+  if (!m.captured) for (let s = 0; s < 64; s++) {
+    const q = b0[s]; if (!q || pcColor(q) !== side || "pk".includes(q.toLowerCase()) || !xBadSpot(b0, s)) continue;
+    const s2 = s === from ? to : s;
+    if (b1[s2] === q && !xBadSpot(b1, s2)) { facts.push(s === from ? "gets " + N.pieceOn(b0, s) + " out of danger" : "protects " + N.pieceOn(b0, s)); break; }
+  }
+  if (!c.in_check()) {
+    const th = xThreat(c.fen());
+    if (th && th.mate) facts.push("threatens mate with " + th.m.san);
+    else if (th && th.v >= 2 && !att.includes(sqIdx(th.m.to))) facts.push("threatens " + th.m.san);
+  }
+  return facts;
+}
+const joinFacts = f => f.length <= 1 ? (f[0] || "") : f.slice(0, -1).join(", ") + " and " + f[f.length - 1];
+// Material on the board, in pawns, from `side`'s point of view.
+function xMaterialBalance(b, side) { let s = 0; for (const p of b) if (p && p.toLowerCase() !== "k") s += (pcColor(p) === side ? 1 : -1) * XV[p.toLowerCase()]; return s; }
+
+// Explains a line for the side that plays it. pre: the move it answers (the move being explained), when
+// the line is what that move allowed. base: the review ply the line starts from (for the pictures).
+// e: Stockfish's eval at the start of the line, to check that the material it counts is real.
+function explainLine(fen, pv, opts) {
+  const N = opts.names, L = playLine(fen, pv, opts.pre), P = L.plies;
+  if (!P.length) return null;
+  const res = lineResult(L), out = { L, res, side: L.side };
+  // A long line can stop in the middle of a trade or before the other side takes back elsewhere. If the
+  // eval doesn't back the material up, don't claim it.
+  if (!res.mate && res.regain >= 1 && opts.e && opts.e.mate == null && !opts.e.mated) {
+    const ev = (L.side === "w" ? 1 : -1) * (opts.e.cp != null ? opts.e.cp : opts.e.num * 100) / 100;
+    const expect = xMaterialBalance(boardArr(fen), L.side) + res.regain;
+    if (ev < expect - Math.max(1.5, 0.5 * res.regain)) { res.gain = Math.min(res.gain, 0); res.regain = 0; res.doubt = true; }
+  }
+  out.concrete = !!(res.mate || res.gain >= 1);
+  out.regains = !out.concrete && !!(opts.pre && opts.pre.m.captured) && res.gain >= 0 && res.regain >= 2;
+  const upto = res.mate ? P.length - 1 : res.at >= 0 ? res.at : P.length - 1;
+  const pats = patternsIn(L, upto), main = out.concrete || out.regains ? xMainPattern(pats, res) : null;
+  out.pats = pats; out.main = main;
+  if (res.mate) { out.what = res.mateIn === 1 ? "mate in one" : "mate in " + res.mateIn; out.lineHtml = xLineHtml(L, P.length - 1); }
+  else if (res.at >= 0 && (out.concrete || out.regains)) { out.what = xMaterial(res, N, L); out.lineHtml = xLineHtml(L, res.show); }
+  if (main) out.why = xPatternSentence(L, main, N, opts.figs, opts.base);
+  else if (out.concrete && !res.mate) {
+    const h = xHangingNote(L, res, N);
+    if (h && (h.hanging || h.lower) && XV[P[0].m.captured] >= res.gain - 1) {   // only when that piece is most of what's won
+      out.hanging = h;
+      const fi = opts.figs.push({ base: opts.base, start: L.fen, mine: L.side === N.me, line: [], kind: "hanging piece", k: -1, arrows: [[sqIdx(P[0].m.from), h.sq]] }) - 1;
+      const mine = pcColor(P[0].b0[h.sq]) === N.me;
+      const cause = { moved: "it had just moved there", guard: (mine ? "your " : "the ") + h.mover + " was guarding it until it moved", blocked: "the move blocked one of its defenders", opened: "the move opened the line to it", already: "it was already under attack" }[h.why] || "";
+      if (h.hanging) out.why = upFirst(h.piece) + " was " + patWord(fi, "hanging") + (cause ? ": " + cause + "." : ", with nothing guarding it.");
+      else out.why = upFirst(h.piece) + " can be taken by a " + h.cheap + (cause ? ", and " + cause : "") + ".";
+    } else if (!P[0].m.captured) {
+      // No named pattern: say what the first move does (it usually attacks something).
+      const f = quietFacts(fen, P[0].uci, N).filter(x => !/^gets .* out of danger|^protects/.test(x));
+      if (f.length) out.why = "<b>" + esc(xMoveText(P, 0)) + "</b> " + joinFacts(f) + ".";
+    }
+  }
+  return out;
+}
+function xEvalWords(e, side) {
+  if (!e || e.mated) return "";
+  if (e.mate != null) { const m = side === "w" ? e.mate : -e.mate; return m > 0 ? "mate in " + m : "a forced mate against you"; }
+  const v = (side === "w" ? 1 : -1) * (e.cp != null ? e.cp : e.num * 100) / 100;
+  return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1);
+}
+const plainWhat = w => w.replace(/ \(a rook for a \w+\)/, "");
+function moveLabel(g, i) { const n = +(g.fens[i].split(" ")[5] || 1); return n + (g.moves[i].color === "w" ? ". " : "… ") + g.moves[i].san; }
+// "with a fork", "by removing the defender": how a pattern reads at the end of a short sentence.
+function patternTail(kind) {
+  return { "fork": " with a fork", "pin": " with a pin", "skewer": " with a skewer", "discovered attack": " with a discovered attack", "double check": " with a double check",
+    "discovered check": " with a discovered check", "trapped": " by trapping it", "removing the defender": " by removing the defender", "promotion": " by promoting a pawn",
+    "back-rank mate": "", "smothered mate": "" }[kind] || "";
+}
+
+/* The coach's words for move i of game g, graded r. ref: Stockfish's best answer after the move; best: its
+   line before the move (for great and brilliant moves, the line that starts with the move itself).
+   Returns { brief, html, figs }: brief is one line for the phone's coach strip; figs are the pictures
+   the pattern words open ({ base: review ply, line: moves from there, k, arrows }). */
+function explainMove(g, i, r, ev, ref, best) {
+  const mover = moverAt(g, i), opp = otherSide(mover), N = xNames(g.me || "-"), figs = [], played = g.moves[i];
+  const e0 = ev[i], e1 = ev[i + 1], cls = r ? r.cls : "";
+  const pre = { m: played, b0: boardArr(g.fens[i]), b1: boardArr(g.fens[i + 1]) };
+  const playedUci = played.from + played.to + (played.promotion || "");
+  const bestUci = best && best.length ? best[0] : e0 && e0.best;
+  const bestSan = bestUci ? uciToSan(g.fens[i], bestUci) : "", nb = +(g.fens[i].split(" ")[5] || 1);
+  const bestLbl = bestSan ? nb + (mover === "w" ? ". " : "… ") + bestSan : "";
+  const bTag = "<b>" + esc(bestLbl) + "</b>", evB = xEvalWords(e0, mover);
+  const A = ref && ref.length && !["great", "brilliant", "best", "book", "forced"].includes(cls) ? explainLine(g.fens[i + 1], ref, { names: N, pre, figs, base: i + 1, e: e1 }) : null;
+  const B = best && best.length ? explainLine(g.fens[i], best, { names: N, figs, base: i, e: e0 }) : null;
+  // When the game move took the same piece as the better move, winning it isn't the difference.
+  const sameCap = !!(played.captured && bestUci && bestUci.slice(2, 4) === played.to && bestUci !== playedUci);
+  // Taking back a piece that just captured isn't winning it: their last move took something of yours.
+  const prevMv = i > 0 ? g.moves[i - 1] : null, back = prevMv && prevMv.captured && bestUci && bestUci.slice(2, 4) === prevMv.to ? pre.b0[sqIdx(prevMv.to)] : null;
+  const say = [], aWins = !!(A && A.concrete), bWins = !!(B && B.concrete) && !(sameCap && !B.res.mate && B.res.gain <= XV[played.captured] + 0.5)
+    && !(back && !B.res.mate && B.res.gain <= XV[back.toLowerCase()] + 0.5);
+  const winText = (X, subj) => X.res.mate ? (X.res.mateIn === 1 ? subj + " is mate." : subj + " starts a mate in " + X.res.mateIn + ": " + X.lineHtml + ".") + (X.why ? " " + X.why : "")
+    : subj + " wins " + X.what + ": " + X.lineHtml + "." + (X.why ? " " + X.why : "");
+  const winsBrief = X => X.res.mate ? (X.res.mateIn === 1 ? "is mate" : "mates in " + X.res.mateIn) : "wins " + plainWhat(X.what);
+  if (cls === "great" || cls === "brilliant") {
+    if (bWins) say.push(winText(B, "It"));
+    else if (B) { const f = quietFacts(g.fens[i], playedUci, N, i > 0 && g.moves[i - 1].captured ? sqIdx(g.moves[i - 1].to) : null); if (f.length) say.push("It " + joinFacts(f) + "."); }
+    return { brief: bWins ? upFirst(winsBrief(B)) + "." : cls === "great" ? "The only move that keeps your chances." : "A sound sacrifice.", html: say.join(" "), figs, A, B };
+  }
+  const bestWhy = bWins ? winText(B, "It") : (() => { const f = bestUci ? quietFacts(g.fens[i], bestUci, N) : []; return f.length ? "It " + joinFacts(f) + "." : ""; })();
+  if (cls === "miss") {
+    const prev = i > 0 ? g.moves[i - 1] : null;
+    say.push(prev ? (g.me === opp ? "Your " : sideName(opp) + "’s ") + "last move, <b>" + esc(moveLabel(g, i - 1)) + "</b>, was a mistake, and " + bTag + " punishes it (" + evB + ")." : bTag + " was the move (" + evB + ").");
+    if (bWins) say.push(winText(B, "It"));
+    return { brief: "Misses " + bestLbl + (bWins ? ", which " + winsBrief(B) : "") + ".", html: say.join(" "), figs, A, B, bestWhy };
+  }
+  // Inaccuracies, mistakes and blunders: what it allowed, and what the better move does.
+  const aGain = aWins ? (A.res.mate ? 100 : A.res.gain) : 0, bGain = bWins ? (B.res.mate ? 100 : B.res.gain) : 0;
+  const grabbed = A && aWins && !A.res.mate && played.captured && A.res.lost.length === 1 && A.res.lost[0].k === -1;   // you took something, they take more
+  const allowText = () => A.res.mate ? "It allows " + A.what + ": " + A.lineHtml + "." + (A.why ? " " + A.why : "")
+    : grabbed ? "It wins a " + PNAME[played.captured] + ", but " + N.who(opp) + " takes " + A.what.replace(/ for an? \w+$/, "") + " in return: " + A.lineHtml + "." + (A.why ? " " + A.why : "")
+    : "It lets " + N.who(opp) + " win " + A.what + ": " + A.lineHtml + "." + (A.why ? " " + A.why : "");
+  const bQuiet = () => {
+    if (!bestSan) return "";
+    const f = quietFacts(g.fens[i], bestUci, N, i > 0 && g.moves[i - 1].captured ? sqIdx(g.moves[i - 1].to) : null), h = aWins && A.hanging;
+    if (h && pcColor(A.L.plies[0].b0[h.sq]) === mover && (!B || B.L.plies.every(p => !(p.m.color === opp && p.m.captured && sqIdx(p.m.to) === h.sq))) && !f.some(x => /out of danger|protects/.test(x)))
+      f.push("doesn’t lose the " + PNAME[A.L.plies[0].b0[h.sq].toLowerCase()]);
+    if (sameCap) return "Taking with " + (bestSan[0] >= "A" && bestSan[0] <= "Z" ? "the " + PNAME[bestSan[0].toLowerCase()] : "the pawn") + " was better: " + bTag + " (" + evB + ").";
+    return bTag + " was better (" + evB + ")" + (f.length ? ": it " + joinFacts(f) + "." : ".");
+  };
+  let brief;
+  if (aWins && aGain >= bGain) {
+    say.push(allowText());
+    say.push(bWins ? bTag + " was better (" + evB + "). " + winText(B, "It") : bQuiet());
+    const h = A.hanging, single = h && h.hanging && pcColor(A.L.plies[0].b0[h.sq]) === mover && A.res.gain <= XV[A.L.plies[0].m.captured] + 0.5;
+    const trapped = A.main && A.main.kind === "trapped";
+    brief = A.res.mate ? "Allows " + A.what + "." : single ? "Leaves " + h.piece + " hanging." : trapped ? "Lets " + N.who(opp) + " trap " + N.pieceOn(A.L.plies[A.main.cap - 1].b0, A.main.sq) + "."
+      : grabbed ? "Grabs a " + PNAME[played.captured] + " but loses " + plainWhat(A.what).replace(/ for an? \w+$/, "") + "." : "Lets " + N.who(opp) + " win " + plainWhat(A.what) + (A.main ? patternTail(A.main.kind) : "") + ".";
+  } else if (bWins) {
+    say.push(bTag + " was better (" + evB + "). " + winText(B, "It"));
+    if (aWins) say.push("Your move also lets " + N.who(opp) + " win " + A.what + ": " + A.lineHtml + "." + (A.why ? " " + A.why : ""));
+    else if (A && A.regains && sameCap) say.push("After your move, " + N.who(opp) + " wins back " + A.what + ": " + A.lineHtml + "." + (A.why ? " " + A.why : ""));
+    brief = "Misses " + bestLbl + ", which " + winsBrief(B) + ".";
+  } else if (A && A.regains && sameCap) {
+    say.push("It lets " + N.who(opp) + " win back " + A.what + ": " + A.lineHtml + "." + (A.why ? " " + A.why : ""));
+    say.push(bQuiet());
+    brief = "Lets " + N.who(opp) + " win back " + plainWhat(A.what) + ".";
+  } else {
+    // Nothing changes hands in either line: say what the key moves do, and what it costs.
+    const promo = A ? A.L.plies.findIndex((p, k) => k <= 6 && p.m.color === opp && p.m.promotion) : -1;
+    const noBack = !!(back && played.to !== prevMv.to);   // their last move took something and this doesn't take back
+    if (noBack) say.push("It doesn\u2019t take back on " + prevMv.to + ", so " + N.who(opp) + " keeps the " + PNAME[prevMv.captured] + " " + (opp === N.me ? "you" : "they") + " just won." + (A && A.L.plies.length ? " The best reply is " + xLineHtml(A.L, Math.min(A.L.plies.length - 1, 3)) + "." : ""));
+    else if (promo >= 0) say.push("It lets " + N.whose(opp) + " " + A.L.plies[promo].m.from[0] + "-pawn run through to promote: " + xLineHtml(A.L, promo) + ".");
+    else if (A && A.L.plies.length) {
+      const f = quietFacts(A.L.fen, A.L.plies[0].uci, N, played.captured ? sqIdx(played.to) : null), n = Math.min(A.L.plies.length - 1, 3);
+      say.push("Nothing is lost right away, but it gives " + N.who(opp) + " the better game" + (f.length ? ": <b>" + esc(xMoveText(A.L.plies, 0)) + "</b> " + joinFacts(f) : "") + ". The best reply is " + xLineHtml(A.L, n) + ".");
+    }
+    const q = bQuiet(); if (q) say.push(q);
+    brief = noBack ? "Doesn\u2019t take back on " + prevMv.to + "." : promo >= 0 ? "Lets " + N.whose(opp) + " pawn promote." : bestSan ? bestLbl + " was stronger (" + evB + ")." : "";
+  }
+  return { brief, html: say.filter(Boolean).join(" "), figs, A, B, bestWhy };
+}
+
 /* ---------- analysis queue ----------
    Games the website hasn't reviewed yet are reviewed here, one at a time, with the engine's two best
    lines in every position. A game reviewed by an older engine (Stockfish 10 or the website's Stockfish 16
@@ -1904,18 +2596,21 @@ function renderAnalysis() {
   if (S.job && S.job.id === g.id && !S.job.upgrade) renderMoves();
 }
 
-// The coach: what the move was, why, and what to do about it.
+// The coach: what the move was, why, and what to do about it. On phones the same words also go to the
+// coach strip above the bottom bar (coach.set): the verdict and a one-line reason.
 function renderCoach(g, ev, ply, r) {
   const ins = $("insight"); ins.classList.remove("retry");
   if (!g) return;
   if (ply === 0) {
     const e = ev[0];
     ins.innerHTML = '<span class="ico">◇</span><div class="txt"><div class="ttl">Starting position</div><div class="det">Use ▶ or the → key to step through the game.' + (e ? ' Eval <b>' + fmtEval(e) + '</b>' : "") + '</div></div>';
+    coach.set("review", { glyph: "◇", title: "Starting position", brief: "Step through the game with the arrows below." });
     return;
   }
   const i = ply - 1, mv = g.moves[i], num = moveNo(g, i), who = whoMoved(g, i);
   if (!r) {
     ins.innerHTML = '<span class="ico">…</span><div class="txt"><div class="ttl">' + esc(num + " " + mv.san) + '</div><div class="det">' + esc(who) + ' · waiting for the engine</div></div>';
+    coach.set("review", { glyph: "…", title: num + " " + mv.san, brief: "Waiting for the engine…" });
     return;
   }
   const c = CLS[r.cls], det = [esc(who)];
@@ -1925,33 +2620,38 @@ function renderCoach(g, ev, ply, r) {
     if (r.epl >= 0.02 && !["brilliant", "great", "best", "forced"].includes(r.cls)) det.push('<span class="chance" title="Chance of winning (a draw counts half) before and after this move">win chance ' + pct(r.epBefore) + ' → ' + pct(r.epAfter) + '</span>');
   }
   const t = timeSpent(g, i); if (t != null) det.push("took " + fmtSecs(t));
-  const say = coachSay(g, ev, i, r), acts = coachActs(g, ev, i, r);
+  const said = coachSay(g, ev, i, r), acts = coachActs(g, ev, i, r);
+  S.coachFigs = said.figs || [];
   ins.innerHTML = '<span class="ico ' + r.cls + '">' + c.glyph + '</span><div class="txt"><div class="ttl">' + esc(num + " " + mv.san) + ' is ' + c.say + '</div><div class="det">' + det.join(" · ") + '</div>' +
-    (say ? '<div class="say">' + say + '</div>' : "") + '</div>' + (acts ? '<div class="acts">' + acts + '</div>' : "");
+    (said.html ? '<div class="say">' + said.html + '</div>' : "") + '</div>' + (acts ? '<div class="acts">' + acts + '</div>' : "");
+  coach.set("review", { cls: r.cls, glyph: c.glyph, title: num + " " + mv.san + " is " + c.say, brief: said.brief || (r.cls === "book" ? bookNameAt(g, ply) || "Known opening theory." : "") });
 }
+const EXPLAINED = ["inacc", "mistake", "blunder", "miss", "great", "brilliant"];
+// { html, brief, figs }: plain sentences for the quiet grades, the explanation engine for the rest.
 function coachSay(g, ev, i, r) {
-  const a = ev[i], fen = g.fens[i], opp = r.side === "w" ? "b" : "w";
-  const best = a && a.best ? '<b>' + esc(uciToSan(fen, a.best)) + '</b>' : "";
-  const prev = i > 0 ? g.moves[i - 1] : null;
+  const a = ev[i], fen = g.fens[i];
+  const bestSan = a && a.best ? uciToSan(fen, a.best) : "", best = bestSan ? '<b>' + esc(bestSan) + '</b>' : "";
+  const plain = (html, brief) => ({ html, brief: brief || html.replace(/<[^>]+>/g, "") });
   switch (r.cls) {
-    case "book": case "forced": return r.cls === "forced" ? "The only legal move." : "";
-    case "best": return r.onlyMove ? "The only good move, but an easy one to see." : "Stockfish's top choice.";
-    case "excellent": return r.epAfter >= r.epBefore - 0.005 ? "Stockfish's first choice was " + best + ", but this is just as good." : "Nearly as good as Stockfish's " + best + " (" + fmtEval(a) + ").";
-    case "good": return best + " was a little stronger (" + fmtEval(a) + ").";
-    case "inacc": case "mistake": case "blunder":
-      return best + " was better (" + fmtEval(a) + "). " + whyHtml(g, i, "ref");
-    case "miss":
-      return (prev ? (g.me === opp ? "Your " : esc(playerName(g, opp)) + "'s ") + esc(moveNo(g, i - 1) + " " + prev.san) + " was a mistake, and " : "") + best + " would have punished it (" + fmtEval(a) + "). " + whyHtml(g, i, "best");
-    case "great": {
-      const alt = a.alt ? '<b>' + esc(uciToSan(fen, a.alt.best)) + '</b>' : "";
-      return "The only good move" + (alt ? ": the next best, " + alt + ", gives " + fmtEval(a.alt) + " instead of " + fmtEval(a) + "." : ".") + " " + whyHtml(g, i, "best");
-    }
-    case "brilliant": {
-      const f = r.sac, pn = f && f.sacPiece ? PNAME[f.sacPiece] : "piece";
-      return "A sound sacrifice: it gives up the " + pn + (f && f.sacSq ? " on " + f.sacSq : "") + ", and the position holds up (" + fmtEval(ev[i + 1]) + "). " + whyHtml(g, i, "best");
-    }
+    case "book": return plain("", "");
+    case "forced": return plain("The only legal move.");
+    case "best": return plain(r.onlyMove ? "The only good move, but an easy one to see." : "Stockfish's top choice.");
+    case "excellent": return plain(r.epAfter >= r.epBefore - 0.005 ? "Stockfish's first choice was " + best + ", but this is just as good." : "Nearly as good as Stockfish's " + best + " (" + fmtEval(a) + ").");
+    case "good": return plain(best + " was a little stronger (" + fmtEval(a) + ").");
   }
-  return "";
+  let lead = "";
+  if (r.cls === "great") {
+    const alt = a && a.alt ? '<b>' + esc(uciToSan(fen, a.alt.best)) + '</b>' : "";
+    lead = "The only good move" + (alt ? ": the next best, " + alt + ", gives " + fmtEval(a.alt) + " instead of " + fmtEval(a) + "." : ".");
+  } else if (r.cls === "brilliant") {
+    const f = r.sac, pn = f && f.sacPiece ? PNAME[f.sacPiece] : "piece";
+    lead = "A sound sacrifice: it gives up the " + pn + (f && f.sacSq ? " on " + f.sacSq : "") + ", and the position holds up (" + fmtEval(ev[i + 1]) + ").";
+  }
+  const x = coachExplain(g, i, r);
+  if (x) return { html: (lead ? lead + " " : "") + x.html, brief: x.brief, figs: x.figs };
+  const wait = '<span class="wait">Working out why…</span>';
+  if (r.cls === "inacc" || r.cls === "mistake" || r.cls === "blunder") return { html: best + " was better (" + fmtEval(a) + "). " + wait, brief: (bestSan ? bestSan + " was better." : "") };
+  return { html: (lead ? lead + " " : "") + wait, brief: r.cls === "miss" && bestSan ? "Misses " + bestSan + "." : CLS[r.cls].about };
 }
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 function coachActs(g, ev, i, r) {
@@ -1961,44 +2661,41 @@ function coachActs(g, ev, i, r) {
   const nk = nextKey(g, ev, i + 1); if (nk != null) out.push('<button class="btn small" type="button" data-act="key" data-ply="' + (nk + 1) + '" title="Jump to your next brilliant, great, missed or bad move">Next key moment →</button>');
   return out.join("");
 }
-// "Why" for a move, worked out from an engine line: what the opponent can do after it ("ref"), or what
-// the best move would have done ("best"). Lines come from the website's review when it has them,
-// otherwise from Stockfish in this browser. Cached per game.
-function whyHtml(g, i, kind) {
-  g._why = g._why || {}; const key = i + kind, w = g._why[key];
-  if (w && w.html != null) return w.html;
-  if (!w) {
-    g._why[key] = { html: null };
-    loadWhy(g, i, kind).catch(() => "").then(html => {
-      g._why[key].html = html || "";
-      if (S.sel === g && S.ply === i + 1 && !X.on && view === "review") { const ev = evalsFor(g) || []; renderCoach(g, ev, S.ply, gradeAt(g, ev, i)); }
-    });
-  }
-  return engine.ready || pvFor(g, i, kind) ? '<span class="wait">Working out why…</span>' : "";
-}
+// The explanation for move i (see "move explanations"), worked out once per game, move and grade. The
+// lines come from the website's review when it has them, otherwise from Stockfish in this browser.
 function pvFor(g, i, kind) { const a = S.analyses[g.id]; const src = a && (kind === "ref" ? a.ref : a.pv); return src && src[i] && src[i].length ? src[i] : null; }
-async function loadWhy(g, i, kind) {
+async function lineFor(g, i, kind) {
+  const pv = pvFor(g, i, kind); if (pv) return pv;
   const fen = kind === "ref" ? g.fens[i + 1] : g.fens[i];
-  if (new Chess(fen).game_over()) return "";
-  let pv = pvFor(g, i, kind);
-  if (!pv) { if (!engine.ready) return ""; const r = await engine.analyse(fen, 16, { lane: "user" }); pv = r && r.pv; }
-  if (!pv || !pv.length) return "";
-  const mover = g.moves[i].color, opp = mover === "w" ? "b" : "w";
-  if (kind === "ref") {
-    const owner = g.me === mover ? "your" : sideName(mover) + "’s";
-    const d = describeLine(fen, pv, owner, g.moves[i].captured || null);
-    const them = g.me === opp ? "you" : playerName(g, opp);
-    if (!d) return "";
-    if (d.mate) return "It allows a forced mate: <b>" + esc(d.line) + "</b>.";
-    if (d.what) return "After it, " + esc(them) + " can " + d.what + ": <b>" + esc(d.line) + "</b>." + (d.fork ? " " + esc(d.fork) + "." : "");
-    return (them === "you" ? "Your" : esc(them) + "'s") + " best answer: <b>" + esc(lineSan(fen, pv.slice(0, 5))) + "</b>.";
-  }
-  const owner = g.me === opp ? "your" : sideName(opp) + "’s";
-  const d = describeLine(fen, pv, owner, null);
-  if (!d) return "";
-  if (d.mate) return "<b>" + esc(d.first) + "</b> starts a forced mate: <b>" + esc(d.line) + "</b>.";
-  if (d.what) return "<b>" + esc(d.first) + "</b> wins " + d.what.replace(/^win /, "") + ": <b>" + esc(d.line) + "</b>." + (d.fork ? " " + esc(d.fork) + "." : "");
-  return "The idea: <b>" + esc(lineSan(fen, pv.slice(0, 8))) + "</b>.";
+  if (new Chess(fen).game_over() || !engine.ready) return null;
+  const r = await engine.analyse(fen, 16, { lane: "user" });
+  return r && r.pv && r.pv.length ? r.pv : null;
+}
+function coachExplain(g, i, r) {
+  g._exp = g._exp || {};
+  const key = i + ":" + r.cls, c = g._exp[key];
+  if (c) return c.done ? c : null;
+  const ev = evalsFor(g) || [];
+  const needRef = ["inacc", "mistake", "blunder"].includes(r.cls);
+  // Without stored lines this needs the engine; try again once it's ready.
+  if (!engine.ready && (!pvFor(g, i, "best") || (needRef && !pvFor(g, i, "ref")))) return null;
+  g._exp[key] = { done: false };
+  (async () => {
+    const ref = needRef ? await lineFor(g, i, "ref") : null, best = await lineFor(g, i, "best");
+    Object.assign(g._exp[key], explainMove(g, i, r, ev, ref, best), { done: true });
+  })().catch(() => { g._exp[key] = { done: true, html: "", brief: "", figs: [] }; }).then(() => {
+    if (S.sel === g && S.ply === i + 1 && !X.on && view === "review") { const e2 = evalsFor(g) || []; renderCoach(g, e2, S.ply, gradeAt(g, e2, i)); }
+  });
+  return null;
+}
+// Pattern words (fork, pin, ...) open their picture: the position from the line, with arrows, as an
+// analysis you can keep exploring. Red arrows are your opponent's idea, green ones yours.
+function showFigure(fig) {
+  const g = S.sel; if (!g || !fig || fig.base == null) return;
+  xEnter("explore", fig.base);
+  for (const u of fig.line.slice(0, fig.k + 1)) xPlay(u.slice(0, 2), u.slice(2, 4), u[4], true);
+  X.fig = { idx: X.idx, kind: fig.kind, arrows: fig.arrows.map(([a, b]) => ({ from: idxSq(a), to: idxSq(b), color: fig.mine ? "var(--c-best)" : "var(--c-blunder)" })) };
+  xAnalyse(); renderAnalysis();
 }
 function nextKey(g, ev, fromPly) {
   for (let i = fromPly; i < g.nply; i++) { const r = gradeAt(g, ev, i); if (r && KEY_CLS.includes(r.cls) && (!g.me || r.side === g.me)) return i; }
@@ -2114,7 +2811,7 @@ function xEnter(mode, ply) {
   const g = S.sel; if (!g) return;
   X.auto.forEach(clearTimeout); X.auto = [];
   engine.stopLive(); B.sel = null; B.targets = [];
-  Object.assign(X, { on: true, mode, ply, start: g.fens[ply], hist: [], idx: 0, fen: g.fens[ply], res: null, resFen: "", token: X.token + 1,
+  Object.assign(X, { on: true, mode, ply, fig: null, start: g.fens[ply], hist: [], idx: 0, fen: g.fens[ply], res: null, resFen: "", token: X.token + 1,
     retry: mode === "retry" ? { i: ply, tries: 0, done: false, shown: false, checking: false, msg: null, hint: null, arrow: null } : null });
   if (mode === "explore") xAnalyse();
   renderAnalysis(); renderMovesCurrent();
@@ -2127,10 +2824,10 @@ function xExit(quiet) {
   if (!quiet) { renderAnalysis(); renderMovesCurrent(); }
 }
 function renderMovesCurrent() { document.querySelectorAll("#moves .mv").forEach(b => b.setAttribute("aria-current", String(!X.on && +b.dataset.ply === S.ply))); }
-function xPlay(from, to, promo) {
+function xPlay(from, to, promo, quiet) {
   const c = new Chess(X.fen); const m = c.move({ from, to, promotion: promo || "q" }); if (!m) return null;
   X.hist = X.hist.slice(0, X.idx); X.hist.push({ san: m.san, from: m.from, to: m.to, fen: c.fen(), color: m.color, promotion: m.promotion || "" });
-  X.idx = X.hist.length; X.fen = c.fen(); sound.play(m.san);
+  X.idx = X.hist.length; X.fen = c.fen(); if (!quiet) sound.play(m.san);
   return m;
 }
 function xGo(idx) {
@@ -2160,6 +2857,8 @@ function renderExplore(liveOnly) {
   const arrows = [];
   if (X.mode === "explore" && X.res && X.resFen === X.fen && X.res.best) arrows.push({ from: X.res.best.slice(0, 2), to: X.res.best.slice(2, 4) });
   if (X.retry && X.retry.arrow) arrows.push(X.retry.arrow);
+  const fig = X.fig && X.fig.idx === X.idx ? X.fig : null;
+  if (fig) { arrows.length = 0; arrows.push(...fig.arrows); }
   renderBoard(X.fen, last, arrows, null, { sel: B.sel, targets: B.targets, hint: X.retry ? X.retry.hint : null });
   paintEvalBar("", exploreEval(), S.flip);
   if (X.mode === "retry") { $("xpanel").hidden = true; $("insight").hidden = false; if (!liveOnly) renderRetry(); return; }
@@ -2188,7 +2887,11 @@ function renderExplore(liveOnly) {
       return '<li><button type="button" class="xline" data-xl="' + k + '" title="Play ' + esc(l.pv[0]) + '"><span class="ev">' + fmtEval(e) + '</span><span class="pv"><b>' + esc(first) + '</b>' + esc(san.slice(first.length)) + '</span></button></li>';
     }).join("") + '</ul><div class="xdepth">' + esc(engine.name) + ' · depth ' + X.res.depth + '</div>';
   } else lines = '<div class="xdepth">Stockfish is thinking…</div>';
-  p.innerHTML = '<div class="xhead"><div class="t">Your analysis <span>from ' + esc(from) + '</span></div><button class="btn small" type="button" data-x="back">Back to the game</button></div>' + mv + lines +
+  const title = fig ? upFirst(fig.kind) + ' <span>on the board</span>' : 'Your analysis <span>from ' + esc(from) + '</span>';
+  { const top = X.res && X.resFen === X.fen && X.res.lines.length ? X.res.lines[0] : null, sign = X.fen.split(" ")[1] === "w" ? 1 : -1;
+    coach.set("review", { cls: fig ? (fig.arrows[0] && /best/.test(fig.arrows[0].color) ? "best" : "blunder") : "", glyph: fig ? "!" : "⌕", title: fig ? upFirst(fig.kind) + " on the board" : "Your analysis from " + from,
+      brief: c0.game_over() ? (c0.in_checkmate() ? "Checkmate." : "Draw.") : top ? fmtEval(lineEval(sign, top.score)) + " · " + lineSan(X.fen, top.pv.slice(0, 6)) : X.hist.length ? "Stockfish is thinking…" : "Move a piece to try your own line." }); }
+  p.innerHTML = '<div class="xhead"><div class="t">' + title + '</div><button class="btn small" type="button" data-x="back">Back to the game</button></div>' + mv + lines +
     '<div class="xbtns"><button class="btn small" type="button" data-x="prev"' + (X.idx ? "" : " disabled") + '>← Back</button><button class="btn small" type="button" data-x="next"' + (X.idx < X.hist.length ? "" : " disabled") + '>Forward →</button></div>';
 }
 // Retry: back to the position before one of your mistakes. Find a move that keeps (nearly) all of your chances.
@@ -2203,6 +2906,9 @@ function renderRetry() {
     : '<button class="btn small" type="button" data-act="hint">Hint</button><button class="btn small" type="button" data-act="answer">Show the answer</button><button class="btn small" type="button" data-act="back">Back to the game</button>';
   ins.innerHTML = '<span class="ico ' + (gr ? gr.cls : "") + '">' + (gr ? CLS[gr.cls].glyph : "?") + '</span><div class="txt"><div class="ttl">' + esc("Retry " + moveNo(g, i) + " · " + ask) + '</div><div class="det">' + esc(sub) + '</div></div>' +
     (r.msg ? '<div class="feedback ' + r.msg.kind + '">' + r.msg.html + '</div>' : "") + '<div class="acts">' + btns + '</div>';
+  const fb = r.msg ? plainText(r.msg.html) : "";
+  coach.set("review", { cls: r.msg && r.msg.kind === "good" ? "best" : r.msg && r.msg.kind === "bad" ? "blunder" : gr ? gr.cls : "", glyph: r.msg && r.msg.kind === "good" ? SVG.check : r.msg && r.msg.kind === "bad" ? SVG.x : gr ? CLS[gr.cls].glyph : "?",
+    title: ask, brief: fb || sub });
 }
 async function retryMove(m) {
   const g = S.sel, r = X.retry, i = r.i, ev = evalsFor(g) || [], a = ev[i], side = moverAt(g, i), tok = X.token;
@@ -2225,7 +2931,7 @@ async function retryMove(m) {
   if (v.ok) {
     r.done = true; r.msg = { kind: "good", html: v.html + (r.tries > 1 ? "" : " First try.") };
     renderAnalysis(); confetti("board"); $("board").classList.add("flash-good"); setTimeout(() => $("board").classList.remove("flash-good"), 700);
-    const why = await loadWhy(g, i, "best").catch(() => ""); if (why && tok === X.token && X.on) { r.msg.html += '<div class="why"><span class="why-h">Why</span>' + why + '</div>'; renderRetry(); }
+    const why = await retryWhy(g, i).catch(() => ""); if (why && tok === X.token && X.on) { r.msg.html += '<div class="why"><span class="why-h">Why</span>' + why + '</div>'; renderRetry(); }
     return;
   }
   r.msg = { kind: "bad", html: v.html + " Try again." }; renderAnalysis();
@@ -2243,7 +2949,14 @@ function retryAnswer() {
   };
   renderAnalysis();
   if (pv) play(pv); else if (engine.ready) engine.analyse(X.start, 16, { lane: "user" }).then(res => { if (tok === X.token) play(res && res.pv); }); else play(null);
-  loadWhy(g, i, "best").catch(() => "").then(why => { if (why && tok === X.token && X.on) { r.msg.html += '<div class="why"><span class="why-h">Why</span>' + why + '</div>'; renderRetry(); } });
+  retryWhy(g, i).catch(() => "").then(why => { if (why && tok === X.token && X.on) { r.msg.html += '<div class="why"><span class="why-h">Why</span>' + why + '</div>'; renderRetry(); } });
+}
+// What the better move does, for Retry's "Why" (pattern words there are plain text: the board is in use).
+async function retryWhy(g, i) {
+  const ev = evalsFor(g) || [], r = gradeAt(g, ev, i);
+  const ref = r && ["inacc", "mistake", "blunder"].includes(r.cls) ? await lineFor(g, i, "ref") : null, best = await lineFor(g, i, "best");
+  const x = explainMove(g, i, r, ev, ref, best);
+  return (x.bestWhy || "").replace(/<button[^>]*>([^<]*)<\/button>/g, "$1");
 }
 // Show the best line (or the idea behind a great move) from the position before move i, move by move.
 function showLine(i) {
@@ -2336,6 +3049,7 @@ $("games").addEventListener("click", e => {
 });
 // Phones and tablets: the game list is a sheet that slides up from the Games button (CSS decides when).
 function gamesSheet(open) {
+  if (open) coach.open(false);
   document.body.classList.toggle("sheet", !!open);
   if (open) {
     // Bring the current game into view only when it's hidden (under the title bar or below the screen).
@@ -2368,6 +3082,7 @@ $("graph").addEventListener("click", () => requestAnimationFrame(() => intoView(
 $("bStart").onclick = () => go(0); $("bPrev").onclick = () => go(S.ply - 1);
 $("bNext").onclick = () => go(S.ply + 1); $("bEnd").onclick = () => go(1e9);
 $("bSound").onclick = () => sound.toggle(); sound.label();
+$("bMusic").onclick = () => music.toggle(); music.label();
 
 // Graph: click a spot to jump there; hover to see the move and the eval.
 const graphPly = (e, el) => { const rect = el.getBoundingClientRect(); return Math.max(0, Math.min(S.sel.moves.length, Math.round((e.clientX - rect.left) / rect.width * S.sel.moves.length))); };
@@ -2392,6 +3107,8 @@ $("keys").addEventListener("click", e => { const b = e.target.closest(".kchip[da
 
 // Coach buttons
 $("insight").addEventListener("click", e => {
+  const pw = e.target.closest(".pat[data-fig]");
+  if (pw && !X.on) { showFigure((S.coachFigs || [])[+pw.dataset.fig]); return; }
   const b = e.target.closest("[data-act]"), g = S.sel; if (!b || !g) return;
   const act = b.dataset.act;
   if (act === "retry") xEnter("retry", S.ply - 1);
@@ -2460,9 +3177,50 @@ document.addEventListener("keydown", e => {
 $("lgrid").innerHTML = ORDER.concat("forced").map(k => kIcon(k) + '<div><b>' + CLS[k].label + '</b>: ' + esc(CLS[k].about) + '</div>').join("");
 /* ---------- views ---------- */
 let view = "review";
+/* ---------- the phone's coach strip ----------
+   On phones the cards under the board (coach, explore panel, puzzle, Openings) used to sit behind the
+   bottom bar. Each view sends a summary here (icon, verdict, one-line reason) for a strip docked just
+   above the bar; tapping it opens the full card as a sheet above the strip (CSS: "the coach strip"). */
+const plainText = html => { const d = document.createElement("div"); d.innerHTML = html || ""; d.querySelectorAll(".why, .wait").forEach(x => x.remove()); return d.textContent.replace(/\s+/g, " ").trim(); };
+const coach = {
+  data: {}, mq: window.matchMedia("(max-width: 699px)"),
+  set(v, d) { this.data[v] = d; if (v === view) this.paint(); },
+  paint() {
+    const d = this.data[view], bar = $("coachbar");
+    if (!d) { bar.hidden = true; this.open(false); return; }
+    bar.hidden = false;
+    $("cbIco").className = "ki" + (d.cls ? " " + d.cls : ""); $("cbIco").innerHTML = d.glyph || "";
+    $("cbTtl").textContent = d.title || ""; $("cbBrief").textContent = d.brief || "";
+    this.fit();
+  },
+  isOpen() { return document.body.classList.contains("coach-open"); },
+  open(on) {
+    on = !!on && this.mq.matches;
+    if (on === this.isOpen()) return;
+    document.body.classList.toggle("coach-open", on); $("coachbar").setAttribute("aria-expanded", String(on));
+    if (on) { this.fit(); const card = this.card(); if (card) card.scrollTop = 0; }
+  },
+  card() { return view === "review" ? (X.on && X.mode === "explore" ? $("xpanel") : $("insight")) : view === "trainer" ? $("tprompt") : $("oprompt"); },
+  // Where the strip and the sheet sit depends on the height of the view's bottom bar (and of the strip).
+  fit() {
+    if (!this.mq.matches) return;
+    const b = document.querySelector({ review: "#viewReview .controls", trainer: "#viewTrainer .tactions", openings: "#viewOpenings .tactions" }[view]);
+    if (b && b.offsetHeight) document.documentElement.style.setProperty("--bar-h", b.offsetHeight + "px");
+    const s = $("coachbar"); if (!s.hidden && s.offsetHeight) document.documentElement.style.setProperty("--strip-h", s.offsetHeight + "px");
+  }
+};
+$("coachbar").addEventListener("click", () => coach.open(!coach.isOpen()));
+$("coachveil").addEventListener("click", () => coach.open(false));
+document.addEventListener("keydown", e => { if (e.key === "Escape" && coach.isOpen()) { coach.open(false); e.stopImmediatePropagation(); } }, true);
+// A button inside the open sheet usually changes the board (Retry, Best line, a pattern word, Hint...):
+// close the sheet so the board shows.
+document.addEventListener("click", e => {
+  if (coach.isOpen() && e.target.closest("#insight button, #xpanel button, #xpanel [data-xi], #tprompt button, #oprompt button")) requestAnimationFrame(() => coach.open(false));
+}, true);
+window.addEventListener("resize", () => coach.fit());
 function showView(v) {
   view = v === "trainer" || v === "puzzles" ? "trainer" : v === "openings" ? v : "review";   // #trainer is the old address of #puzzles
-  document.body.classList.remove("sheet");
+  document.body.classList.remove("sheet"); coach.open(false);
   if (view !== "review" && X.on) xExit(true);
   $("viewReview").hidden = view !== "review"; $("viewTrainer").hidden = view !== "trainer"; $("viewOpenings").hidden = view !== "openings";
   $("viewTitle").textContent = { trainer: "Puzzles", openings: "Openings", review: "Game Review" }[view];
@@ -2471,6 +3229,7 @@ function showView(v) {
   if (view === "review" && S.reviewStale) { S.reviewStale = false; renderReview(); }
   if (view === "trainer") trainerRefresh();
   if (view === "openings") openingsRefresh();
+  coach.paint();
 }
 window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
 
@@ -2607,36 +3366,36 @@ async function refutationFor(p) {
   const a = S.analyses[p.g.id], e = a && a.evals[p.i + 1];
   return e && e.best ? [e.best] : [];
 }
+// The puzzle's "Why", in the same words as Game review: what the solution wins (and how), and what the
+// move you played in the game allowed. Pattern words show their picture on the puzzle board.
 async function explain(p) {
-  const opp = sideName(p.g.me === "w" ? "b" : "w");
-  const s = p.g.me === "w" ? 1 : -1;
-  const ev = S.analyses[p.g.id].evals;
-  // "+6.1", or "mate in 3" / "a mate for Black" when the engine sees one
+  const N = xNames(p.g.me), opp = sideName(p.g.me === "w" ? "b" : "w"), s = p.g.me === "w" ? 1 : -1;
+  const ev = S.analyses[p.g.id].evals, figs = [];
+  // "+6.1", or "mate in 3" / "a forced mate for Black" when the engine sees one
   const said = e => e.mated ? (s * e.num > 0 ? "a win" : "a loss") : e.mate != null ? (s * e.mate > 0 ? "mate in " + Math.abs(e.mate) : "a forced mate for " + opp) : signedEval(s * e.num);
-  // Describe the solution plus the opponent's answer to its last move (from the stored line when it follows
-  // the same moves), so a piece taken straight back isn't counted as won.
+  // The solution plus the opponent's answer to its last move (from the stored line when it follows the
+  // same moves), so a piece taken straight back isn't counted as won.
   const pv = p.pv && p.sol.every((u, k) => p.pv[k] === u) && p.pv.length > p.sol.length ? p.sol.concat(p.pv[p.sol.length]) : p.sol;
-  const sol = describeLine(p.fen, pv, null);
+  const B = explainLine(p.fen, pv, { names: N, figs, e: ev[p.i] });
   const ref = await refutationFor(p);
-  const playedCap = (() => { try { const m = uciMove(new Chess(p.fen), p.played); return m && m.captured; } catch (e) { return null; } })();
-  const bad = ref && ref.length ? describeLine(p.g.fens[p.i + 1], ref, "your", playedCap) : null;
-  const solActive = sol && (sol.mate || sol.what);
-  const badReal = bad && (bad.mate || bad.what);
+  const mv = p.g.moves[p.i], pre = mv ? { m: mv, b0: boardArr(p.g.fens[p.i]), b1: boardArr(p.g.fens[p.i + 1]) } : null;
+  const A = ref && ref.length ? explainLine(p.g.fens[p.i + 1], ref, { names: N, pre, figs, e: ev[p.i + 1] }) : null;
+  const first = "<b>" + esc(B ? B.L.plies[0].m.san : sanOf(p.fen, p.sol[0])) + "</b>";
   let solText = "";
-  if (sol) {
-    if (sol.mate) solText = sol.plies === 1 ? "<b>" + esc(sol.first) + "</b> is checkmate on the spot." : "<b>" + esc(sol.first) + "</b> starts a forced checkmate: <b>" + esc(sol.line) + "</b>.";
-    else if (sol.what) solText = "<b>" + esc(sol.first) + "</b> lets you " + sol.what + (sol.plies > 1 ? ": <b>" + esc(sol.line) + "</b>" : "") + ".";
-    else {   // no material changes hands for good (a trade into a won ending, a trapped piece): show the line
-      const idea = pv.length > 1 ? lineSan(p.fen, pv.slice(0, Math.max(3, p.sol.length))) : "";
-      solText = "<b>" + esc(sol.first) + "</b> is the only move that " + (p.kind === "defend" ? "holds" : "wins") + " (" + said(ev[p.i]) + ")" + (idea ? ". The idea: <b>" + esc(idea) + "</b>" : "") + ".";
-    }
-    if (sol.fork) solText += " " + esc(sol.fork) + ".";
+  if (B && B.res.mate) solText = B.res.mateIn === 1 ? first + " is checkmate on the spot." : first + " starts a forced checkmate: " + B.lineHtml + ".";
+  else if (B && B.concrete) solText = first + " wins " + B.what + (B.res.show > 0 ? ": " + B.lineHtml : "") + ".";
+  else {   // nothing changes hands for good (a trade into a won ending, a trapped piece): show the line
+    const idea = pv.length > 1 ? lineSan(p.fen, pv.slice(0, Math.max(3, p.sol.length))) : "";
+    solText = first + " is the only move that " + (p.kind === "defend" ? "holds" : "wins") + " (" + said(ev[p.i]) + ")" + (idea ? ". The idea: <b>" + esc(idea) + "</b>" : "") + ".";
   }
+  if (B && B.why) solText += " " + B.why;
+  const solActive = !!(B && (B.res.mate || B.concrete)), badReal = !!(A && (A.res.mate || A.concrete));
   let game = "In the game you played <b>" + esc(p.playedSan) + "</b>";
-  if (bad && bad.mate) game += ", which let " + opp + " force checkmate with <b>" + esc(bad.line) + "</b>.";
-  else if (bad && bad.what) game += ", which let " + opp + " " + bad.what + " with <b>" + esc(bad.line) + "</b>." + (bad.fork ? " " + esc(bad.fork) + "." : "");
+  if (A && A.res.mate) game += ", which let " + opp + " force " + A.what + ": " + A.lineHtml + "." + (A.why ? " " + A.why : "");
+  else if (badReal) game += ", which let " + opp + " win " + A.what + ": " + A.lineHtml + "." + (A.why ? " " + A.why : "");
   else if (solActive) game += " and missed this, so the position went from " + said(ev[p.i]) + " to " + said(ev[p.i + 1]) + ".";
-  else game += ". " + opp + "\u2019s best answer was <b>" + esc(bad ? bad.first : sanOf(p.g.fens[p.i + 1], ref && ref[0])) + "</b>, and the position went from " + said(ev[p.i]) + " to " + said(ev[p.i + 1]) + ".";
+  else game += ". " + opp + "’s best answer was <b>" + esc(A ? A.L.plies[0].m.san : sanOf(p.g.fens[p.i + 1], ref && ref[0])) + "</b>, and the position went from " + said(ev[p.i]) + " to " + said(ev[p.i + 1]) + ".";
+  p.figs = figs;
   // Lead with whichever half carries the point: the threat you allowed, or the chance you missed.
   return solActive || !badReal ? solText + " " + game : game + " " + solText;
 }
@@ -2671,7 +3430,7 @@ function loadPuzzle(idx) {
   const p = preparePuzzle(T.list[T.idx]); const token = ++T.token;
   if (p) store.set(tcurKey(T.set), p.id);
   const oldBurst = document.querySelector(".tboardwrap canvas.confetti"); if (oldBurst) oldBurst.remove();
-  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", intro: false, tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [], solEval: null });
+  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", intro: false, tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [], solEval: null, figView: null });
   if (p) {
     T.line = p.sol.slice();
     if (!p.ref && engine.ready) refutationFor(p).catch(() => {});
@@ -2689,10 +3448,17 @@ function loadPuzzle(idx) {
 }
 function sideName(c) { return c === "w" ? "White" : "Black"; }
 function myMoves() { return Math.ceil(T.line.length / 2); }
+// A pattern's picture on a trainer board: { fen, last, arrows } from the line in the explanation.
+function figureView(fig) {
+  const c = new Chess(fig.start); let last = null;
+  for (const u of fig.line.slice(0, fig.k + 1)) { const m = uciMove(c, u); if (!m) break; last = { from: m.from, to: m.to }; }
+  return { fen: c.fen(), last, arrows: fig.arrows.map(([a, b]) => ({ from: idxSq(a), to: idxSq(b), color: fig.mine ? "var(--c-best)" : "var(--c-blunder)" })), i: fig.i };
+}
 function renderTrainer() {
   const p = T.list[T.idx];
   const flip = p ? p.g.me === "b" : false;
-  renderBoard(T.fen, T.last, T.arrow, null, { el: "tboard", flip, sel: T.sel, targets: T.targets, hint: T.hint });
+  if (T.figView) renderBoard(T.figView.fen, T.figView.last, T.figView.arrows, null, { el: "tboard", flip });
+  else renderBoard(T.fen, T.last, T.arrow, null, { el: "tboard", flip, sel: T.sel, targets: T.targets, hint: T.hint });
   const mine = S.games.filter(g => !g.example).length;
   const prog = tprog.get();
   const found = tMeta.chances ? Math.round(100 * (tMeta.chances - tMeta.missedAll) / tMeta.chances) + "%" : "–";
@@ -2707,6 +3473,7 @@ function renderTrainer() {
       : T.set === "defend" ? "You didn't miss any only-move defenses in these games. Try another format." : "You didn't miss any winning moves in these games. Try another format.";
     else why = "You've solved every puzzle here. Untick “Skip puzzles I've already solved” to go through them again.";
     box.innerHTML = '<div class="eyebrow">Puzzles</div><p class="ask">Nothing to solve right now</p><div class="ctx">' + esc(why) + '</div>';
+    coach.set("trainer", { glyph: "?", title: "Nothing to solve right now", brief: why });
     return;
   }
   const g = p.g, opp = g.me === "w" ? g.black : g.white;
@@ -2723,6 +3490,9 @@ function renderTrainer() {
   box.innerHTML = '<div class="eyebrow">Puzzle ' + (T.idx + 1) + ' of ' + T.list.length + (prog[p.id] === "solved" && T.status === "solving" ? ' · solved before' : '') + '</div>' +
     '<p class="ask">' + esc(ask) + '</p>' + sub +
     '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '.' + (p.prev && !T.intro ? ' Your opponent had just played <b>' + esc(p.prev.san) + '</b>.' : '') + ' In the game you missed it.</div>' + fb;
+  const k = T.msg ? T.msg.kind : "", why = T.msg && /class="why"/.test(T.msg.html) ? plainText(T.msg.html.replace(/^[\s\S]*?<div class="why"><span class="why-h">Why<\/span>/, "").replace(/<button class="tlink"[\s\S]*$/, "")) : "";
+  coach.set("trainer", { cls: T.status === "solved" ? "best" : k === "bad" ? "blunder" : T.status === "shown" ? "book" : "great", glyph: T.status === "solved" ? SVG.check : k === "bad" ? SVG.x : T.status === "shown" ? SVG.arrow : "?",
+    title: (T.status === "solving" || T.status === "replying" ? "Puzzle " + (T.idx + 1) + " · " : "") + ask, brief: why || (T.msg ? plainText(T.msg.html) : "vs " + opp + ", move " + moveNo + (p.prev && !T.intro ? " · they just played " + p.prev.san : "")) });
 }
 function sanOf(fen, uci) { return uciToSan(fen, uci); }
 function costText(p) {
@@ -2800,6 +3570,7 @@ async function tryMove(from, to) {
 }
 
 $("tboard").addEventListener("click", e => {
+  if (T.figView) { T.figView = null; renderTrainer(); return; }
   const el = e.target.closest(".sq[data-sq]"); const p = T.list[T.idx];
   if (!el || !p || T.status !== "solving" || T.checking || T.intro) return;
   const sq = el.dataset.sq; const c = new Chess(T.fen);
@@ -2810,6 +3581,12 @@ $("tboard").addEventListener("click", e => {
   renderTrainer();
 });
 $("tprompt").addEventListener("click", e => {
+  const pw = e.target.closest(".pat[data-fig]");
+  if (pw) {
+    const cur = T.list[T.idx], i = +pw.dataset.fig, f = cur && cur.figs ? cur.figs[i] : null;
+    if (f && (T.status === "solved" || T.status === "shown")) { T.figView = T.figView && T.figView.i === i ? null : Object.assign(figureView(f), { i }); renderTrainer(); requestAnimationFrame(() => intoView("tboard")); }
+    return;
+  }
   const b = e.target.closest("[data-open]"); if (!b) return;
   const p = T.list.find(x => x.id === b.dataset.open); if (!p) return;
   location.hash = "#review"; select(p.g); go(p.i);
@@ -3242,7 +4019,9 @@ function renderOpenings() {
   updateOpeningEval();
   const meta = REP_SIDES[O.side], bk = bookOf(O.side);
   document.querySelectorAll("#oside button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === O.side)));
-  renderBoard(O.fen || new Chess().fen(), O.last, O.arrow, null, { el: "oboard", flip: O.side === "b", sel: O.sel, targets: O.targets, hint: O.mode === "punish" ? O.phint : null });
+  if (O.figView && !(O.mode === "punish" && O.status === "done")) O.figView = null;
+  if (O.figView) renderBoard(O.figView.fen, O.figView.last, O.figView.arrows, null, { el: "oboard", flip: O.side === "b" });
+  else renderBoard(O.fen || new Chess().fen(), O.last, O.arrow, null, { el: "oboard", flip: O.side === "b", sel: O.sel, targets: O.targets, hint: O.mode === "punish" ? O.phint : null });
   $("oShow").hidden = O.mode !== "punish";
   if (O.mode === "punish") {
     renderPunishCard(meta);
@@ -3292,6 +4071,7 @@ function renderPracticeCard(meta, bk) {
   if (!bk) {
     $("oprompt").innerHTML = eyebrow + '<p class="ask">' + (BK.tried ? "Your book isn’t built yet." : "Loading your book…") + '</p>' +
       (BK.tried ? '<div class="ctx">The website builds it from your games and Lichess games at your level. Try again in a few minutes.</div>' : "");
+    coach.set("openings", { cls: "book", glyph: SVG.book, title: BK.tried ? "Your book isn’t built yet." : "Loading your book…", brief: meta.who + " · " + meta.title });
     return;
   }
   const it = O.cur, now = Date.now();
@@ -3306,6 +4086,7 @@ function renderPracticeCard(meta, bk) {
     $("oprompt").innerHTML = eyebrow + '<div class="onow"><div class="onow-t"><b>Today</b><span> · ' + n.all + ' moves in your book</span></div></div>' +
       '<p class="ask">' + esc(ask) + '</p>' + (sub ? '<div class="ctx">' + esc(sub) + '</div>' : "") +
       (O.msg && O.status === "done" ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "");
+    coach.set("openings", { cls: "book", glyph: SVG.book, title: ask, brief: O.msg && O.status === "done" ? plainText(O.msg.html) : meta.who + " · " + n.all + " moves in your book" });
     return;
   }
   const n = bk.N[it.i], inc = incoming(bk, it.i), revealed = O.status === "between" || (it.kind === "learn" && O.status !== "cpu");
@@ -3329,6 +4110,9 @@ function renderPracticeCard(meta, bk) {
     (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "") +
     (after ? '<div class="why"><span class="why-h">The idea</span>' + after + '</div>' : "") +
     '<div class="ctx onote">' + esc(where) + '</div>';
+  const ok = O.msg && O.msg.cls === "good", bad = O.msg && O.msg.cls === "bad";
+  coach.set("openings", { cls: ok ? "best" : bad ? "blunder" : "book", glyph: ok ? SVG.check : bad ? SVG.x : SVG.book, title: ask,
+    brief: (O.msg ? plainText(O.msg.html) + " " : "") + (after ? plainText(after) : nodeName(bk, it.i)) });
 }
 
 // The book: one row per variation (most common first), with what each needs, and every move inside.
@@ -3463,7 +4247,13 @@ function openingsRefresh() {
   if (O.mode === "practice" && !SS.active && !O.fen) return showStart();
   renderOpenings();
 }
+$("oprompt").addEventListener("click", e => {
+  const pw = e.target.closest(".pat[data-fig]"); if (!pw) return;
+  const i = +pw.dataset.fig, f = (O.figs || [])[i];
+  if (f && O.status === "done") { O.figView = O.figView && O.figView.i === i ? null : Object.assign(figureView(f), { i }); renderOpenings(); requestAnimationFrame(() => intoView("oboard")); }
+});
 $("oboard").addEventListener("click", e => {
+  if (O.figView) { O.figView = null; renderOpenings(); return; }
   const can = O.mode === "punish" ? O.status === "solving" : O.status === "mine";
   const el = e.target.closest(".sq[data-sq]"); if (!el || !can) return;
   const sq = el.dataset.sq; const c = new Chess(O.fen);
@@ -3636,7 +4426,7 @@ function punishStart(id) {
   if (!list.length) { O.mode = "practice"; store.set("omode", "practice"); O.pz = null; return showStart(); }
   const done = opun.get(), cur = O.pz ? O.pz.id : null;
   const d = (id && list.find(x => x.id === id)) || list.find(x => done[x.id] !== "solved" && x.id !== cur) || list.find(x => x.id !== cur) || list[0];
-  O.token++; O.mode = "punish"; store.set("omode", "punish"); O.cur = null; SS.active = false; O.pz = d;
+  O.token++; O.mode = "punish"; store.set("omode", "punish"); O.cur = null; SS.active = false; O.pz = d; O.figView = null; O.figs = [];
   Object.assign(O, { hist: [], mine: 0, misses: 0, missedNow: false, sel: null, targets: [], arrow: null, msg: null, phint: null, pstep: 0, ptries: 0, revealed: false, plast: null });
   O.pline = d.pv ? trimLine(d.fen, d.pv) : [];
   O.fen = d.prevFen; O.last = null; O.status = "intro"; renderOpenings();
@@ -3663,13 +4453,16 @@ function punishSolved(lead) {
   renderOpenings();
 }
 function punishWhy(d) {
-  const sol = describeLine(d.fen, d.pv && d.pv.length ? d.pv : O.pline, null); if (!sol) return "";
-  const s = O.side === "w" ? 1 : -1, adv = signedEval(s * d.evalNum);
+  const N = xNames(O.side), figs = [];
+  const B = explainLine(d.fen, d.pv && d.pv.length ? d.pv : O.pline, { names: N, figs });
+  if (!B) return "";
+  O.figs = figs;
+  const s = O.side === "w" ? 1 : -1, adv = signedEval(s * d.evalNum), first = "<b>" + esc(B.L.plies[0].m.san) + "</b>";
   let t;
-  if (sol.mate) t = sol.plies === 1 ? "<b>" + esc(sol.first) + "</b> is checkmate." : "<b>" + esc(sol.first) + "</b> starts a forced checkmate: <b>" + esc(sol.line) + "</b>.";
-  else if (sol.what) t = "<b>" + esc(sol.first) + "</b> lets you " + sol.what + (sol.plies > 1 ? ": <b>" + esc(sol.line) + "</b>" : "") + ".";
-  else t = "<b>" + esc(sol.first) + "</b> makes the most of it: you’re " + adv + " after it" + (sol.plies > 1 ? ". The idea: <b>" + esc(sol.line) + "</b>" : "") + ".";
-  if (sol.fork) t += " " + esc(sol.fork) + ".";
+  if (B.res.mate) t = B.res.mateIn === 1 ? first + " is checkmate." : first + " starts a forced checkmate: " + B.lineHtml + ".";
+  else if (B.concrete) t = first + " wins " + B.what + (B.res.show > 0 ? ": " + B.lineHtml : "") + ".";
+  else t = first + " makes the most of it: you’re " + adv + " after it" + (B.L.plies.length > 1 ? ". The idea: <b>" + esc(lineSan(d.fen, B.L.plies.slice(0, Math.min(B.L.plies.length, 5)).map(p => p.uci))) + "</b>" : "") + ".";
+  if (B.why) t += " " + B.why;
   return t;
 }
 async function punishTry(from, to) {
@@ -3724,7 +4517,7 @@ function punishShow() {
 }
 function renderPunishCard(meta) {
   const d = O.pz, list = punishList(), k = d ? list.findIndex(x => x.id === d.id) : -1;
-  if (!d) { $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + '</div><p class="ask">No drills yet.</p>'; return; }
+  if (!d) { $("oprompt").innerHTML = '<div class="eyebrow">' + esc(meta.who + " · " + meta.title) + '</div><p class="ask">No drills yet.</p>'; coach.set("openings", { glyph: "!", title: "No drills yet.", brief: meta.who + " · " + meta.title }); return; }
   const turnNum = plyNum(d.path.length - 1) + d.prev.san;
   let ask = "";
   if (O.status === "intro") ask = "Your opponent is about to move…";
@@ -3747,6 +4540,8 @@ function renderPunishCard(meta) {
     '<div class="ostrip">' + strip + '</div>' +
     (O.msg ? '<div class="feedback ' + O.msg.cls + '">' + O.msg.html + '</div>' : "") +
     '<div class="ctx onote">' + note + '</div>';
+  const ok = O.status === "done" && !O.revealed, bad = O.msg && O.msg.cls === "bad";
+  coach.set("openings", { cls: ok ? "best" : bad ? "blunder" : "miss", glyph: ok ? SVG.check : bad ? SVG.x : "!", title: ask, brief: O.msg ? plainText(O.msg.html) : plainText(note) });
 }
 
 
