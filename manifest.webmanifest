@@ -2,6 +2,8 @@
   "name": "PChess",
   "short_name": "PChess",
   "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
   "background_color": "#f5f5f7",
   "theme_color": "#f5f5f7",
   "icons": [

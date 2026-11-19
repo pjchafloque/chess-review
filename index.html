@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>[hidden]{display:none!important}body{margin:0}</style>
 <title>PChess</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -7,6 +7,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=2">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-title" content="PChess">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap">
@@ -595,6 +597,104 @@ details.legend summary::-webkit-details-marker { display: none; }
 }
 @media (max-width: 359px) { .summary { grid-template-columns: 1fr; } }
 @media (max-width: 460px) { .tabs a { padding: 6px 10px; font-size: 12.5px; } .who input { width: 140px; } }
+
+/* Screen sizes (2026-11-18). One page for every screen, three layouts:
+   laptop: the game list and the board stay on screen while the rest scrolls, and the board grows with the window height;
+   tablet: one column, board on top, the game list in a sheet;
+   iPhone: board first and nearly edge to edge, the buttons you press most in a bar at the bottom. */
+:root { --nav-h: calc(53px + env(safe-area-inset-top, 0px)); --stick: calc(var(--nav-h) + 16px); }
+.subnav { padding-top: env(safe-area-inset-top, 0px); }
+.app, .subnav-in { max-width: 1600px; }
+.board, .review { scroll-margin-top: calc(var(--nav-h) + 12px); }
+#oset label { flex-wrap: wrap; white-space: nowrap; }
+.gamesbtn, .sheethead { display: none; }
+.controls .gamesbtn { width: auto; padding: 0 16px 0 13px; gap: 7px; border-radius: 999px; font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+.sheethead { align-items: center; justify-content: space-between; gap: 12px; }
+.sheethead h2 { margin: 0; font-family: var(--f-display); font-size: 28px; font-weight: 600; line-height: 1.14; letter-spacing: .007em; }
+.omore { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.ocolumn { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@container oside (min-width: 700px) { .omore { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Tablets and laptops: a slightly shorter page header, so the board starts higher. */
+@media (min-width: 700px) {
+  body { padding-bottom: 32px; }
+  .top { padding-top: 26px; }
+  .toprow { margin-top: 10px; }
+  .brand h1 { font-size: 34px; line-height: 1.12; }
+}
+/* Laptops: the game list fills its column and scrolls on its own. */
+@media (min-width: 980px) {
+  .library { position: sticky; top: var(--stick); height: calc(100vh - var(--stick) - 32px); height: calc(100dvh - var(--stick) - 32px); min-height: 440px; }
+  .library > .panel:last-child { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column; }
+  .games { max-height: none; flex: 1 1 auto; overscroll-behavior: contain; }
+}
+/* Laptops: the board is as big as the window height allows and stays put while the analysis scrolls. */
+@media (min-width: 1180px) {
+  .layout { grid-template-columns: clamp(290px, 22vw, 340px) minmax(0, 1fr); }
+  .review {
+    --rb: clamp(380px, calc(100vh - var(--stick) - 136px), 700px);
+    grid-template-columns: minmax(0, calc(var(--rb) + 24px)) minmax(300px, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "board head" "board side";
+  }
+  .game-head { grid-area: head; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 4px; }
+  .game-head h2 { font-size: 24px; line-height: 1.17; letter-spacing: .009em; }
+  .boardcol { grid-area: board; position: sticky; top: var(--stick); align-self: start; gap: 12px; }
+  .side { grid-area: side; }
+  .moves { max-height: max(360px, 46vh); }
+}
+@media (min-width: 900px) {
+  .trainer { --tb: clamp(360px, calc(100vh - 205px), 660px); }
+  #viewOpenings { grid-template-columns: minmax(0, calc(var(--tb) + 24px)) minmax(340px, 1fr); }
+  #viewTrainer { grid-template-columns: minmax(0, var(--tb)) minmax(340px, 1fr); }
+  .trainer > .tboardwrap { position: sticky; top: var(--stick); align-self: start; }
+  #viewOpenings .tside { container: oside / inline-size; }
+}
+/* One column (phones and tablets): what you're doing comes right under the board. */
+@media (max-width: 899px) { #oprompt { order: -2; } #viewOpenings .tactions { order: -1; } }
+/* Tablets and short laptop windows: one column, with the board no taller than the window. */
+@media (min-width: 700px) and (max-width: 1179px) {
+  .boardcol { width: 100%; max-width: max(340px, calc(100vh - var(--nav-h) - 150px)); margin-inline: auto; }
+}
+
+/* Phones and tablets: the game list is a sheet that slides up from the Games button. */
+@media (max-width: 979px) {
+  .gamesbtn { display: inline-flex; }
+  .sheethead { display: flex; }
+  .library {
+    position: fixed; inset: 0; z-index: 80; margin: 0; background: var(--bg); overflow-y: auto; overscroll-behavior: contain;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+    transform: translateY(102%); visibility: hidden; transition: transform .34s cubic-bezier(.32, .72, 0, 1), visibility 0s linear .34s;
+  }
+  body.sheet .library { transform: none; visibility: visible; transition: transform .34s cubic-bezier(.32, .72, 0, 1); }
+  body.sheet { overflow: hidden; }
+  .games { max-height: none; }
+}
+
+/* iPhone */
+@media (max-width: 699px) {
+  body { padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+  .app { gap: 14px; padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+  .subnav-in { padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+  .brand { display: none; }
+  .top { order: 9; padding: 4px 6px 0; }
+  .toprow { margin-top: 0; }
+  .review { padding: 10px 0 0; gap: 14px; background: none; border: 0; border-radius: 0; }
+  .game-head { padding: 0 8px; }
+  .game-head h2 { font-size: 19px; line-height: 1.21; }
+  .boardwrap { grid-template-columns: 8px minmax(0, 1fr); gap: 6px; }
+  .review .insight, .review .xpanel, .review .pcard, .review .phases, .review .moves { background: var(--surface); border: 1px solid var(--card-line); }
+  .review .insight .feedback { background: var(--surface-2); }
+  .tryhint { margin-top: -6px; }
+  .trainer { gap: 14px; }
+  .controls, .tactions {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; margin: 0; gap: 8px; flex-wrap: nowrap;
+    padding: 8px max(12px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+    background: var(--nav-bg); border-top: 1px solid var(--nav-line); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  }
+  .controls { justify-content: space-between; }
+  .tactions { justify-content: center; }
+  .tactions .btn { flex: 1 1 auto; min-width: 0; padding: 11px 10px; font-size: 15px; white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) { .library, body.sheet .library { transition: none; } }
 </style>
 
 <div class="loadbar on boot" id="loadbar" role="progressbar" aria-label="Loading your games" aria-hidden="false"></div>
@@ -645,7 +745,8 @@ details.legend summary::-webkit-details-marker { display: none; }
   </dialog>
 
   <main class="layout" id="viewReview">
-    <aside class="library">
+    <aside class="library" id="library" aria-label="Your games">
+      <div class="sheethead"><h2>Your games</h2><button class="btn small" id="sheetDone" type="button">Done</button></div>
       <section class="panel import" aria-labelledby="imp-h">
         <h2 id="imp-h">Add games from chess.com</h2>
         <button class="btn primary" id="update" type="button">Update from chess.com</button>
@@ -677,6 +778,7 @@ details.legend summary::-webkit-details-marker { display: none; }
           <div class="board free" id="board"></div>
         </div>
         <div class="controls">
+          <button class="btn gamesbtn" id="gamesBtn" type="button" aria-label="Your games" title="Your games"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8.5 6.5h11M8.5 12h11M8.5 17.5h11"/><circle cx="4.6" cy="6.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.6" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.6" cy="17.5" r="1.1" fill="currentColor" stroke="none"/></svg><span>Games</span></button>
           <button class="btn" id="bStart" type="button" aria-label="First move" title="First move"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 5.5v13"/><path d="M18 6.2 9.6 12l8.4 5.8z" fill="currentColor"/></svg></button>
           <button class="btn" id="bPrev" type="button" aria-label="Previous move" title="Previous move"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button>
           <button class="btn" id="bNext" type="button" aria-label="Next move" title="Next move"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button>
@@ -684,11 +786,6 @@ details.legend summary::-webkit-details-marker { display: none; }
           <button class="btn" id="bSound" type="button" aria-pressed="true" aria-label="Sound" title="Sound on"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a7.6 7.6 0 0 1 0 11"/></svg></button>
         </div>
         <div class="tryhint" id="tryhint">Tip: move any piece on the board to try your own ideas with the engine.</div>
-        <details class="legend" id="legend">
-          <summary>What the move labels mean</summary>
-          <div class="lgrid" id="lgrid"></div>
-          <p class="lnote">Moves are graded by expected points: your chance of winning (a draw counts half) before and after the move, worked out from Stockfish's evaluation. Losing two pawns matters a lot in an equal position and hardly at all when you're already a rook up, so the grades follow what the move does to the result, like chess.com's Game Review.</p>
-        </details>
       </div>
       <div class="side">
         <div class="insight" id="insight" aria-live="polite"></div>
@@ -701,6 +798,11 @@ details.legend summary::-webkit-details-marker { display: none; }
           <div class="graphwrap"><svg class="graph" id="graph" viewBox="0 0 600 86" preserveAspectRatio="none" role="img" aria-label="Evaluation graph"></svg><div class="gtip" id="gtip" hidden></div></div>
         </div>
         <div class="moves" id="moves"></div>
+        <details class="legend" id="legend">
+          <summary>What the move labels mean</summary>
+          <div class="lgrid" id="lgrid"></div>
+          <p class="lnote">Moves are graded by expected points: your chance of winning (a draw counts half) before and after the move, worked out from Stockfish's evaluation. Losing two pawns matters a lot in an equal position and hardly at all when you're already a rook up, so the grades follow what the move does to the result, like chess.com's Game Review.</p>
+        </details>
       </div>
     </section>
   </main>
@@ -745,11 +847,17 @@ details.legend summary::-webkit-details-marker { display: none; }
         <button class="btn primary" id="oNext" type="button">Start</button>
       </div>
       <div class="panel tstats" id="ostats"></div>
-      <div class="panel tsettings" id="ogames"></div>
-      <div class="panel tsettings" id="ocov"></div>
-      <div class="panel tsettings" id="omiss"></div>
-      <div class="panel tsettings" id="oset"></div>
-      <div><button class="btn small" id="oReset" type="button">Reset my openings progress</button></div>
+      <div class="omore">
+        <div class="ocolumn">
+          <div class="panel tsettings" id="ogames"></div>
+          <div class="panel tsettings" id="omiss"></div>
+        </div>
+        <div class="ocolumn">
+          <div class="panel tsettings" id="ocov"></div>
+          <div class="panel tsettings" id="oset"></div>
+          <div><button class="btn small" id="oReset" type="button">Reset my openings progress</button></div>
+        </div>
+      </div>
     </div>
   </section>
 </div>
@@ -2196,8 +2304,34 @@ $("formats").addEventListener("click", e => {
   S.tfilter = b.dataset.t; store.set("tfilter", S.tfilter); syncFormatButtons(); renderList();
 });
 function syncFormatButtons() { document.querySelectorAll("#formats button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.t === S.tfilter))); }
-$("games").addEventListener("click", e => { const b = e.target.closest(".game"); if (b) select(S.games.find(g => g.id === b.dataset.id)); });
+$("games").addEventListener("click", e => {
+  const b = e.target.closest(".game"); if (!b) return;
+  select(S.games.find(g => g.id === b.dataset.id));
+  if (document.body.classList.contains("sheet")) { gamesSheet(false); $("review").scrollIntoView({ block: "start" }); }
+});
+// Phones and tablets: the game list is a sheet that slides up from the Games button (CSS decides when).
+function gamesSheet(open) {
+  document.body.classList.toggle("sheet", !!open);
+  if (open) {
+    const cur = document.querySelector('#games .game[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: "center" });
+    $("sheetDone").focus({ preventScroll: true });
+  } else if ($("library").contains(document.activeElement)) $("gamesBtn").focus({ preventScroll: true });
+}
+$("gamesBtn").onclick = () => gamesSheet(true);
+$("sheetDone").onclick = () => gamesSheet(false);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("sheet")) { gamesSheet(false); e.stopImmediatePropagation(); } }, true);
 $("moves").addEventListener("click", e => { const b = e.target.closest(".mv[data-ply]"); if (b) go(+b.dataset.ply); });
+// Phones and tablets (where the board isn't pinned): bring the board back into view when a button further down changes it.
+function intoView(id) {
+  const b = $(id); if (!b || !b.offsetWidth) return;
+  const r = b.getBoundingClientRect(), navB = document.querySelector(".subnav").getBoundingClientRect().bottom;
+  if (r.top < navB - 2 || r.top > innerHeight * .55) b.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+document.querySelector("#review .side").addEventListener("click", e => {
+  if (e.target.closest(".kchip, .mv[data-ply], .crow, #insight button, #xpanel button")) requestAnimationFrame(() => intoView("board"));
+}, true);   // capture: the handlers below redraw these buttons, so look before they do
+$("graph").addEventListener("click", () => requestAnimationFrame(() => intoView("board")));
+["tNext", "tPrev"].forEach(id => $(id).addEventListener("click", () => requestAnimationFrame(() => intoView("tboard"))));
 $("bStart").onclick = () => go(0); $("bPrev").onclick = () => go(S.ply - 1);
 $("bNext").onclick = () => go(S.ply + 1); $("bEnd").onclick = () => go(1e9);
 $("bSound").onclick = () => sound.toggle(); sound.label();
@@ -2295,6 +2429,7 @@ $("lgrid").innerHTML = ORDER.concat("forced").map(k => kIcon(k) + '<div><b>' + C
 let view = "review";
 function showView(v) {
   view = v === "trainer" || v === "openings" ? v : "review";
+  document.body.classList.remove("sheet");
   if (view !== "review" && X.on) xExit(true);
   $("viewReview").hidden = view !== "review"; $("viewTrainer").hidden = view !== "trainer"; $("viewOpenings").hidden = view !== "openings";
   $("viewTitle").textContent = { trainer: "Blunder Trainer", openings: "Openings", review: "Game Review" }[view];
