@@ -14,7 +14,9 @@ Personal chess.com game review: https://pjchafloque.github.io/chess-review/
   The updater finds them with Lichess's puzzle-generator rules (https://github.com/ornicar/lichess-puzzler):
   your opponent has just made a mistake, the best move wins material or mates, and each of your moves
   in the solution is the only good one. Unlike Lichess it keeps one-move puzzles, and missed mates are
-  shown as "Mate in N". The rules are written out above `puzzle_start` in `scripts/update.py`.
+  shown as "Mate in N". A second set, Defend, has the positions where your opponent threatened
+  something and exactly one move held (plain recaptures don't count). The rules are written out above
+  `puzzle_start` in `scripts/update.py`.
 - `engine/` holds Stockfish.js 19 Lite (single-threaded WebAssembly, GPLv3), which the page runs in the
   browser for Retry, exploring your own moves, and games the website hasn't reviewed yet.
 - Book moves come from `scripts/openings.tsv`: the Lichess opening list
