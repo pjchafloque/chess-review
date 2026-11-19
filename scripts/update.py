@@ -24,6 +24,7 @@ analysis.json, one entry per game (version 2):
   z   puzzles: {ply: solution} for every position where the user had one clear winning move (Lichess's
       rules, see "puzzles" below), found or missed; the solution is a list of UCI moves, the user's
       moves and the opponent's replies, ending with the user's move. zz its version
+  y   defense puzzles, same format: positions where exactly one move held. yz its version
 """
 import csv
 import io
@@ -54,6 +55,7 @@ PUZZLE_VERSION = 3     # 3: puzzles for every move that lost 0.10 expected point
 PUNISH_VERSION = 1
 PUNISH_PLIES = 24      # opponent mistakes in the first 12 moves
 COOK_VERSION = 1       # 1: Lichess's puzzle rules (lichess-puzzler generator v50), see "puzzles"
+DEFENSE_VERSION = 1    # 1: positions where exactly one move held, see "puzzles"
 DATA = "data"
 GAMES_FILE = os.path.join(DATA, "games.json")
 ANALYSIS_FILE = os.path.join(DATA, "analysis.json")
@@ -356,7 +358,14 @@ def punish_lines(pgn: str, evals: list, engine) -> dict:
 #   - Mate puzzles say "Mate in N" on the page, so another move that also wins (say, a queen instead
 #     of mate in 2) doesn't make them ambiguous. Each of your moves must be the only one that mates
 #     that fast; any mate in one is fine. Lichess, which doesn't name the goal, drops all of these.
+# Defense puzzles (the Defend set, the user's choice on 2026-11-19): your opponent threatens something
+# and exactly one move holds, Lichess's "defensive move" theme. The same "only good move" test as above
+# (the best move beats the second-best by more than 0.7 win chances), at every one of your moves in
+# the line, for as long as you stay above -2 (4 moves at most). Not when it's a Win puzzle, not when
+# the best move mates, and not when the only move is taking back on the square your opponent just
+# captured on: that's a reflex, not a puzzle (about half of all only-moves in your games).
 MATE_SOON = chess.engine.Mate(15)
+DEFENSE_MAX_MOVES = 4
 COOK_MAX_MOVES = 6     # your moves; longer material lines stop here, longer mates don't count
 
 
@@ -499,30 +508,85 @@ def cook(engine, board, side, kind, limit, defense):
         strict = [True]
         sol = cook_mate(engine, board, side, limit, defense, strict)
         return ([m.uci() for m in sol], strict[0]) if sol else (None, False)
-    sol = cook_material(engine, board, side, limit)
+    sol = end_on_your_move(cook_material(engine, board, side, limit))
+    return (sol, True) if sol else (None, False)
+
+
+def defense_start(board, side, prev_e, cur_e) -> bool:
+    """A Defend puzzle may start here (from the stored evaluations): one move holds, every other move
+    is at least 0.7 win chances worse, it isn't a Win puzzle and the move isn't a plain recapture."""
+    if board.legal_moves.count() < 2 or len(cur_e) < 4 or not cur_e[2] or not cur_e[3]:
+        return False
+    best, second = stored_score(cur_e, side), stored_score(cur_e[3], side)
+    if best.mate() is not None or not win_chances(best) > win_chances(second) + 0.7:
+        return False
+    if puzzle_start(board, side, prev_e, cur_e):
+        return False
+    if board.move_stack:
+        last = board.pop()
+        took = board.is_capture(last)
+        board.push(last)
+        if took and chess.Move.from_uci(cur_e[2]).to_square == last.to_square:
+            return False                 # taking back: a reflex
+    return True
+
+
+def cook_defense(engine, board, side, limit, moves=0):
+    """[(move, has_second)] for as long as your moves stay the only ones that hold, or None."""
+    if board.is_repetition(2) or moves >= DEFENSE_MAX_MOVES * 2 or board.is_game_over():
+        return []
+    if board.turn == side:
+        best, second = top_two(engine, board, side, limit)
+        if not only_move(engine, board, side, best, second, limit):
+            return []
+    else:
+        info = engine.analyse(board, limit)
+        if not info.get("pv"):
+            return None
+        best, second = (info["pv"][0], info["score"].pov(side)), None
+    if best[1] < chess.engine.Cp(-200):
+        return None                      # it doesn't hold after all
+    board.push(best[0])
+    try:
+        rest = cook_defense(engine, board, side, limit, moves + 1)
+    finally:
+        board.pop()
+    return None if rest is None else [(best[0], second is not None)] + rest
+
+
+def end_on_your_move(sol):
+    """A solution ends with your move, and not with a forced one (only legal move)."""
     while sol and (len(sol) % 2 == 0 or not sol[-1][1]):
-        sol = sol[:-1]                   # end on your move, and not on a forced one
-    return ([m.uci() for m, _ in sol], True) if sol else (None, False)
+        sol = sol[:-1]
+    return [m.uci() for m, _ in sol] if sol else None
 
 
-def puzzles(pgn: str, evals: list, engine) -> dict:
-    """{ply: solution} for every position before one of the user's moves that is a puzzle."""
+def find_puzzles(pgn: str, evals: list, engine, win=True, defend=True):
+    """({ply: solution} Win puzzles, {ply: solution} Defend puzzles) for the positions before the user's moves."""
     game = chess.pgn.read_game(io.StringIO(pgn))
     me = user_side(game)
     if me is None or game.headers.get("FEN"):
-        return {}
+        return {}, {}
     search, defense = limit(PUZZLE_DEPTH), limit(15)
     board = game.board()
-    out = {}
+    wins, saves = {}, {}
     for i, move in enumerate(game.mainline_moves()):
         if board.turn == me and 0 < i < len(evals) and evals[i] and evals[i - 1] and len(evals[i]) > 2:
             kind = puzzle_start(board, me, evals[i - 1], evals[i])
-            if kind:
+            if kind and win:
                 sol, _ = cook(engine, board.copy(), me, kind, search, defense)
                 if sol:
-                    out[str(i)] = sol
+                    wins[str(i)] = sol
+            elif not kind and defend and defense_start(board, me, evals[i - 1], evals[i]):
+                sol = end_on_your_move(cook_defense(engine, board.copy(), me, search))
+                if sol:
+                    saves[str(i)] = sol
         board.push(move)
-    return out
+    return wins, saves
+
+
+def cook_due(a) -> bool:
+    return a.get("zz") != COOK_VERSION or a.get("yz") != DEFENSE_VERSION
 
 
 def stale(a) -> bool:
@@ -542,7 +606,7 @@ def run_reviews(store, analysis, shard=0, shards=1, checkpoint=None):
     need_lines = [gid for gid in fresh if analysis[gid].get("pz") != PUZZLE_VERSION]
     need_punish = [gid for gid in fresh if analysis[gid].get("qz") != PUNISH_VERSION and gid not in need_lines]
     # one job per game, so two machines never write the same game (the merge keeps one copy of each)
-    need_cook = [gid for gid in fresh if analysis[gid].get("zz") != COOK_VERSION and gid not in need_lines and gid not in need_punish]
+    need_cook = [gid for gid in fresh if cook_due(analysis[gid]) and gid not in need_lines and gid not in need_punish]
     work = [("review", gid) for gid in new] + [("lines", gid) for gid in need_lines] + \
            [("punish", gid) for gid in need_punish] + [("cook", gid) for gid in need_cook] + \
            [("review", gid) for gid in old]
@@ -579,12 +643,16 @@ def run_reviews(store, analysis, shard=0, shards=1, checkpoint=None):
 
     def add_cook(gid):
         a = analysis[gid]
+        win, defend = a.get("zz") != COOK_VERSION, a.get("yz") != DEFENSE_VERSION
         try:
-            a["z"] = puzzles(by_id[gid]["pgn"], a["e"], engine)
+            z, y = find_puzzles(by_id[gid]["pgn"], a["e"], engine, win, defend)
         except Exception as e:
             print("No puzzles for", gid, e)
-            a["z"] = {}
-        a["zz"] = COOK_VERSION
+            z, y = {}, {}
+        if win:
+            a["z"], a["zz"] = z, COOK_VERSION
+        if defend:
+            a["y"], a["yz"] = y, DEFENSE_VERSION
 
     done = 0
     try:
@@ -609,7 +677,7 @@ def run_reviews(store, analysis, shard=0, shards=1, checkpoint=None):
                         continue
             elif kind == "punish":
                 add_punish(gid)
-                if analysis[gid].get("zz") != COOK_VERSION:
+                if cook_due(analysis[gid]):
                     add_cook(gid)
             elif kind == "cook":
                 add_cook(gid)
