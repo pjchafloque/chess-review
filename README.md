@@ -10,6 +10,11 @@ Personal chess.com game review: https://pjchafloque.github.io/chess-review/
   published win% curve) decide Best / Excellent / Good / Inaccuracy / Mistake / Blunder, with extra
   rules for Brilliant, Great, Miss, Book and Forced. The rules are written out above `computeGrade`
   in `index.html`.
+- The Puzzles tab shows the positions from your games where exactly one move won and you missed it.
+  The updater finds them with Lichess's puzzle-generator rules (https://github.com/ornicar/lichess-puzzler):
+  your opponent has just made a mistake, the best move wins material or mates, and each of your moves
+  in the solution is the only good one. Unlike Lichess it keeps one-move puzzles, and missed mates are
+  shown as "Mate in N". The rules are written out above `puzzle_start` in `scripts/update.py`.
 - `engine/` holds Stockfish.js 19 Lite (single-threaded WebAssembly, GPLv3), which the page runs in the
   browser for Retry, exploring your own moves, and games the website hasn't reviewed yet.
 - Book moves come from `scripts/openings.tsv`: the Lichess opening list

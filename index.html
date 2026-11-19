@@ -288,7 +288,7 @@ a { color: var(--link); text-decoration: none; }
 .board.flash-bad { box-shadow: 0 0 0 3px var(--c-blunder), var(--board-shadow); }
 .board.flash-good { box-shadow: 0 0 0 3px var(--c-best), var(--board-shadow); }
 
-/* Blunder trainer */
+/* Puzzles (the trainer view) */
 .trainer { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 24px 36px; align-items: start; }
 @media (max-width: 900px) { .trainer { grid-template-columns: minmax(0, 1fr); } }
 .panel.tboardwrap { padding: 0; background: transparent; border: 0; border-radius: 0; }
@@ -576,6 +576,8 @@ details.legend summary::-webkit-details-marker { display: none; }
 .lgrid .ki { margin-top: 1px; }
 .lgrid b { color: var(--ink); font-weight: 600; }
 .lnote { margin: 12px 0 0; font-size: 12px; line-height: 1.5; }
+details.pzrules summary { text-align: left; }
+.pzrules p { margin: 10px 0 0; line-height: 1.45; }
 
 @media (prefers-reduced-motion: reduce) { .evalfill { transition-duration: .25s; } .bar i { transition: none; } .btn, .tabs a, .oside button, .omode, .filters button { transition: none; } .btn:active, .tabs a:active, .oside button:active, .omode:active, .filters button:active { transform: none; } }
 
@@ -713,7 +715,7 @@ details.legend summary::-webkit-details-marker { display: none; }
 <header class="subnav">
   <div class="subnav-in">
     <a class="brandlink" href="#review"><span class="logo" aria-hidden="true"></span><span class="brandname">PChess</span></a>
-    <nav class="tabs" aria-label="Sections"><a href="#review" data-view="review" data-label="Game review" aria-current="page">Game review</a><a href="#trainer" data-view="trainer" data-label="Blunder trainer">Blunder trainer</a><a href="#openings" data-view="openings" data-label="Openings">Openings</a></nav>
+    <nav class="tabs" aria-label="Sections"><a href="#review" data-view="review" data-label="Game review" aria-current="page">Game review</a><a href="#puzzles" data-view="trainer" data-label="Puzzles">Puzzles</a><a href="#openings" data-view="openings" data-label="Openings">Openings</a></nav>
   </div>
 </header>
 <div class="app">
@@ -741,7 +743,7 @@ details.legend summary::-webkit-details-marker { display: none; }
 
   <dialog id="syncDlg" class="syncdlg" aria-labelledby="sync-h">
     <h2 id="sync-h">Sync progress across devices</h2>
-    <p>Your Blunder trainer and Openings progress is saved in a private gist on your GitHub account, so your phone and laptop share it.</p>
+    <p>Your Puzzles and Openings progress is saved in a private gist on your GitHub account, so your phone and laptop share it.</p>
     <p class="note" id="syncStatus"></p>
     <div id="syncOn">
       <ol>
@@ -819,7 +821,7 @@ details.legend summary::-webkit-details-marker { display: none; }
     </section>
   </main>
 
-  <section class="trainer" id="viewTrainer" hidden aria-label="Blunder trainer">
+  <section class="trainer" id="viewTrainer" hidden aria-label="Puzzles">
     <div class="panel tboardwrap"><div class="board play" id="tboard"></div></div>
     <div class="tside">
       <div class="panel tcard" id="tprompt"></div>
@@ -831,12 +833,18 @@ details.legend summary::-webkit-details-marker { display: none; }
       </div>
       <div class="panel tstats" id="tstats"></div>
       <div class="panel tsettings">
-        <div class="section-label">Puzzles</div>
-        <label for="tMistakes"><input type="checkbox" id="tMistakes"> Include mistakes, not just blunders</label>
+        <div class="section-label">Puzzle settings</div>
         <label for="tSkip"><input type="checkbox" id="tSkip" checked> Skip puzzles I've already solved</label>
+        <label for="tShort"><input type="checkbox" id="tShort" checked> Include one-move puzzles</label>
         <label for="tFormat">Format <select id="tFormat"><option value="all">All formats</option><option value="bullet">Bullet</option><option value="blitz">Blitz</option><option value="rapid">Rapid</option><option value="daily">Daily</option></select></label>
         <label for="tOrder">Order <select id="tOrder"><option value="new">Newest games first</option><option value="random">Shuffled</option></select></label>
         <button class="btn small" id="tReset" type="button" style="align-self:flex-start">Reset my puzzle progress</button>
+        <details class="legend pzrules">
+          <summary>What counts as a puzzle</summary>
+          <p>A position from your games where exactly one move wins. Your opponent has just slipped, the right move mates or wins material, and every other move lets the chance go. If the solution takes several moves, each of your moves has to be the only good one too.</p>
+          <p>Most blunders don't make puzzles. In the position before a blunder there were usually several ordinary moves that would have been fine, so there was nothing special to find. That's why this list is much shorter than your list of blunders.</p>
+          <p>The rules are the ones Lichess uses to turn real games into puzzles, checked step by step with Stockfish 19. Three things are different here. Puzzles that take a single move, like taking a piece your opponent left hanging, stay in (Lichess drops them as too easy; the switch above hides them). Missed checkmates are shown as “Mate in N”, and winning material instead doesn't count, while Lichess leaves a mate out whenever another move also wins. And a chance still counts when you were already a little ahead in material. Only chances you missed in the game are here.</p>
+        </details>
       </div>
     </div>
   </section>
@@ -939,7 +947,7 @@ const store = {
    saved on a device, progress is also kept in one secret gist and merged both ways.
    meta[k] = { at: last local change, ep: last reset }. A newer reset wins outright; otherwise solved
    puzzles are unioned, openings keep the copy with more lines played, and settings take the newest. */
-const SYNC_KEYS = ["oseen", "oprog", "ocov", "olearn", "oclean", "opun", "ohold", "ocards", "onew", "ogame", "oset", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tFormat", "tOrder"];
+const SYNC_KEYS = ["oseen", "oprog", "ocov", "olearn", "oclean", "opun", "ohold", "ocards", "onew", "ogame", "oset", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tShort", "tFormat", "tOrder"];
 const SYNC_FILE = "pchess-progress.json", SYNC_DESC = "PChess progress (sync)";
 const sync = {
   timer: null, busy: false, again: false, state: "off", when: 0, err: "", onPulled: null,
@@ -2448,12 +2456,12 @@ $("lgrid").innerHTML = ORDER.concat("forced").map(k => kIcon(k) + '<div><b>' + C
 /* ---------- views ---------- */
 let view = "review";
 function showView(v) {
-  view = v === "trainer" || v === "openings" ? v : "review";
+  view = v === "trainer" || v === "puzzles" ? "trainer" : v === "openings" ? v : "review";   // #trainer is the old address of #puzzles
   document.body.classList.remove("sheet");
   if (view !== "review" && X.on) xExit(true);
   $("viewReview").hidden = view !== "review"; $("viewTrainer").hidden = view !== "trainer"; $("viewOpenings").hidden = view !== "openings";
-  $("viewTitle").textContent = { trainer: "Blunder Trainer", openings: "Openings", review: "Game Review" }[view];
-  $("viewTag").textContent = { trainer: "Puzzles made from your own blunders.", openings: "Learn the lines your opponents actually play.", review: "Every move of your games, graded." }[view];
+  $("viewTitle").textContent = { trainer: "Puzzles", openings: "Openings", review: "Game Review" }[view];
+  $("viewTag").textContent = { trainer: "The winning moves you missed in your games.", openings: "Learn the lines your opponents actually play.", review: "Every move of your games, graded." }[view];
   document.querySelectorAll(".tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === view ? "page" : "false"));
   if (view === "review" && S.reviewStale) { S.reviewStale = false; renderReview(); }
   if (view === "trainer") trainerRefresh();
@@ -2461,30 +2469,40 @@ function showView(v) {
 }
 window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
 
-/* ---------- blunder trainer ---------- */
+/* ---------- puzzles ----------
+   A puzzle is a position from your games where exactly one move wins (Lichess's rules, worked out by the
+   website's updater with Stockfish 19: see "puzzles" in scripts/update.py). The analysis stores every
+   one of them, found or missed, as a = { puz: {ply: [solution in UCI, ending with your move]} }.
+   The tab shows the ones you missed: your game move gave away 0.10 expected points or more (what the
+   review calls a mistake or worse). Missing the same chance again on your next move counts once. */
 const T = { list: [], idx: 0, fen: "", intro: false, sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, line: [], step: 0, token: 0 };
 const tprog = { get() { return store.get("tprog", {}); }, set(id, v) { const p = this.get(); p[id] = v; store.set("tprog", p); } };
-$("tMistakes").checked = store.get("tMistakes", false);
 $("tSkip").checked = store.get("tSkip", true);
+$("tShort").checked = store.get("tShort", true);
 $("tFormat").value = store.get("tFormat", "all");
 $("tOrder").value = store.get("tOrder", "new");
 
 function buildPuzzles() {
-  const withMistakes = $("tMistakes").checked, fmt = $("tFormat").value, prog = tprog.get();
-  const out = [];
+  const fmt = $("tFormat").value, prog = tprog.get(), short = $("tShort").checked;
+  const out = []; let chances = 0, missedAll = 0, pending = 0;
   for (const g of S.games) {
     if (g.example || !g.me || (fmt !== "all" && g.tclass !== fmt)) continue;
-    const a = S.analyses[g.id]; if (!a || !a.evals) continue;
-    const ev = a.evals;
-    for (let i = 0; i < g.nply; i++) {
-      if (moverAt(g, i) !== g.me || !ev[i] || !ev[i].best) continue;
-      const r = gradeAt(g, ev, i); if (!r) continue;
-      // Blunders, and misses as big as one; with the box ticked, mistakes and smaller misses too.
-      const big = r.cls === "blunder" || (r.cls === "miss" && r.epl >= GRADE_MISTAKE);
-      if (!(big || (withMistakes && (r.cls === "mistake" || r.cls === "miss")))) continue;
-      if (a.pz >= 3 && a.pv && !a.pv[i]) continue;   // the website stores a line for every such move unless you played Stockfish's move
-      out.push({ id: g.id + ":" + i, g, i, best: ev[i].best, pv: a.pv && a.pv[i] ? a.pv[i] : null, ref: a.ref && a.ref[i] ? a.ref[i] : null,
-        loss: r.pawns, cls: r.cls, before: ev[i] });
+    const a = S.analyses[g.id];
+    if (!a || !a.evals) continue;
+    if (!a.puz) { if ((a.zz || 0) < 1) pending++; continue; }
+    const ev = a.evals; let last = null;
+    for (const i of Object.keys(a.puz).map(Number).sort((x, y) => x - y)) {
+      const sol = a.puz[i];
+      if (!sol || !sol.length || moverAt(g, i) !== g.me || !ev[i] || !ev[i + 1]) continue;
+      const missed = epFor(ev[i], g.me) - epFor(ev[i + 1], g.me) >= GRADE_INACC;
+      const again = last && last.i === i - 2 && last.m === sol[0].slice(2, 4);   // same target square: the same idea
+      last = missed ? { i, m: sol[0].slice(2, 4) } : null;
+      if (again) continue;
+      chances++; missedAll += missed;
+      if (!missed || (!short && sol.length === 1)) continue;
+      const s = g.me === "w" ? 1 : -1;
+      out.push({ id: g.id + ":" + i, g, i, best: sol[0], sol, pv: a.pv && a.pv[i] ? a.pv[i] : null, ref: a.ref && a.ref[i] ? a.ref[i] : null,
+        loss: Math.max(0, s * ev[i].num - s * ev[i + 1].num), before: ev[i] });
     }
   }
   const solvedAll = out.filter(p => prog[p.id] === "solved").length;
@@ -2492,7 +2510,7 @@ function buildPuzzles() {
   if ($("tOrder").value === "random") {
     for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
   }
-  return { list, total: out.length, solvedAll };
+  return { list, total: out.length, solvedAll, chances, missedAll, pending };
 }
 
 // Puzzles ask for at most 4 of your own moves (7 plies including the opponent's replies).
@@ -2583,26 +2601,32 @@ async function explain(p) {
   const opp = sideName(p.g.me === "w" ? "b" : "w");
   const s = p.g.me === "w" ? 1 : -1;
   const ev = S.analyses[p.g.id].evals;
-  const before = s * ev[p.i].num, after = s * ev[p.i + 1].num;
-  const sol = describeLine(p.fen, T.line, null);
+  // "+6.1", or "mate in 3" / "a mate for Black" when the engine sees one
+  const said = e => e.mated ? (s * e.num > 0 ? "a win" : "a loss") : e.mate != null ? (s * e.mate > 0 ? "mate in " + Math.abs(e.mate) : "a forced mate for " + opp) : signedEval(s * e.num);
+  // Describe the solution plus the opponent's answer to its last move (from the stored line when it follows
+  // the same moves), so a piece taken straight back isn't counted as won.
+  const pv = p.pv && p.sol.every((u, k) => p.pv[k] === u) && p.pv.length > p.sol.length ? p.sol.concat(p.pv[p.sol.length]) : p.sol;
+  const sol = describeLine(p.fen, pv, null);
   const ref = await refutationFor(p);
   const playedCap = (() => { try { const m = uciMove(new Chess(p.fen), p.played); return m && m.captured; } catch (e) { return null; } })();
   const bad = ref && ref.length ? describeLine(p.g.fens[p.i + 1], ref, "your", playedCap) : null;
   const solActive = sol && (sol.mate || sol.what);
   const badReal = bad && (bad.mate || bad.what);
-  const standing = before >= 1 ? "keeps your advantage" : before > -1 ? "keeps the game level" : "is your best defense";
   let solText = "";
   if (sol) {
     if (sol.mate) solText = sol.plies === 1 ? "<b>" + esc(sol.first) + "</b> is checkmate on the spot." : "<b>" + esc(sol.first) + "</b> starts a forced checkmate: <b>" + esc(sol.line) + "</b>.";
     else if (sol.what) solText = "<b>" + esc(sol.first) + "</b> lets you " + sol.what + (sol.plies > 1 ? ": <b>" + esc(sol.line) + "</b>" : "") + ".";
-    else solText = "<b>" + esc(sol.first) + "</b> " + (badReal ? "stops that and " : "") + standing + " (" + signedEval(before) + ")" + (sol.plies > 1 ? ". The idea: <b>" + esc(sol.line) + "</b>" : "") + ".";
+    else {   // no material changes hands for good (a trade into a won ending, a trapped piece): show the line
+      const idea = pv.length > 1 ? lineSan(p.fen, pv.slice(0, Math.max(3, p.sol.length))) : "";
+      solText = "<b>" + esc(sol.first) + "</b> is the only move that wins (" + said(ev[p.i]) + ")" + (idea ? ". The idea: <b>" + esc(idea) + "</b>" : "") + ".";
+    }
     if (sol.fork) solText += " " + esc(sol.fork) + ".";
   }
   let game = "In the game you played <b>" + esc(p.playedSan) + "</b>";
   if (bad && bad.mate) game += ", which let " + opp + " force checkmate with <b>" + esc(bad.line) + "</b>.";
   else if (bad && bad.what) game += ", which let " + opp + " " + bad.what + " with <b>" + esc(bad.line) + "</b>." + (bad.fork ? " " + esc(bad.fork) + "." : "");
-  else if (solActive) game += " and missed this, so the position went from " + signedEval(before) + " to " + signedEval(after) + ".";
-  else game += ". " + opp + "\u2019s best answer was <b>" + esc(bad ? bad.first : sanOf(p.g.fens[p.i + 1], ref && ref[0])) + "</b>, and the position went from " + signedEval(before) + " to " + signedEval(after) + ".";
+  else if (solActive) game += " and missed this, so the position went from " + said(ev[p.i]) + " to " + said(ev[p.i + 1]) + ".";
+  else game += ". " + opp + "\u2019s best answer was <b>" + esc(bad ? bad.first : sanOf(p.g.fens[p.i + 1], ref && ref[0])) + "</b>, and the position went from " + said(ev[p.i]) + " to " + said(ev[p.i + 1]) + ".";
   // Lead with whichever half carries the point: the threat you allowed, or the chance you missed.
   return solActive || !badReal ? solText + " " + game : game + " " + solText;
 }
@@ -2613,6 +2637,9 @@ function preparePuzzle(p) {
   const mv = p.g.moves[p.i];
   p.fen = p.g.fens[p.i]; p.played = mv ? mv.from + mv.to + (mv.promotion || "") : ""; p.playedSan = mv ? mv.san : p.g.tokens[p.i];
   p.prev = p.i > 0 ? p.g.moves[p.i - 1] || null : null; // the opponent's move that led here
+  // Mate puzzles say so: "Mate in 2". Other winning moves don't count there (see scripts/update.py).
+  const c = new Chess(p.fen); for (const u of p.sol) if (!uciMove(c, u)) break;
+  p.mateIn = c.in_checkmate() ? Math.ceil(p.sol.length / 2) : 0;
   return p;
 }
 function trainerRefresh(keepId) {
@@ -2627,19 +2654,9 @@ function loadPuzzle(idx) {
   const p = preparePuzzle(T.list[T.idx]); const token = ++T.token;
   if (p) store.set("tcur", p.id);
   const oldBurst = document.querySelector(".tboardwrap canvas.confetti"); if (oldBurst) oldBurst.remove();
-  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", intro: false, tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [] });
+  Object.assign(T, { fen: p ? p.fen : new Chess().fen(), sel: null, targets: [], hint: null, status: "solving", intro: false, tries: 0, last: null, arrow: null, msg: null, checking: false, revealed: false, step: 0, line: [], solEval: null });
   if (p) {
-    if (p.pv) T.line = trimLine(p.fen, p.pv);
-    else if (engine.ready) {
-      // Reviewed in this browser only: ask Stockfish for the full line now.
-      T.status = "loading";
-      engine.analyse(p.fen, Math.max(14, S.depth)).then(r => {
-        if (token !== T.token) return;
-        T.line = trimLine(p.fen, r.pv && r.pv.length ? r.pv : [p.best]); if (!T.line.length) T.line = [p.best];
-        T.status = "solving"; renderTrainer();
-      });
-    }
-    if (!T.line.length && T.status !== "loading") T.line = [p.best];
+    T.line = p.sol.slice();
     if (!p.ref && engine.ready) refutationFor(p).catch(() => {});
     // Show the position one move earlier, then play the opponent's last move after a second for context.
     if (p.prev) {
@@ -2659,18 +2676,19 @@ function renderTrainer() {
   const p = T.list[T.idx];
   const flip = p ? p.g.me === "b" : false;
   renderBoard(T.fen, T.last, T.arrow, null, { el: "tboard", flip, sel: T.sel, targets: T.targets, hint: T.hint });
-  const reviewed = S.games.filter(g => !g.example && isDone(g)).length, mine = S.games.filter(g => !g.example).length;
+  const mine = S.games.filter(g => !g.example).length;
   const prog = tprog.get();
-  const solved = Object.values(prog).filter(v => v === "solved").length, missed = Object.values(prog).filter(v => v === "missed").length;
-  $("tstats").innerHTML = '<div><b>' + tMeta.total + '</b>puzzles from your games</div><div><b>' + solved + '</b>solved</div><div><b>' + missed + '</b>missed</div><div><b>' + reviewed + '/' + mine + '</b>games reviewed</div>';
+  const found = tMeta.chances ? Math.round(100 * (tMeta.chances - tMeta.missedAll) / tMeta.chances) + "%" : "–";
+  $("tstats").innerHTML = '<div><b>' + tMeta.total + '</b>puzzles from your games</div><div><b>' + tMeta.solvedAll + '</b>solved here</div><div><b>' + (tMeta.total - tMeta.solvedAll) + '</b>to go</div>' +
+    '<div title="Of the ' + tMeta.chances + ' puzzles that came up in these games, the share you found while playing"><b>' + found + '</b>found during your games</div>';
   const box = $("tprompt");
   ["tHint", "tShow", "tPrev", "tNext"].forEach(id => $(id).disabled = !p);
   if (!p) {
     let why;
     if (!mine) why = "Add your games on the Game review tab first.";
-    else if (!tMeta.total) why = reviewed < mine ? "No blunders found in your reviewed games yet. Puzzles appear as more games get reviewed (" + reviewed + " of " + mine + " so far)." : "No blunders found with these settings. Try including mistakes or another format.";
+    else if (!tMeta.total) why = tMeta.pending ? "No puzzles yet. The website looks for them when it reviews your games, every 3 hours (" + tMeta.pending + " games still to go)." : "You didn't miss any winning moves in these games. Try another format.";
     else why = "You've solved every puzzle here. Untick “Skip puzzles I've already solved” to go through them again.";
-    box.innerHTML = '<div class="eyebrow">Blunder trainer</div><p class="ask">Nothing to solve right now</p><div class="ctx">' + esc(why) + '</div>';
+    box.innerHTML = '<div class="eyebrow">Puzzles</div><p class="ask">Nothing to solve right now</p><div class="ctx">' + esc(why) + '</div>';
     return;
   }
   const g = p.g, opp = g.me === "w" ? g.black : g.white;
@@ -2678,14 +2696,14 @@ function renderTrainer() {
   let ask;
   if (T.status === "loading") ask = "Setting up the puzzle…";
   else if (T.intro && T.status === "solving") ask = "Your opponent is about to move…";
-  else if (T.status === "solving") ask = sideName(g.me) + " to move. " + (myMoves() > 1 ? "Find the winning sequence." : "Find the best move.");
+  else if (T.status === "solving") ask = sideName(g.me) + " to move. " + (p.mateIn ? "Mate in " + p.mateIn + "." : myMoves() > 1 ? "Find the winning sequence." : "Find the best move.");
   else ask = T.status === "solved" ? "Solved" : "Solution";
   let sub = "";
   if (T.status === "solving" && myMoves() > 1) sub = '<div class="ctx">This one takes ' + myMoves() + ' moves. Your opponent’s replies are played for you.' + (T.step ? ' Move ' + (T.step / 2 + 1) + ' of ' + myMoves() + '.' : '') + '</div>';
   const fb = T.msg ? '<div class="feedback ' + T.msg.kind + '">' + T.msg.html + '</div>' : "";
   box.innerHTML = '<div class="eyebrow">Puzzle ' + (T.idx + 1) + ' of ' + T.list.length + (prog[p.id] === "solved" && T.status === "solving" ? ' · solved before' : '') + '</div>' +
     '<p class="ask">' + esc(ask) + '</p>' + sub +
-    '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '.' + (p.prev && !T.intro ? ' Your opponent had just played <b>' + esc(p.prev.san) + '</b>.' : '') + (p.cls === "miss" ? ' In the game you missed this chance.' : ' In the game you played a ' + (p.cls === "blunder" ? "blunder" : "mistake") + ' here.') + '</div>' + fb;
+    '<div class="ctx">From your ' + esc(g.tc || "game") + ' game vs ' + esc(opp) + (g.date ? ', ' + esc(g.date) : '') + ', move ' + moveNo + '.' + (p.prev && !T.intro ? ' Your opponent had just played <b>' + esc(p.prev.san) + '</b>.' : '') + ' In the game you missed it.</div>' + fb;
 }
 function sanOf(fen, uci) { return uciToSan(fen, uci); }
 function costText(p) {
@@ -2741,15 +2759,23 @@ async function tryMove(from, to) {
     return;
   }
   if (T.step === 0 && uci === p.played) return reject('<b>' + esc(m.san) + '</b> is the move you played in the game. It’s the one ' + costText(p).replace("which ", "that ") + '.');
+  // Every step has one good move by construction, but a move the website's search ranked lower can still turn
+  // out just as good (a transposition, a second mate): compare it with the solution move at the same depth.
   if (engine.ready) {
     T.checking = true; showMove(); finish("info", 'Checking <b>' + esc(m.san) + '</b> with Stockfish…');
-    const r = toEval(c.fen(), await engine.analyse(c.fen(), Math.max(12, S.depth)));
+    const d = Math.max(12, S.depth), me = p.g.me, sc = new Chess(startFen); uciMove(sc, T.line[T.step]);
+    const solFen = sc.fen();
+    const ea = toEval(c.fen(), await engine.analyse(c.fen(), d));
+    if (!(T.solEval && T.solEval.fen === solFen)) T.solEval = { fen: solFen, e: toEval(solFen, await engine.analyse(solFen, d)) };
     T.checking = false; if (token !== T.token) return;
-    const s = p.g.me === "w" ? 1 : -1;
-    const lost = s * p.before.num - s * r.num;
-    if (lost < 0.5) { showMove(); return solvedNow(p, '<b>' + esc(m.san) + '</b> works too. Stockfish preferred <b>' + esc(sanOf(startFen, T.line[T.step])) + '</b>.'); }
+    const es = T.solEval.e;
+    // Mate in N: only a mate in time counts (winning a queen instead doesn't). Otherwise: as good as the solution.
+    const left = p.mateIn - (T.step / 2 + 1), mine = ea.mate != null ? (me === "w" ? ea.mate : -ea.mate) : 0;
+    if (p.mateIn ? mine > 0 && mine <= left : epFor(es, me) - epFor(ea, me) < 0.05) { showMove(); return solvedNow(p, '<b>' + esc(m.san) + '</b> works too. Stockfish preferred <b>' + esc(sanOf(startFen, T.line[T.step])) + '</b>.'); }
     T.fen = startFen; T.last = null;
-    return reject('<b>' + esc(m.san) + '</b> isn’t it. It gives away about ' + Math.min(10, lost).toFixed(1) + ' pawns.');
+    const s = me === "w" ? 1 : -1, lost = Math.max(0, s * es.num - s * ea.num);
+    if (p.mateIn) return reject('<b>' + esc(m.san) + '</b> ' + (mine > 0 ? 'mates too, but slower. There’s a faster one.' : 'doesn’t lead to mate in ' + (left + 1) + '.'));
+    return reject('<b>' + esc(m.san) + '</b> isn’t it.' + (lost >= 0.3 ? ' It gives away about ' + Math.min(10, lost).toFixed(1) + ' pawns.' : ''));
   }
   reject('<b>' + esc(m.san) + '</b> isn’t the move Stockfish found.');
 }
@@ -2800,7 +2826,7 @@ $("tNext").onclick = () => {
   else loadPuzzle(idx + 1);
 };
 $("tPrev").onclick = () => loadPuzzle(T.idx - 1);
-for (const id of ["tMistakes", "tSkip", "tFormat", "tOrder"]) $(id).addEventListener("change", e => {
+for (const id of ["tSkip", "tShort", "tFormat", "tOrder"]) $(id).addEventListener("change", e => {
   store.set(id, e.target.type === "checkbox" ? e.target.checked : e.target.value); T.list = []; trainerRefresh();
 });
 let resetArmed = false;
@@ -2840,14 +2866,16 @@ function mergeSite(site) {
     const a = site.an[id]; if (!a || !a.e) continue;
     const av = a.v || 1, cur = S.analyses[id];
     if (cur && cur.evals && cur.evals.every(Boolean) && ((cur.v || 1) > av || ((cur.v || 1) === av && cur.depth >= a.d))) {
-      if (!same(cur.pv, a.p || cur.pv) || !same(cur.ref, a.r || cur.ref) || !same(cur.pq, a.q || cur.pq) || (a.b != null && (cur.v || 1) === av && (cur.book !== a.b || !same(cur.bookNames, a.bn) || (cur.pz || 0) !== (a.pz || 0)))) {
+      const puzNew = (cur.v || 1) === av && ((cur.zz || 0) !== (a.zz || 0) || !same(cur.puz, a.z));
+      if (puzNew || !same(cur.pv, a.p || cur.pv) || !same(cur.ref, a.r || cur.ref) || !same(cur.pq, a.q || cur.pq) || (a.b != null && (cur.v || 1) === av && (cur.book !== a.b || !same(cur.bookNames, a.bn) || (cur.pz || 0) !== (a.pz || 0)))) {
         cur.pv = a.p || cur.pv; cur.ref = a.r || cur.ref; cur.pq = a.q || cur.pq; if ((cur.v || 1) === av) cur.pz = a.pz || 0;
         if (a.b != null && (cur.v || 1) === av) { cur.book = a.b; cur.bookNames = a.bn || {}; }
+        if ((cur.v || 1) === av) { cur.puz = a.z || null; cur.zz = a.zz || 0; }   // puzzles are worked out from the website's evals
         reviewed++;
       }
       continue;
     }
-    S.analyses[id] = { v: av, depth: a.d, evals: a.e.map(expandEval), pv: a.p || null, ref: a.r || null, pq: a.q || null, pz: a.pz || 0, book: a.b != null ? a.b : null, bookNames: a.bn || null }; reviewed++;
+    S.analyses[id] = { v: av, depth: a.d, evals: a.e.map(expandEval), pv: a.p || null, ref: a.r || null, pq: a.q || null, pz: a.pz || 0, book: a.b != null ? a.b : null, bookNames: a.bn || null, puz: a.z || null, zz: a.zz || 0 }; reviewed++;
   }
   if (added || reviewed) { big.set("games", S.raw); big.set("analyses", S.analyses); }
   return added + reviewed;
@@ -3723,7 +3751,7 @@ function renderPunishCard(meta) {
   loader.to(haveLocal ? .3 : .08); await frame();
   rebuildGames();
   loader.to(haveLocal ? .6 : .14); await frame();
-  { const h = location.hash.slice(1); view = h === "trainer" || h === "openings" ? h : "review"; }
+  { const h = location.hash.slice(1); view = h === "trainer" || h === "puzzles" ? "trainer" : h === "openings" ? h : "review"; }
   select(S.games[0]);
   savedNote();
   showView(location.hash.slice(1));
