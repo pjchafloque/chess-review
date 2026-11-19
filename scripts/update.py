@@ -21,6 +21,9 @@ analysis.json, one entry per game (version 2):
   bn  {ply: opening name} for the book plies where the name changes
   p   puzzle lines (Stockfish's line before each of the user's mistakes), r refutation lines
   q   punish lines (after each opponent mistake in the opening), pz / qz their versions
+  z   puzzles: {ply: solution} for every position where the user had one clear winning move (Lichess's
+      rules, see "puzzles" below), found or missed; the solution is a list of UCI moves, the user's
+      moves and the opponent's replies, ending with the user's move. zz its version
 """
 import csv
 import io
@@ -43,10 +46,14 @@ DEPTH = int(os.environ.get("DEPTH", "18"))
 MULTIPV = 2
 MAX_MINUTES = float(os.environ.get("MAX_MINUTES", "40"))
 PUZZLE_DEPTH = int(os.environ.get("PUZZLE_DEPTH", "20"))
+# Most searches take a second or two, but a few rook endgames took minutes each at depth 18 and kept three
+# machines busy until the 6-hour job timeout on every run (2026-11-18/19). No search runs longer than this.
+SEARCH_SECONDS = float(os.environ.get("SEARCH_SECONDS", "30"))
 ANALYSIS_VERSION = 2
 PUZZLE_VERSION = 3     # 3: puzzles for every move that lost 0.10 expected points or more
 PUNISH_VERSION = 1
 PUNISH_PLIES = 24      # opponent mistakes in the first 12 moves
+COOK_VERSION = 1       # 1: Lichess's puzzle rules (lichess-puzzler generator v50), see "puzzles"
 DATA = "data"
 GAMES_FILE = os.path.join(DATA, "games.json")
 ANALYSIS_FILE = os.path.join(DATA, "analysis.json")
@@ -139,6 +146,10 @@ def fetch_games(store):
     store["updated"] = int(time.time())
     print(f"{added} new games, {len(store['games'])} total")
     return added
+
+
+def limit(depth):
+    return chess.engine.Limit(depth=depth, time=SEARCH_SECONDS)
 
 
 def engine_path():
@@ -250,7 +261,7 @@ def review(pgn: str, engine, gid: str) -> list:
         elif b.is_stalemate() or b.is_insufficient_material():
             evals.append(["d"])
         else:
-            infos = engine.analyse(b, chess.engine.Limit(depth=DEPTH), multipv=MULTIPV, game=gid)
+            infos = engine.analyse(b, limit(DEPTH), multipv=MULTIPV, game=gid)
             evals.append(entry(infos))
     return evals
 
@@ -278,13 +289,13 @@ def puzzle_lines(pgn: str, evals: list, engine) -> tuple:
             lost = mine(evals[i]) - mine(evals[i + 1])
             best = evals[i][2] if len(evals[i]) > 2 else None
             if lost >= 0.10 and best and best != move.uci():
-                info = engine.analyse(board, chess.engine.Limit(depth=PUZZLE_DEPTH))
+                info = engine.analyse(board, limit(PUZZLE_DEPTH))
                 pv = [m.uci() for m in (info.get("pv") or [])[:12]]
                 if pv:
                     out[str(i)] = pv
                 board.push(move)
                 if not board.is_game_over():
-                    info = engine.analyse(board, chess.engine.Limit(depth=PUZZLE_DEPTH))
+                    info = engine.analyse(board, limit(PUZZLE_DEPTH))
                     ref = [m.uci() for m in (info.get("pv") or [])[:10]]
                     if ref:
                         refs[str(i)] = ref
@@ -313,10 +324,204 @@ def punish_lines(pgn: str, evals: list, engine) -> dict:
             continue
         before, after = s * num(evals[i]), s * num(evals[i + 1])
         if after - before >= 1 and after >= 0.8 and before < 4:
-            info = engine.analyse(board, chess.engine.Limit(depth=PUZZLE_DEPTH))
+            info = engine.analyse(board, limit(PUZZLE_DEPTH))
             pv = [m.uci() for m in (info.get("pv") or [])[:12]]
             if pv:
                 out[str(i + 1)] = pv
+    return out
+
+
+# ---------- puzzles ----------
+# A blunder is a move that throws something away; before most blunders there was no puzzle to solve,
+# just several ordinary moves that would have been fine. A puzzle is a position with exactly one move
+# that wins: your opponent has just made a mistake, the engine's best move wins material or mates,
+# and every other move is much worse. The rules follow Lichess's puzzle generator
+# (github.com/ornicar/lichess-puzzler, generator/generator.py, version 50):
+#   - Start: the position before one of your moves, with at least two legal moves. You weren't
+#     already winning by 3+ pawns before your opponent's last move (unless there's a mate).
+#   - Material puzzles: the best move leaves you 2+ pawns up, and your opponent's last move gave away
+#     at least 0.6 win chances (Lichess's -1..1 scale; 0.3 expected points). Under +4 it only counts
+#     if you're behind in material on the board (you're getting something back). The line goes on
+#     for as long as your next move is the only good one and you stay 2+ pawns up, and it ends with
+#     your move, never a forced one (only legal move).
+#   - "The only good move": its win chances beat the second-best move's by more than 0.7, or it's a
+#     mate in one and no move that doesn't mate keeps more than 0.6.
+#   - Mate puzzles: the best move mates in under 15 moves (6 of yours at most here), you aren't
+#     already ahead in material, and the opponent's replies are the engine's best defense.
+# Changed for this site:
+#   - One-move puzzles stay (Lichess drops them as too easy; at club level a piece left hanging is
+#     exactly what you need to learn to spot), and so do mates in one. A game can have several.
+#   - Material puzzles also count when you were already ahead in material (Lichess skips those); the
+#     two rules above already make sure you weren't winning before your opponent's mistake.
+#   - Mate puzzles say "Mate in N" on the page, so another move that also wins (say, a queen instead
+#     of mate in 2) doesn't make them ambiguous. Each of your moves must be the only one that mates
+#     that fast; any mate in one is fine. Lichess, which doesn't name the goal, drops all of these.
+MATE_SOON = chess.engine.Mate(15)
+COOK_MAX_MOVES = 6     # your moves; longer material lines stop here, longer mates don't count
+
+
+def win_chances(score) -> float:
+    """Lichess's winning chances, -1..1, for a Score already seen from one side."""
+    m = score.mate()
+    if m is not None:
+        return 1.0 if m > 0 else -1.0
+    return 2 / (1 + math.exp(-K * score.score())) - 1
+
+
+def stored_score(e, side):
+    """A stored eval (White's view) as a python-chess Score from `side`'s view."""
+    if e[0] == "c":
+        sc = chess.engine.Cp(e[1])
+    elif e[0] == "m":
+        sc = chess.engine.Mate(e[1])
+    elif e[0] == "x":
+        sc = chess.engine.MateGiven if e[1] > 0 else -chess.engine.MateGiven
+    else:
+        sc = chess.engine.Cp(0)
+    return chess.engine.PovScore(sc, chess.WHITE).pov(side)
+
+
+PIECES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
+
+
+def material_diff(board, side) -> int:
+    return sum((len(board.pieces(t, side)) - len(board.pieces(t, not side))) * v for t, v in PIECES.items())
+
+
+def puzzle_start(board, side, prev_e, cur_e):
+    """The first test, from the stored evaluations: "mate", "material" or None."""
+    if board.legal_moves.count() < 2:
+        return None
+    score, prev = stored_score(cur_e, side), stored_score(prev_e, side)
+    if prev > chess.engine.Cp(300) and score < MATE_SOON:
+        return None                      # already winning before the opponent's move
+    if score > MATE_SOON:
+        return "mate" if material_diff(board, side) <= 0 else None
+    if score >= chess.engine.Cp(200) and win_chances(score) > win_chances(prev) + 0.6:
+        if score < chess.engine.Cp(400) and material_diff(board, side) > -1:
+            return None                  # not clearly winning, and not winning back lost material
+        return "material"
+    return None
+
+
+def top_two(engine, board, side, limit):
+    infos = engine.analyse(board, limit, multipv=2)
+    out = [(i["pv"][0], i["score"].pov(side)) for i in infos if i.get("pv")]
+    return out[0], (out[1] if len(out) > 1 else None)
+
+
+def only_move(engine, board, side, best, second, limit) -> bool:
+    """Is the best move the only good one (Lichess's is_valid_attack)?"""
+    if second is None:
+        return True
+    if best[1] == chess.engine.Mate(1):
+        if win_chances(second[1]) <= 0.6:
+            return True
+        if second[1] == chess.engine.Mate(1):
+            # several mates in one: fine unless a move that doesn't mate also wins
+            mates = 0
+            for m in board.legal_moves:
+                board.push(m)
+                mates += board.is_checkmate()
+                board.pop()
+            infos = engine.analyse(board, limit, multipv=mates + 1)
+            last = infos[-1]["score"].pov(side)
+            return not (last < chess.engine.Mate(1) and win_chances(last) > 0.6)
+        return False
+    return win_chances(best[1]) > win_chances(second[1]) + 0.7
+
+
+def only_fast_mate(best, second) -> bool:
+    """For a puzzle that says "Mate in N": no other move mates as fast (any mate in one is fine)."""
+    n = best[1].mate()
+    if n is None or n <= 0:
+        return False
+    if n == 1 or second is None:
+        return True
+    m = second[1].mate()
+    return m is None or m <= 0 or m > n
+
+
+def cook_mate(engine, board, side, limit, defense, strict, moves=0):
+    """The mating line, or None. strict[0] turns False when a step only passes the "Mate in N" test."""
+    if board.is_game_over():
+        return []
+    if board.turn == side:
+        if moves >= COOK_MAX_MOVES * 2:
+            return None
+        best, second = top_two(engine, board, side, limit)
+        if best[1] < MATE_SOON or not only_fast_mate(best, second):
+            return None
+        if strict[0] and not only_move(engine, board, side, best, second, limit):
+            strict[0] = False
+        move = best[0]
+    else:
+        move = engine.play(board, defense).move
+        if move is None:
+            return None
+    board.push(move)
+    try:
+        rest = cook_mate(engine, board, side, limit, defense, strict, moves + 1)
+    finally:
+        board.pop()
+    return None if rest is None else [move] + rest
+
+
+def cook_material(engine, board, side, limit, moves=0):
+    """[(move, has_second)] for as long as your moves stay the only good ones, or None."""
+    if board.is_repetition(2):
+        return None
+    if moves >= COOK_MAX_MOVES * 2 or board.is_game_over():
+        return []
+    if board.turn == side:
+        best, second = top_two(engine, board, side, limit)
+        if not only_move(engine, board, side, best, second, limit):
+            return []
+    else:                                # the opponent's reply: their best move is all we need
+        info = engine.analyse(board, limit)
+        if not info.get("pv"):
+            return None
+        best, second = (info["pv"][0], info["score"].pov(side)), None
+    if best[1] < chess.engine.Cp(200):
+        return None
+    board.push(best[0])
+    try:
+        rest = cook_material(engine, board, side, limit, moves + 1)
+    finally:
+        board.pop()
+    return None if rest is None else [(best[0], second is not None)] + rest
+
+
+def cook(engine, board, side, kind, limit, defense):
+    """(solution, strict): the moves from this position, ending with yours, or (None, False).
+    strict: it also passes Lichess's own test (always true for material puzzles)."""
+    if kind == "mate":
+        strict = [True]
+        sol = cook_mate(engine, board, side, limit, defense, strict)
+        return ([m.uci() for m in sol], strict[0]) if sol else (None, False)
+    sol = cook_material(engine, board, side, limit)
+    while sol and (len(sol) % 2 == 0 or not sol[-1][1]):
+        sol = sol[:-1]                   # end on your move, and not on a forced one
+    return ([m.uci() for m, _ in sol], True) if sol else (None, False)
+
+
+def puzzles(pgn: str, evals: list, engine) -> dict:
+    """{ply: solution} for every position before one of the user's moves that is a puzzle."""
+    game = chess.pgn.read_game(io.StringIO(pgn))
+    me = user_side(game)
+    if me is None or game.headers.get("FEN"):
+        return {}
+    search, defense = limit(PUZZLE_DEPTH), limit(15)
+    board = game.board()
+    out = {}
+    for i, move in enumerate(game.mainline_moves()):
+        if board.turn == me and 0 < i < len(evals) and evals[i] and evals[i - 1] and len(evals[i]) > 2:
+            kind = puzzle_start(board, me, evals[i - 1], evals[i])
+            if kind:
+                sol, _ = cook(engine, board.copy(), me, kind, search, defense)
+                if sol:
+                    out[str(i)] = sol
+        board.push(move)
     return out
 
 
@@ -336,11 +541,15 @@ def run_reviews(store, analysis, shard=0, shards=1, checkpoint=None):
     fresh = [gid for gid in order if gid in analysis and not stale(analysis[gid]) and analysis[gid].get("e")]
     need_lines = [gid for gid in fresh if analysis[gid].get("pz") != PUZZLE_VERSION]
     need_punish = [gid for gid in fresh if analysis[gid].get("qz") != PUNISH_VERSION and gid not in need_lines]
+    # one job per game, so two machines never write the same game (the merge keeps one copy of each)
+    need_cook = [gid for gid in fresh if analysis[gid].get("zz") != COOK_VERSION and gid not in need_lines and gid not in need_punish]
     work = [("review", gid) for gid in new] + [("lines", gid) for gid in need_lines] + \
-           [("punish", gid) for gid in need_punish] + [("review", gid) for gid in old]
+           [("punish", gid) for gid in need_punish] + [("cook", gid) for gid in need_cook] + \
+           [("review", gid) for gid in old]
     work = work[shard::shards]
     print(f"Shard {shard + 1}/{shards}: {len(work)} jobs ({len(new)} new games, {len(old)} to re-review, "
-          f"{len(need_lines)} missing puzzle lines, {len(need_punish)} missing punish lines overall)")
+          f"{len(need_lines)} missing puzzle lines, {len(need_punish)} missing punish lines, "
+          f"{len(need_cook)} to look for puzzles overall)")
     changed = set()
     if not work:
         return changed
@@ -357,6 +566,7 @@ def run_reviews(store, analysis, shard=0, shards=1, checkpoint=None):
             a["p"], a["r"] = {}, {}
         a["pz"] = PUZZLE_VERSION
         add_punish(gid)
+        add_cook(gid)
 
     def add_punish(gid):
         a = analysis[gid]
@@ -366,6 +576,15 @@ def run_reviews(store, analysis, shard=0, shards=1, checkpoint=None):
             print("No punish lines for", gid, e)
             a["q"] = {}
         a["qz"] = PUNISH_VERSION
+
+    def add_cook(gid):
+        a = analysis[gid]
+        try:
+            a["z"] = puzzles(by_id[gid]["pgn"], a["e"], engine)
+        except Exception as e:
+            print("No puzzles for", gid, e)
+            a["z"] = {}
+        a["zz"] = COOK_VERSION
 
     done = 0
     try:
@@ -390,6 +609,10 @@ def run_reviews(store, analysis, shard=0, shards=1, checkpoint=None):
                         continue
             elif kind == "punish":
                 add_punish(gid)
+                if analysis[gid].get("zz") != COOK_VERSION:
+                    add_cook(gid)
+            elif kind == "cook":
+                add_cook(gid)
             else:
                 add_lines(gid)
             changed.add(gid)
