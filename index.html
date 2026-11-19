@@ -655,18 +655,30 @@ details.legend summary::-webkit-details-marker { display: none; }
   .boardcol { width: 100%; max-width: max(340px, calc(100vh - var(--nav-h) - 150px)); margin-inline: auto; }
 }
 
-/* Phones and tablets: the game list is a sheet that slides up from the Games button. */
+/* Phones and tablets: the game list is a sheet that slides up from the Games button.
+   The whole sheet scrolls and the "Your games / Done" bar stays at the top. Nothing in the sheet may shrink:
+   the list's card has overflow: hidden, so as a flex item it used to shrink to the space left on screen and
+   cut the list off, with nothing left to scroll (fixed 2026-11-19). */
 @media (max-width: 979px) {
   .gamesbtn { display: inline-flex; }
   .sheethead { display: flex; }
   .library {
-    position: fixed; inset: 0; z-index: 80; margin: 0; background: var(--bg); overflow-y: auto; overscroll-behavior: contain;
-    padding: calc(16px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+    --sheet-l: max(14px, env(safe-area-inset-left, 0px)); --sheet-r: max(14px, env(safe-area-inset-right, 0px));
+    position: fixed; inset: 0; z-index: 80; margin: 0; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    padding: 0 var(--sheet-r) calc(28px + env(safe-area-inset-bottom, 0px)) var(--sheet-l);
     transform: translateY(102%); visibility: hidden; transition: transform .34s cubic-bezier(.32, .72, 0, 1), visibility 0s linear .34s;
   }
+  .library > * { flex-shrink: 0; }
+  .sheethead {
+    position: sticky; top: 0; z-index: 3; margin: 0 calc(-1 * var(--sheet-r)) -4px calc(-1 * var(--sheet-l));
+    padding: calc(12px + env(safe-area-inset-top, 0px)) var(--sheet-r) 10px var(--sheet-l);
+    background: var(--nav-bg); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid transparent; transition: border-color .2s;
+  }
+  .library.scrolled .sheethead { border-bottom-color: var(--nav-line); }
   body.sheet .library { transform: none; visibility: visible; transition: transform .34s cubic-bezier(.32, .72, 0, 1); }
   body.sheet { overflow: hidden; }
-  .games { max-height: none; }
+  .games { max-height: none; overflow: visible; }
 }
 
 /* iPhone */
@@ -2313,12 +2325,20 @@ $("games").addEventListener("click", e => {
 function gamesSheet(open) {
   document.body.classList.toggle("sheet", !!open);
   if (open) {
-    const cur = document.querySelector('#games .game[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: "center" });
+    // Bring the current game into view only when it's hidden (under the title bar or below the screen).
+    const cur = document.querySelector('#games .game[aria-current="true"]');
+    if (cur) { // measured against the sheet, which is still sliding up (transformed) at this point
+      const lib = $("library"), L = lib.getBoundingClientRect(), r = cur.getBoundingClientRect();
+      const head = document.querySelector(".sheethead").getBoundingClientRect().bottom - L.top;
+      if (r.top - L.top < head || r.bottom - L.top > lib.clientHeight) cur.scrollIntoView({ block: "center" });
+    }
     $("sheetDone").focus({ preventScroll: true });
   } else if ($("library").contains(document.activeElement)) $("gamesBtn").focus({ preventScroll: true });
 }
 $("gamesBtn").onclick = () => gamesSheet(true);
 $("sheetDone").onclick = () => gamesSheet(false);
+// The sheet's title bar gets its hairline once the list scrolls under it (like an iOS navigation bar).
+$("library").addEventListener("scroll", () => $("library").classList.toggle("scrolled", $("library").scrollTop > 2), { passive: true });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("sheet")) { gamesSheet(false); e.stopImmediatePropagation(); } }, true);
 $("moves").addEventListener("click", e => { const b = e.target.closest(".mv[data-ply]"); if (b) go(+b.dataset.ply); });
 // Phones and tablets (where the board isn't pinned): bring the board back into view when a button further down changes it.
