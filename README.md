@@ -42,3 +42,15 @@ Personal chess.com game review: https://pjchafloque.github.io/chess-review/
   public-domain editions typeset by Evin Robertson, played on the Salamander Grand Piano samples by
   Alexander Holm (CC BY 3.0, https://creativecommons.org/licenses/by/3.0/) and rendered by
   `scripts/music/`. See `music/README.md`.
+- Opening a game shows a summary first (result, both accuracies, the move where it turned). Start review
+  goes to the last book move and the coach's Next key moment button takes it from there, like chess.com.
+- The page checks chess.com for new games itself whenever you open it or come back to it, adds them
+  with a dot in the game list, opens the newest one if you haven't picked a game, and reviews it with
+  Stockfish in the browser until the 3-hourly update brings the deeper review and its puzzles.
+- Moving pieces: tap a piece and then a square, or press and drag. Pieces slide when you step through a
+  game (not with Reduce Motion on), and a pawn reaching the last rank asks which piece it becomes.
+- Insights: wins you let slip (games where you were +6 or better and didn't win, each with Play it out:
+  that position against Stockfish at the strength you pick), where your blunders happen by move number,
+  your score with each opening, and the tactics you miss and walk into most. The tactics come from
+  `data/tactics.json`, which `scripts/tactics.js` builds after each update with the page's own
+  explanation code (chess.js 0.10.3, BSD-2-Clause, is vendored in `scripts/vendor/` for it).
