@@ -1,0 +1,50 @@
+name: Lichess puzzles
+
+# Takes a fresh sample of the Lichess puzzle database (https://database.lichess.org/#puzzles, CC0) for the
+# Puzzles tab's Lichess set: about 1,000 well-tested puzzles in every 100-point rating band, saved in
+# data/lichess/ by scripts/lichess_puzzles.py. Runs once a month; run it by hand from the Actions tab too.
+on:
+  schedule:
+    - cron: "29 5 4 * *"   # the 4th of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lichess-puzzles
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  sample:
+    name: Sample the Lichess puzzle database
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download and sample
+        shell: bash   # with pipefail: a broken download fails the step
+        run: |
+          command -v zstd || (sudo apt-get update && sudo apt-get install -y zstd)
+          curl -fsSL --retry 3 https://database.lichess.org/lichess_db_puzzle.csv.zst | zstd -dc | python scripts/lichess_puzzles.py --out data/lichess
+          du -sh data/lichess
+      - name: Commit
+        run: |
+          git config user.name "chess-review bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/lichess
+          if git diff --cached --quiet; then
+            echo "Nothing new."
+          else
+            git commit -m "Sample Lichess puzzles"
+            git pull --rebase
+            git push
+          fi
