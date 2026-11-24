@@ -346,6 +346,31 @@ a { color: var(--link); text-decoration: none; }
 .omode-c { font-size: 14px; letter-spacing: -.016em; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
 .omode-c b { color: var(--ink); font-weight: 600; }
 @media (max-width: 560px) { .omode { padding: 12px 13px; } .omode-s { display: none; } .omode-t { font-size: 15px; } }
+
+/* Lichess puzzles (2026-11-24): rating range, modes, the clock, records. */
+.lrange { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; letter-spacing: -.016em; color: var(--muted); }
+.lrange .section-label { margin-right: 4px; }
+.lrange select:disabled, .filters button:disabled { opacity: .45; cursor: default; }
+.lhead { display: flex; justify-content: space-between; gap: 12px; }
+.lwatch { font-variant-numeric: tabular-nums; }
+.lclockrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.lclock { font-family: var(--f-display); font-size: 48px; font-weight: 600; line-height: 1; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.lclock.low { color: var(--t-bad); }
+.lscore { font-size: 17px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lscore b { color: var(--ink); font-weight: 600; }
+.lbar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.lbar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.lbar.low i { background: var(--c-blunder); }
+.lrun { display: flex; flex-wrap: wrap; gap: 6px; }
+.lpz { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--chip-line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 11px 4px 8px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.lpz i { width: 8px; height: 8px; border-radius: 50%; background: var(--c-best); }
+.lpz.no i { background: var(--c-blunder); }
+.lpz:active { transform: scale(.95); }
+.lruns { list-style: none; margin: 0; padding: 0; font-size: 14px; letter-spacing: -.016em; }
+.lruns li { display: flex; gap: 12px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); color: var(--muted); }
+.lruns li:first-child { border-top: 0; }
+.lruns b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; margin-left: auto; }
+.lthemes { margin-top: 8px; font-size: 14px; letter-spacing: -.016em; color: var(--muted); }
 .omaphead { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px; }
 .omaphead .olegend { margin-top: 0; }
 .omap { display: flex; flex-direction: column; gap: 8px; max-height: min(520px, 65vh); overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; margin-bottom: 12px; }
@@ -985,7 +1010,9 @@ button.orow { cursor: pointer; } button.orow:disabled { cursor: default; color: 
       <div class="oside" id="tset" role="group" aria-label="Kind of puzzle">
         <button type="button" data-set="win" data-label="Win" aria-pressed="true">Win</button>
         <button type="button" data-set="defend" data-label="Defend" aria-pressed="false">Defend</button>
+        <button type="button" data-set="lichess" data-label="Lichess" aria-pressed="false">Lichess</button>
       </div>
+      <div class="panel tsettings lpanel" id="lpanel" hidden></div>
       <div class="panel tcard" id="tprompt"></div>
       <div class="tactions">
         <button class="btn" id="tHint" type="button">Hint</button>
@@ -994,7 +1021,8 @@ button.orow { cursor: pointer; } button.orow:disabled { cursor: default; color: 
         <button class="btn primary" id="tNext" type="button">Next puzzle</button>
       </div>
       <div class="panel tstats" id="tstats"></div>
-      <div class="panel tsettings">
+      <div class="panel tsettings" id="lrecords" hidden></div>
+      <div class="panel tsettings" id="tgameset">
         <div class="section-label">Puzzle settings</div>
         <label for="tSkip"><input type="checkbox" id="tSkip" checked> Skip puzzles I've already solved</label>
         <label for="tShort"><input type="checkbox" id="tShort" checked> Include one-move puzzles</label>
@@ -1136,7 +1164,7 @@ const store = {
    saved on a device, progress is also kept in one secret gist and merged both ways.
    meta[k] = { at: last local change, ep: last reset }. A newer reset wins outright; otherwise solved
    puzzles are unioned, openings keep the copy with more lines played, and settings take the newest. */
-const SYNC_KEYS = ["oseen", "oprog", "ocov", "olearn", "oclean", "opun", "ohold", "ocards", "onew", "ogame", "oset", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tShort", "tFormat", "tOrder", "tset", "tcurD", "slip", "playElo"];
+const SYNC_KEYS = ["oseen", "oprog", "ocov", "olearn", "oclean", "opun", "ohold", "ocards", "onew", "ogame", "oset", "tprog", "tcur", "oside", "tMistakes", "tSkip", "tShort", "tFormat", "tOrder", "tset", "tcurD", "slip", "playElo", "lrange", "lmode", "lhist", "lruns"];
 const SYNC_FILE = "pchess-progress.json", SYNC_DESC = "PChess progress (sync)";
 const sync = {
   timer: null, busy: false, again: false, state: "off", when: 0, err: "", onPulled: null,
@@ -1163,6 +1191,12 @@ const sync = {
     if (a.ep !== b.ep) return a.ep > b.ep ? a : b;
     const at = Math.max(a.at, b.at), ep = a.ep;
     if (k === "tprog") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) if (v[id] !== "solved") v[id] = r; return { v, at, ep }; }
+    // Lichess puzzles: timed runs and practice results from both devices, each once, oldest first.
+    if (k === "lruns" || k === "lhist") {
+      const key = x => k === "lruns" ? x.d + ":" + x.t : x[0] + ":" + x[4], when = x => k === "lruns" ? x.d : x[4], have = new Set(), v = [];
+      for (const x of [].concat(b.v || [], a.v || [])) if (x && !have.has(key(x))) { have.add(key(x)); v.push(x); }
+      v.sort((x, y) => when(x) - when(y)); return { v: v.slice(k === "lruns" ? -400 : -3000), at, ep };
+    }
     if (k === "opun") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) if (v[id] !== "solved") v[id] = r; return { v, at, ep }; }
     // Wins you let slip, played out against Stockfish: per game, the most tries and wins either device has seen.
     if (k === "slip") { const v = Object.assign({}, b.v || {}); for (const [id, r] of Object.entries(a.v || {})) { const o = v[id]; v[id] = o ? { t: Math.max(o.t || 0, r.t || 0), w: Math.max(o.w || 0, r.w || 0), d: Math.max(o.d || 0, r.d || 0) } : r; } return { v, at, ep }; }
@@ -3706,7 +3740,7 @@ window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
    Defend set (exactly one move held) the same way in a.dpuz.
    The tab shows the ones you missed: your game move gave away 0.10 expected points or more (what the
    review calls a mistake or worse). Missing the same chance again on your next move counts once. */
-const T = { set: store.get("tset", "win") === "defend" ? "defend" : "win", list: [], idx: 0, fen: "", intro: false, sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, line: [], step: 0, token: 0 };
+const T = { set: ["defend", "lichess"].includes(store.get("tset", "win")) ? store.get("tset", "win") : "win", list: [], idx: 0, fen: "", intro: false, sel: null, targets: [], hint: null, status: "solving", tries: 0, last: null, arrow: null, msg: null, checking: false, line: [], step: 0, token: 0 };
 const tprog = { get() { return store.get("tprog", {}); }, set(id, v) { const p = this.get(); p[id] = v; store.set("tprog", p); } };
 $("tSkip").checked = store.get("tSkip", true);
 $("tShort").checked = store.get("tShort", true);
@@ -3878,13 +3912,15 @@ function preparePuzzle(p) {
   return p;
 }
 function renderSetSwitch() {
-  const other = T.set === "win" ? "defend" : "win", n = { [T.set]: tMeta.total, [other]: buildPuzzles(other).total };
+  const n = {}; for (const s of ["win", "defend"]) n[s] = s === T.set ? tMeta.total : buildPuzzles(s).total;
   document.querySelectorAll("#tset button").forEach(b => {
-    const label = (b.dataset.set === "win" ? "Win" : "Defend") + " · " + n[b.dataset.set];
+    const label = b.dataset.set === "lichess" ? "Lichess" : (b.dataset.set === "win" ? "Win" : "Defend") + " · " + n[b.dataset.set];
     b.textContent = label; b.dataset.label = label; b.setAttribute("aria-pressed", b.dataset.set === T.set ? "true" : "false");
   });
 }
 function trainerRefresh(keepId) {
+  lShow(T.set === "lichess");
+  if (T.set === "lichess") { renderSetSwitch(); return lichessRefresh(); }
   const liveId = keepId || (T.list[T.idx] && T.list[T.idx].id);
   const curId = liveId || store.get(tcurKey(T.set), null); // after a reload, pick up at the last puzzle
   const b = buildPuzzles(); T.list = b.list; tMeta = b; renderSetSwitch();
@@ -3921,6 +3957,7 @@ function figureView(fig) {
   return { fen: c.fen(), last, arrows: fig.arrows.map(([a, b]) => ({ from: idxSq(a), to: idxSq(b), color: fig.mine ? "var(--c-best)" : "var(--c-blunder)" })), i: fig.i };
 }
 function renderTrainer() {
+  if (T.set === "lichess") return lRender();
   const p = T.list[T.idx];
   const flip = p ? p.g.me === "b" : false;
   if (T.figView) renderBoard(T.figView.fen, T.figView.last, T.figView.arrows, null, { el: "tboard", flip });
@@ -4104,6 +4141,446 @@ $("tReset").onclick = () => {
   if (!resetArmed) { resetArmed = true; $("tReset").textContent = "Click again to reset"; setTimeout(() => { resetArmed = false; $("tReset").textContent = "Reset my puzzle progress"; }, 3000); return; }
   resetArmed = false; $("tReset").textContent = "Reset my puzzle progress"; store.set("tprog", {}); sync.reset("tprog"); T.list = []; trainerRefresh();
 };
+
+/* ---------- Lichess puzzles (2026-11-24) ----------
+   The third set in the Puzzles tab. data/lichess/p<band>.json holds about 1,000 puzzles for each 100-point
+   rating band (p1200 = 1200-1299; p400 also holds the easier ones, p2900 the harder ones), sampled every
+   month from the Lichess puzzle database (CC0) by scripts/lichess_puzzles.py. The page loads only the bands
+   in the range you pick. A Lichess puzzle starts one move early: the first move is your opponent's, then
+   comes the solution, which ends on your move. As on Lichess, only the solution's move or a checkmate counts.
+   Modes: Practice (one at a time with Hint and Show solution; a stopwatch times each puzzle) and timed runs
+   of 1, 3 or 5 minutes (as many as you can; a wrong move loses that puzzle and the next one comes up).
+   Kept: lrange [lo, hi], lmode (0 = practice, else seconds), lhist (practice: [id, rating, first try 1/0,
+   tenths of a second, date]), lruns ({ d date, t seconds, lo, hi, s solved, n tried }), all synced; and
+   lseen (ids already shown on this device, so new puzzles come first). */
+const LB_LOW = 400, LB_HIGH = 2900, LMODES = [0, 60, 180, 300];
+const L = { lo: 1200, hi: 1400, mode: 0, bandP: {}, pool: null, poolKey: "", loadTok: 0, p: null, fen: "", intro: false, sel: null, targets: [], hint: null,
+  status: "loading", step: 1, tries: 0, hinted: false, last: null, arrow: null, msg: null, token: 0, t0: 0, took: 0, figView: null, back: [], at: -1,
+  run: null, lastRun: null, tick: null, err: "", clockTxt: "", panelSig: "", stale: false };
+(() => {
+  const r = store.get("lrange", null), m = store.get("lmode", 0);
+  if (Array.isArray(r) && r[0] >= LB_LOW && r[1] <= LB_HIGH + 100 && r[0] < r[1] && r[0] % 100 === 0 && r[1] % 100 === 0) { L.lo = r[0]; L.hi = r[1]; }
+  L.mode = LMODES.includes(m) ? m : 0;
+})();
+const lSeen = {
+  set: null, list: null,
+  load() { if (!this.set) { const l = store.get("lseen", []); this.list = Array.isArray(l) ? l : []; this.set = new Set(this.list); } return this.set; },
+  add(id) {
+    const s = this.load(); if (s.has(id)) return;
+    s.add(id); this.list.push(id);
+    if (this.list.length > 8000) for (const x of this.list.splice(0, this.list.length - 8000)) s.delete(x);
+    store.set("lseen", this.list);
+  }
+};
+const lBandOf = r => Math.min(LB_HIGH, Math.max(LB_LOW, Math.floor(r / 100) * 100));
+const lInRange = (r, lo, hi) => { const b = lBandOf(r); return b >= lo && b < hi; };
+const lRunning = () => !!(L.run && !L.run.over);
+const lDur = t => t === 60 ? "1 minute" : t / 60 + " minutes", lDurS = t => t / 60 + " min";
+const lClock = (s, up) => { s = Math.max(0, up ? Math.floor(s) : Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+const lSecs = s => s < 60 ? Math.max(1, Math.round(s)) + " s" : Math.floor(s / 60) + " min " + Math.round(s % 60) + " s";
+const lWatch = () => L.status === "solved" || L.status === "shown" ? L.took : L.t0 && !L.intro ? (performance.now() - L.t0) / 1000 : 0;
+const lLeft = () => L.run.end ? (L.run.end - Date.now()) / 1000 : L.run.t;
+function lBand(b) {
+  if (!L.bandP[b]) L.bandP[b] = fetch("data/lichess/p" + b + ".json").then(r => {
+    if (!r.ok) throw new Error(r.status === 404 ? "The Lichess puzzles aren’t on the website yet." : "GitHub answered " + r.status + ". Try again in a minute.");
+    return r.json();
+  }).then(d => d.p.map(x => ({ id: x[0], fen: x[1], moves: x[2].split(" "), r: x[3], themes: x[4] ? x[4].split(" ") : [] })))
+    .catch(e => { delete L.bandP[b]; throw e; });
+  return L.bandP[b];
+}
+async function lLoadPool(lo, hi) {
+  const bands = []; for (let b = lo; b < hi; b += 100) bands.push(b);
+  return (await Promise.all(bands.map(lBand))).flat();
+}
+function lShuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function lPick(not) {
+  const seen = lSeen.load(), pool = L.pool || [];
+  const fresh = pool.filter(p => p !== not && !seen.has(p.id)), from = fresh.length ? fresh : pool.filter(p => p !== not);
+  return from.length ? from[Math.floor(Math.random() * from.length)] : null;
+}
+// Who solves (the side not to move in the stored FEN), the opponent's first move, and "Mate in N" from the themes.
+function lPrep(p) {
+  if (p.me) return p;
+  const c = new Chess(p.fen); p.me = c.turn() === "w" ? "b" : "w";
+  const m = uciMove(c, p.moves[0]); p.prev = m ? { from: m.from, to: m.to, san: m.san } : null; p.fen1 = c.fen();
+  const mt = p.themes.find(t => /^mateIn\d$/.test(t)); p.mateIn = mt ? +mt.slice(6) : 0;
+  return p;
+}
+const lMyMoves = p => p.moves.length >> 1;
+function lAsk(p) {
+  const n = lMyMoves(p);
+  return sideName(p.me) + " to move. " + (p.mateIn ? "Mate in " + p.mateIn + "." : p.themes.includes("equality") ? (n > 1 ? "Find the moves that hold." : "Find the move that holds.")
+    : n > 1 ? "Find the winning sequence." : "Find the best move.");
+}
+const LTHEME = { hangingPiece: "hanging piece", discoveredAttack: "discovered attack", doubleCheck: "double check", backRankMate: "back-rank mate", smotheredMate: "smothered mate",
+  trappedPiece: "trapped piece", capturingDefender: "removing the defender", attackingF2F7: "attack on f2/f7", xRayAttack: "x-ray attack", kingsideAttack: "kingside attack",
+  queensideAttack: "queenside attack", exposedKing: "exposed king", advancedPawn: "advanced pawn", quietMove: "quiet move", defensiveMove: "defensive move",
+  underPromotion: "underpromotion", enPassant: "en passant", intermezzo: "in-between move" };
+const LSKIP = new Set(["advantage", "crushing", "equality", "short", "long", "veryLong", "oneMove", "master", "masterVsMaster", "superGM", "mate"]);
+function lThemes(p) {
+  return p.themes.filter(t => !LSKIP.has(t)).map(t => /^mateIn\d$/.test(t) ? "mate in " + t.slice(6) : LTHEME[t] || t.replace(/([a-z])([A-Z0-9])/g, "$1 $2").toLowerCase()).map(upFirst).join(" · ");
+}
+// The "Why" after a puzzle, in the same words as the rest of the site, plus Lichess's themes and a link.
+function lWhyHtml(p) {
+  const figs = []; let B = null;
+  try { B = explainLine(p.fen1, p.moves.slice(1), { names: xNames(p.me), figs }); } catch (e) { B = null; }
+  p.figs = figs;
+  const first = "<b>" + esc(B ? B.L.plies[0].m.san : uciToSan(p.fen1, p.moves[1])) + "</b>";
+  let s;
+  if (B && B.res.mate) s = B.res.mateIn === 1 ? first + " is checkmate on the spot." : first + " starts a forced checkmate: " + B.lineHtml + ".";
+  else if (B && B.concrete && B.what) s = first + " wins " + B.what + (B.res.show > 0 && B.lineHtml ? ": " + B.lineHtml : "") + ".";
+  else s = first + (p.themes.includes("equality") ? " is the move that holds" : " is the move") + (p.moves.length > 2 ? ". The line: <b>" + esc(lineSan(p.fen1, p.moves.slice(1))) + "</b>" : "") + ".";
+  if (B && B.why) s += " " + B.why;
+  const th = lThemes(p);
+  return '<div class="why"><span class="why-h">Why</span>' + s + '<div class="lthemes">' + (th ? "Lichess themes: " + esc(th) + " · " : "") +
+    '<a href="https://lichess.org/training/' + encodeURIComponent(p.id) + '" target="_blank" rel="noopener">Open on Lichess</a></div></div>';
+}
+function lRecord(p, ok) {
+  if (p.done) return; p.done = true;
+  const h = store.get("lhist", []); h.push([p.id, p.r, ok ? 1 : 0, Math.round(L.took * 10), Date.now()]); store.set("lhist", h.slice(-3000));
+}
+function lBest(t, lo, hi, runs) { let b = 0; for (const x of runs || store.get("lruns", [])) if (x.t === t && x.lo === lo && x.hi === hi && x.s > b) b = x.s; return b; }
+
+// Show puzzle p: the position before your opponent's move, then that move (after 0.8 s; 0.25 s in a run).
+function lStart(p) {
+  lPrep(p);
+  const token = ++L.token, run = lRunning();
+  const old = document.querySelector(".tboardwrap canvas.confetti"); if (old) old.remove();
+  Object.assign(L, { p, fen: p.fen, intro: true, sel: null, targets: [], hint: null, status: "solving", step: 1, tries: 0, hinted: false, last: null, arrow: null, msg: null, figView: null, t0: 0, took: 0 });
+  lSeen.add(p.id);
+  lRender();
+  setTimeout(() => {
+    if (token !== L.token) return;
+    L.intro = false; L.fen = p.fen1; L.last = p.prev ? { from: p.prev.from, to: p.prev.to } : null; L.t0 = performance.now();
+    if (p.prev) sound.play(p.prev.san);
+    if (L.run && !L.run.over && !L.run.end) L.run.end = Date.now() + L.run.t * 1000;   // the clock starts with the first puzzle
+    lRender();
+  }, run ? 250 : 800);
+}
+function lNew(p) {
+  p = p || lPick(L.p);
+  if (!p) { L.p = null; L.status = "empty"; return lRender(); }
+  L.back = L.back.slice(0, L.at + 1); L.back.push(p); if (L.back.length > 200) L.back.shift(); L.at = L.back.length - 1;
+  lStart(p);
+}
+function lTry(from, to, promo) {
+  const p = L.p; if (!p || L.status !== "solving" || L.intro || (L.mode && !lRunning())) return;
+  const run = lRunning(), c = new Chess(L.fen), m = c.move({ from, to, promotion: promo || "q" });
+  L.sel = null; L.targets = [];
+  if (!m) return lRender();
+  sound.play(m.san);
+  const uci = m.from + m.to + (m.promotion || ""), token = L.token, before = { fen: L.fen, last: L.last };
+  L.fen = c.fen(); L.last = { from: m.from, to: m.to };
+  if (uci === p.moves[L.step] || c.in_checkmate()) {
+    L.hint = null; L.step++;
+    if (c.in_checkmate() || L.step >= p.moves.length) return lSolved(m, c.in_checkmate());
+    L.status = "replying";
+    if (!run) L.msg = { kind: "good", html: "<b>" + esc(m.san) + "</b> is right. Keep going." };
+    lRender();
+    setTimeout(() => {
+      if (token !== L.token) return;
+      const r = uciMove(c, p.moves[L.step]); L.step++; if (r) sound.play(r.san);
+      L.fen = c.fen(); L.last = r ? { from: r.from, to: r.to } : null; L.status = "solving";
+      if (!run) L.msg = { kind: "good", html: "<b>" + esc(m.san) + "</b> is right. Your opponent answered <b>" + esc(r ? r.san : "") + "</b>. Keep going." };
+      lRender();
+    }, run ? 250 : 550);
+    return;
+  }
+  L.tries++;
+  $("tboard").classList.add("flash-bad");
+  if (run) {   // a miss: on to the next one
+    L.status = "missed"; L.run.items.push({ p, ok: false }); L.run.missed++; lRender();
+    setTimeout(() => { $("tboard").classList.remove("flash-bad"); if (token === L.token) lRunNext(); }, 450);
+    return;
+  }
+  L.status = "wrong"; lRender();
+  setTimeout(() => {
+    $("tboard").classList.remove("flash-bad"); if (token !== L.token) return;
+    L.fen = before.fen; L.last = before.last; L.status = "solving";
+    L.msg = { kind: "bad", html: "<b>" + esc(m.san) + "</b> isn’t it. Try again." }; lRender();
+  }, 650);
+}
+function lSolved(m, mate) {
+  const p = L.p, run = lRunning(), token = L.token;
+  L.status = "solved"; L.took = (performance.now() - L.t0) / 1000;
+  $("tboard").classList.add("flash-good"); setTimeout(() => $("tboard").classList.remove("flash-good"), run ? 300 : 700);
+  if (run) { L.run.items.push({ p, ok: true }); L.run.solved++; lRender(); setTimeout(() => { if (token === L.token) lRunNext(); }, 280); return; }
+  lRecord(p, !L.tries && !L.hinted);
+  confetti("tboard");
+  const lead = "<b>" + esc(m.san) + "</b> " + (mate ? "is checkmate." : "is right.") + " Solved in " + lSecs(L.took) +
+    (L.tries ? ", after " + L.tries + " wrong move" + (L.tries > 1 ? "s" : "") : L.hinted ? " with a hint" : "") + ".";
+  L.msg = { kind: "good", html: lead + lWhyHtml(p) };
+  lRender();
+}
+function lHint() {
+  const p = L.p; if (!p || L.mode || L.status !== "solving" || L.intro) return;
+  const u = p.moves[L.step]; if (!u) return;
+  L.hint = u.slice(0, 2); L.hinted = true;
+  const pc = new Chess(L.fen).get(L.hint);
+  L.msg = { kind: "info", html: "Hint: move your " + (pc ? PNAME[pc.type] : "piece") + " on <b>" + L.hint + "</b>." };
+  lRender();
+}
+function lShowSol() {
+  const p = L.p; if (!p || L.mode || !(L.status === "solving" || L.intro)) return;
+  const token = ++L.token;
+  if (L.intro) { L.intro = false; L.fen = p.fen1; L.last = p.prev ? { from: p.prev.from, to: p.prev.to } : null; }
+  L.took = L.t0 ? (performance.now() - L.t0) / 1000 : 0;
+  L.status = "shown"; L.sel = null; L.targets = []; L.hint = null;
+  lRecord(p, false);
+  const rest = p.moves.slice(L.step), c = new Chess(L.fen);
+  if (rest.length === 1) L.arrow = { from: rest[0].slice(0, 2), to: rest[0].slice(2, 4) };
+  L.msg = { kind: "info", html: "The answer: <b>" + esc(lineSan(p.fen1, p.moves.slice(1))) + "</b>." + lWhyHtml(p) };
+  lRender();
+  if (rest.length > 1) rest.forEach((u, k) => setTimeout(() => {
+    if (token !== L.token) return;
+    const r = uciMove(c, u); if (!r) return;
+    L.fen = c.fen(); L.last = { from: r.from, to: r.to }; lRender();
+  }, 700 * (k + 1)));
+}
+function lNextBtn() {
+  if (!L.mode) { if (L.at < L.back.length - 1) { L.at++; return lStart(L.back[L.at]); } return lNew(); }
+  if (lRunning()) return lRunEnd(true);
+  lRunStart();
+}
+function lPrevBtn() { if (!L.mode && L.at > 0) { L.at--; lStart(L.back[L.at]); } }
+
+// Timed runs: puzzles you haven't seen first, shuffled; the clock starts when the first one is on the board.
+function lRunStart() {
+  if (!L.pool || !L.pool.length) return;
+  const seen = lSeen.load();
+  const queue = lShuffle(L.pool.filter(p => !seen.has(p.id))).concat(lShuffle(L.pool.filter(p => seen.has(p.id))));
+  L.run = { t: L.mode, lo: L.lo, hi: L.hi, queue, k: 0, solved: 0, missed: 0, items: [], end: 0, over: false };
+  lPanel(); lTickOn(); lRunNext();
+}
+function lRunNext() {
+  const r = L.run; if (!r || r.over) return;
+  if (r.end && Date.now() >= r.end) return lRunEnd();
+  lStart(r.queue[r.k++ % r.queue.length]);
+}
+// stopped: Stop pressed, or you left the tab. Then the run isn't saved.
+function lRunEnd(stopped) {
+  const r = L.run; if (!r || r.over) return;
+  r.over = true; r.stopped = !!stopped; ++L.token; lTickOff();
+  Object.assign(L, { status: "over", sel: null, targets: [], hint: null, intro: false });
+  if (!stopped) {
+    const runs = store.get("lruns", []);
+    r.prevBest = lBest(r.t, r.lo, r.hi, runs); r.record = r.solved > r.prevBest;
+    runs.push({ d: Date.now(), t: r.t, lo: r.lo, hi: r.hi, s: r.solved, n: r.solved + r.missed });
+    store.set("lruns", runs.slice(-400));
+  }
+  if (r.items.length) L.lastRun = r;
+  lPanel(); lRender();
+  if (r.record) confetti("tboard");
+}
+function lTickOn() { if (!L.tick) L.tick = setInterval(lTick, 200); }
+function lTickOff() { if (L.tick) { clearInterval(L.tick); L.tick = null; } }
+function lTick() {
+  if (view !== "trainer" || T.set !== "lichess") { if (lRunning()) lRunEnd(true); lTickOff(); return; }
+  if (lRunning()) { if (L.run.end && Date.now() >= L.run.end) return lRunEnd(); }
+  else if (!(L.p && !L.mode && ["solving", "replying", "wrong"].includes(L.status))) { lTickOff(); return; }
+  lClockPaint();
+}
+// The clock in the card and the phone strip, without redrawing the card.
+function lClockPaint() {
+  const el = $("lclock"); let txt, low = false;
+  if (lRunning()) {
+    const left = lLeft(); txt = lClock(left); low = left <= 10;
+    const bar = $("lbar"); if (bar) { bar.firstChild.style.width = (100 * Math.max(0, left) / L.run.t).toFixed(1) + "%"; bar.classList.toggle("low", low); }
+  } else txt = lClock(lWatch(), true);
+  if (el && el.textContent !== txt) { el.textContent = txt; el.classList.toggle("low", low); }
+  if (txt !== L.clockTxt) { L.clockTxt = txt; lCoach(); }
+}
+
+// Rating range and mode. Redrawn only when they change, so an open dropdown isn't closed by a redraw.
+function lPanel() {
+  const running = lRunning(), sig = [L.lo, L.hi, L.mode, running].join();
+  if (sig === L.panelSig) return; L.panelSig = sig;
+  const opts = (from, to, sel) => { let h = ""; for (let v = from; v <= to; v += 100) h += '<option value="' + v + '"' + (v === sel ? " selected" : "") + ">" + v + "</option>"; return h; };
+  const dis = running ? " disabled" : "";
+  $("lpanel").innerHTML = '<div class="lrange"><span class="section-label">Puzzle rating</span><select id="lLo" aria-label="Lowest puzzle rating"' + dis + ">" + opts(LB_LOW, LB_HIGH, L.lo) +
+    '</select><span>to</span><select id="lHi" aria-label="Highest puzzle rating"' + dis + ">" + opts(LB_LOW + 100, LB_HIGH + 100, L.hi) + "</select></div>" +
+    '<div class="filters" role="group" aria-label="How to play">' + LMODES.map(m => '<button type="button" data-lmode="' + m + '" aria-pressed="' + (m === L.mode) + '"' + (running && m !== L.mode ? " disabled" : "") + ">" + (m ? lDurS(m) : "Practice") + "</button>").join("") + "</div>" +
+    '<div class="omuted">' + (L.mode ? "Solve as many as you can in " + lDur(L.mode) + ". Your best for each clock and rating range is kept." : "One at a time, with Hint and Show solution. The clock shows how long each one takes.") +
+    ' From the <a href="https://database.lichess.org/#puzzles" target="_blank" rel="noopener">Lichess puzzle database</a>: a fresh 1,000 for every 100 rating points each month.</div>';
+}
+function lButtons(off) {
+  const B = { tHint: "Hint", tShow: "Show solution", tPrev: "Previous", tNext: "Next puzzle" };
+  if (off) { for (const [id, t] of Object.entries(B)) { $(id).textContent = t; $(id).hidden = false; } $("tNext").classList.add("primary"); return; }
+  const timed = !!L.mode, running = lRunning(), ready = !!(L.pool && L.pool.length);
+  $("tHint").hidden = $("tShow").hidden = $("tPrev").hidden = timed;
+  $("tNext").textContent = !timed ? "Next puzzle" : running ? "Stop" : L.run ? "Run again" : "Start";
+  $("tNext").classList.toggle("primary", !running);
+  $("tNext").disabled = !ready;
+  const live = !timed && L.p && L.status === "solving";
+  $("tHint").disabled = !live || L.intro; $("tShow").disabled = !(live || (L.p && L.intro && !timed)); $("tPrev").disabled = timed || L.at <= 0;
+}
+function lStats() {
+  const rng = L.lo + "–" + L.hi;
+  if (L.mode) {
+    const runs = store.get("lruns", []).filter(x => x.lo === L.lo && x.hi === L.hi);
+    $("tstats").innerHTML = LMODES.slice(1).map(t => { const b = lBest(t, L.lo, L.hi, runs); return "<div><b>" + (b || "–") + "</b>best in " + lDurS(t) + "</div>"; }).join("") +
+      "<div><b>" + runs.length + "</b>" + (runs.length === 1 ? "run" : "runs") + " at " + rng + "</div>";
+    return;
+  }
+  const h = store.get("lhist", []).filter(x => lInRange(x[1], L.lo, L.hi)), first = h.filter(x => x[2]);
+  const avg = first.length ? first.reduce((s, x) => s + x[3], 0) / first.length / 10 : 0;
+  const seen = lSeen.load(), fresh = L.pool ? L.pool.filter(p => !seen.has(p.id)).length : 0;
+  $("tstats").innerHTML = "<div><b>" + fmtNum(h.length) + "</b>done at " + rng + "</div>" +
+    '<div title="Solved without a wrong move, a hint or the solution"><b>' + (h.length ? Math.round(100 * first.length / h.length) + "%" : "–") + "</b>first try</div>" +
+    '<div title="Average time on the ones you got first try"><b>' + (first.length ? Math.round(avg) + " s" : "–") + "</b>average time</div>" +
+    "<div><b>" + (L.pool ? fmtNum(fresh) : "–") + "</b>new to you</div>";
+}
+function lRunChips(r) {
+  if (!r || !r.items.length) return "";
+  return '<div class="lrun">' + r.items.map((it, k) => '<button type="button" class="lpz' + (it.ok ? "" : " no") + '" data-lrun="' + k + '" title="' + (it.ok ? "Solved" : "Missed") + ", rated " + it.p.r + ': try it again">' +
+    '<i aria-hidden="true"></i><span class="sr">' + (it.ok ? "Solved" : "Missed") + ", rated </span>" + it.p.r + "</button>").join("") + '</div><div class="omuted">Tap a puzzle to try it again without the clock.</div>';
+}
+function lRecords() {
+  const el = $("lrecords"), runs = store.get("lruns", []), last = L.lastRun && L.lastRun !== L.run ? L.lastRun : null;   // the card shows the run that just ended
+  if (!runs.length && !last) { el.hidden = true; return; }
+  el.hidden = false;
+  const when = d => new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  el.innerHTML = (last ? '<div class="section-label">Your last run · ' + lDurS(last.t) + " · " + last.lo + "–" + last.hi + "</div>" + lRunChips(last) : "") +
+    (runs.length ? '<div class="section-label">Recent runs</div><ul class="lruns">' + runs.slice(-8).reverse().map(x =>
+      "<li><span>" + esc(when(x.d)) + "</span><span>" + lDurS(x.t) + " · " + x.lo + "–" + x.hi + "</span><b>" + x.s + "</b><span>of " + x.n + "</span></li>").join("") + "</ul>" : "");
+}
+function lCard() {
+  const p = L.p, run = L.run, rng = L.lo + "–" + L.hi;
+  const card = (eyebrow, ask, ctx, extra) => '<div class="eyebrow">' + eyebrow + '</div><p class="ask">' + esc(ask) + "</p>" + (ctx ? '<div class="ctx">' + ctx + "</div>" : "") + (extra || "");
+  if (L.status === "loading") return card("Lichess puzzles", "Loading puzzles rated " + rng + "…");
+  if (L.status === "error") return card("Lichess puzzles", "Couldn’t load the Lichess puzzles", esc(L.err));
+  if (L.status === "empty") return card("Lichess puzzles", "No puzzles in this range", "Pick another rating range.");
+  if (L.mode && !run) {
+    const best = lBest(L.mode, L.lo, L.hi);
+    return card("Timed run · " + lDur(L.mode) + " · rated " + rng, "How many can you solve in " + lDur(L.mode) + "?",
+      "The clock starts with the first puzzle. A wrong move loses that puzzle and the next one comes up straight away. " + (best ? "Your best here: <b>" + best + "</b>." : "No runs at this rating yet."));
+  }
+  if (run && run.over) {
+    const n = run.solved + run.missed;
+    const ask = run.stopped ? "Run stopped" : (run.record ? "New record: " : "") + run.solved + " solved";
+    const ctx = run.stopped ? "You stopped before the time was up, so this run isn’t saved." :
+      (n ? run.solved + " of " + n + " right (" + Math.round(100 * run.solved / n) + "%). " : "") + (run.record ? (run.prevBest ? "Your best here was " + run.prevBest + "." : "Your first run at this rating.") : "Your best here: <b>" + run.prevBest + "</b>.");
+    return card((run.stopped ? "Timed run" : "Time’s up") + " · " + lDur(run.t) + " · rated " + run.lo + "–" + run.hi, ask, ctx, lRunChips(run));
+  }
+  if (lRunning()) {
+    const left = lLeft(), low = left <= 10;
+    return '<div class="lclockrow"><span class="lclock' + (low ? " low" : "") + '" id="lclock" role="timer">' + lClock(left) + '</span><span class="lscore"><b>' + run.solved + "</b> solved · <b>" + run.missed + "</b> missed</span></div>" +
+      '<div class="lbar' + (low ? " low" : "") + '" id="lbar"><i style="width:' + (100 * Math.max(0, left) / run.t).toFixed(1) + '%"></i></div>' +
+      '<div class="eyebrow">Puzzle ' + (run.items.length + 1) + " · rated " + p.r + '</div><p class="ask">' + esc(L.intro ? "Get ready…" : lAsk(p)) + "</p>";
+  }
+  if (!p) return card("Lichess puzzles", "Loading puzzles rated " + rng + "…");
+  const ask = L.intro ? "Your opponent is about to move…" : L.status === "solved" ? "Solved" : L.status === "shown" ? "Solution" : lAsk(p);
+  const sub = (L.status === "solving" || L.status === "wrong") && !L.intro && lMyMoves(p) > 1 ? '<div class="ctx">This one takes ' + lMyMoves(p) + " moves. Your opponent’s replies are played for you." + (L.step > 1 ? " Move " + ((L.step + 1) >> 1) + " of " + lMyMoves(p) + "." : "") + "</div>" : "";
+  return '<div class="eyebrow lhead"><span>Lichess puzzle · rated ' + p.r + '</span><span class="lwatch" id="lclock" title="Time on this puzzle">' + (L.status === "solved" || L.status === "shown" ? "" : lClock(lWatch(), true)) + "</span></div>" +
+    '<p class="ask">' + esc(ask) + "</p>" + sub + (L.msg ? '<div class="feedback ' + L.msg.kind + '">' + L.msg.html + "</div>" : "");
+}
+function lCoach() {
+  if (view !== "trainer" || T.set !== "lichess") return;
+  const p = L.p, run = L.run, rng = L.lo + "–" + L.hi;
+  let d;
+  if (L.status === "loading" || (!p && !L.mode && L.status !== "error" && L.status !== "empty")) d = { glyph: "?", title: "Loading Lichess puzzles", brief: "Rated " + rng };
+  else if (L.status === "error") d = { glyph: "?", title: "Couldn’t load the Lichess puzzles", brief: L.err };
+  else if (L.status === "empty") d = { glyph: "?", title: "No puzzles in this range", brief: "Pick another rating range." };
+  else if (L.mode && !run) { const b = lBest(L.mode, L.lo, L.hi); d = { cls: "great", glyph: "?", title: "Timed run · " + lDurS(L.mode), brief: "Rated " + rng + " · " + (b ? "your best here is " + b : "no runs here yet") + ". Tap Start." }; }
+  else if (run && run.over) d = { cls: run.record ? "best" : "book", glyph: run.record ? SVG.check : SVG.arrow, title: run.stopped ? "Run stopped" : (run.record ? "New record: " : "") + run.solved + " solved",
+    brief: run.stopped ? "Not saved." : run.solved + " of " + (run.solved + run.missed) + " right" + (Math.max(run.prevBest, run.solved) ? " · best here " + Math.max(run.prevBest, run.solved) : "") };
+  else if (lRunning()) d = { cls: "great", glyph: "?", title: lClock(lLeft()) + " · " + run.solved + " solved", brief: "Puzzle " + (run.items.length + 1) + " · rated " + p.r + " · " + (L.intro ? "get ready" : lAsk(p)) };
+  else {
+    const k = L.msg ? L.msg.kind : "";
+    d = { cls: L.status === "solved" ? "best" : k === "bad" ? "blunder" : L.status === "shown" ? "book" : "great", glyph: L.status === "solved" ? SVG.check : k === "bad" ? SVG.x : L.status === "shown" ? SVG.arrow : "?",
+      title: L.status === "solved" ? "Solved in " + lSecs(L.took) : L.status === "shown" ? "Solution" : "Rated " + p.r + " · " + (L.intro ? "Your opponent is about to move…" : lAsk(p)),
+      brief: L.msg ? plainText(L.msg.html) : lClock(lWatch(), true) };
+  }
+  coach.set("trainer", d);
+}
+function lRender() {
+  if (T.set !== "lichess") return;
+  const p = L.p, live = p && (!L.mode || L.run), flip = live ? p.me === "b" : false;
+  if (L.figView) renderBoard(L.figView.fen, L.figView.last, L.figView.arrows, null, { el: "tboard", flip });
+  else renderBoard(live ? L.fen : new Chess().fen(), live ? L.last : null, live ? L.arrow : null, null, { el: "tboard", flip, sel: L.sel, targets: L.targets, hint: L.hint });
+  lPanel(); lButtons(); lStats(); lRecords();
+  $("tprompt").innerHTML = lCard();
+  L.clockTxt = ""; lCoach();
+  if (lRunning() || (p && !L.mode && ["solving", "replying", "wrong"].includes(L.status))) lTickOn();
+}
+// Switching between your own puzzles and Lichess's: the Lichess panels, the buttons and the clocks.
+let lOn = false;
+function lShow(on) {
+  if (on === lOn) return; lOn = on;
+  $("lpanel").hidden = !on; $("tgameset").hidden = on; if (!on) $("lrecords").hidden = true;
+  if (on) { T.token++; T.figView = null; L.panelSig = ""; }
+  else { if (lRunning()) lRunEnd(true); L.token++; lTickOff(); L.figView = null; L.stale = true; lButtons(true); $("viewTag").textContent = "The moves you missed in your games."; }
+}
+async function lichessRefresh() {
+  $("viewTag").textContent = "Lichess puzzles at your level, with or without a clock.";
+  const key = L.lo + "-" + L.hi;
+  if (L.poolKey !== key) {
+    const tok = ++L.loadTok; L.pool = null; L.status = "loading"; lRender();
+    let pool;
+    try { pool = await lLoadPool(L.lo, L.hi); }
+    catch (e) { if (tok !== L.loadTok) return; L.err = e instanceof TypeError ? "The website didn’t answer. Check your connection and try again." : e.message; L.status = "error"; return lRender(); }
+    if (tok !== L.loadTok) return;
+    L.pool = pool; L.poolKey = key; L.status = L.mode ? "idle" : "loading";
+    if (T.set !== "lichess") return;
+  }
+  // Back from the other sets: a puzzle left half-way (its timers were stopped) starts again.
+  if (L.stale) { L.stale = false; if (L.p && !L.mode && !["solved", "shown"].includes(L.status)) return lStart(L.p); }
+  if (!L.mode && (!L.p || L.status === "loading")) return lNew();
+  lRender();
+}
+$("lpanel").addEventListener("change", e => {
+  if (e.target.id !== "lLo" && e.target.id !== "lHi") return;
+  let lo = +$("lLo").value, hi = +$("lHi").value;
+  if (lo >= hi) { if (e.target.id === "lLo") hi = Math.min(LB_HIGH + 100, lo + 200); else lo = Math.max(LB_LOW, hi - 200); }
+  if (lo >= hi) lo = hi - 100;
+  L.lo = lo; L.hi = hi; store.set("lrange", [lo, hi]);
+  ++L.token; lTickOff(); Object.assign(L, { p: null, back: [], at: -1, run: null, msg: null, figView: null });
+  lichessRefresh();
+});
+$("lpanel").addEventListener("click", e => {
+  const b = e.target.closest("button[data-lmode]"); if (!b || b.disabled) return;
+  const m = +b.dataset.lmode; if (m === L.mode) return;
+  L.mode = m; store.set("lmode", m);
+  ++L.token; lTickOff(); Object.assign(L, { run: null, msg: null, figView: null, p: null });
+  if (!L.pool) return lRender();               // still loading: lichessRefresh carries on from here
+  if (!m) return lNew();
+  L.status = "idle"; lRender();
+});
+function lOpenFromRun(k) {
+  const r = L.lastRun, it = r && r.items[k]; if (!it) return;
+  L.mode = 0; store.set("lmode", 0); ++L.token; lTickOff(); L.run = null; it.p.done = false;
+  lNew(it.p); requestAnimationFrame(() => intoView("tboard"));
+}
+$("lrecords").addEventListener("click", e => { const b = e.target.closest("[data-lrun]"); if (b) lOpenFromRun(+b.dataset.lrun); });
+// The game puzzles' handler on #tprompt doesn't apply here (capture phase, before it).
+$("tprompt").addEventListener("click", e => {
+  if (T.set !== "lichess") return;
+  e.stopPropagation();
+  const r = e.target.closest("[data-lrun]"); if (r) return lOpenFromRun(+r.dataset.lrun);
+  const pw = e.target.closest(".pat[data-fig]");
+  if (pw && L.p && L.p.figs && (L.status === "solved" || L.status === "shown")) {
+    const i = +pw.dataset.fig, f = L.p.figs[i]; if (!f) return;
+    L.figView = L.figView && L.figView.i === i ? null : Object.assign(figureView(f), { i }); lRender(); requestAnimationFrame(() => intoView("tboard"));
+  }
+}, true);
+const LBOARD = {
+  intercept() { if (!L.figView) return false; L.figView = null; lRender(); return true; },
+  can() { return !!L.p && L.status === "solving" && !L.intro && !L.figView && (!L.mode || lRunning()); },
+  fen() { return L.fen; },
+  sel() { return L.sel; }, targets() { return L.targets; },
+  select(sq) {
+    const c = new Chess(L.fen), pc = c.get(sq);
+    if (pc && pc.color === c.turn()) { L.sel = sq; L.targets = c.moves({ square: sq, verbose: true }).map(m => m.to); } else { L.sel = null; L.targets = []; }
+    lRender();
+  },
+  clear() { L.sel = null; L.targets = []; lRender(); },
+  move(from, to, promo) { lTry(from, to, promo); }
+};
+{ const game = BOARD_API.tboard; BOARD_API.tboard = new Proxy({}, { get: (_, k) => (T.set === "lichess" ? LBOARD : game)[k] }); }
+for (const [id, fn] of [["tHint", lHint], ["tShow", lShowSol], ["tPrev", lPrevBtn], ["tNext", lNextBtn]]) {
+  const game = $(id).onclick; $(id).onclick = e => T.set === "lichess" ? fn() : game(e);
+}
+if (/[?&]debug\b/.test(location.search)) window.__lp = { L, store, lSeen };   // for tests
 
 /* ---------- the game summary (what a game opens on) ----------
    Opening a game shows its summary first, like chess.com's Game Review: the result, both accuracies, where
@@ -5438,6 +5915,7 @@ function renderPunishCard(meta) {
   // Sync wiring
   sync.onPulled = changed => {
     if (changed.includes("tprog") && view === "trainer") trainerRefresh();
+    if (["lruns", "lhist"].some(k => changed.includes(k)) && view === "trainer" && T.set === "lichess" && !lRunning()) lRender();
     if (changed.includes("oset")) BK.sides = {};
     if (["ocards", "onew", "ogame", "oset", "opun"].some(k => changed.includes(k)) && view === "openings" && !SS.active) renderOpenings();
   };

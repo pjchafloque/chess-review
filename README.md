@@ -17,6 +17,11 @@ Personal chess.com game review: https://pjchafloque.github.io/chess-review/
   shown as "Mate in N". A second set, Defend, has the positions where your opponent threatened
   something and exactly one move held (plain recaptures don't count). The rules are written out above
   `puzzle_start` in `scripts/update.py`.
+- The Puzzles tab's third set, Lichess, serves puzzles from the Lichess puzzle database
+  (https://database.lichess.org/#puzzles, CC0) in the rating range you pick, untimed (Practice, with a stopwatch)
+  or as 1, 3 or 5-minute runs that keep your best score for each clock and range.
+  `.github/workflows/lichess-puzzles.yml` samples about 1,000 well-tested puzzles per 100 rating points every
+  month (`scripts/lichess_puzzles.py`) into `data/lichess/`; the page loads only the bands you pick.
 - `engine/` holds Stockfish.js 19 Lite (single-threaded WebAssembly, GPLv3), which the page runs in the
   browser for Retry, exploring your own moves, and games the website hasn't reviewed yet.
 - Book moves come from `scripts/openings.tsv`: the Lichess opening list
