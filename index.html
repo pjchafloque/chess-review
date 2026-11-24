@@ -583,6 +583,12 @@ a { color: var(--link); text-decoration: none; }
 .xmoves { font-size: 15px; font-variant-numeric: tabular-nums; line-height: 1.6; }
 .xmoves .n { color: var(--muted); }
 .xmoves .cur { background: var(--accent-tint); color: var(--link); border-radius: 5px; padding: 0 4px; font-weight: 600; }
+.xmoves .ki { width: 15px; height: 15px; font-size: 9px; margin-right: 3px; vertical-align: -2px; }
+.xgrade { display: flex; gap: 10px; align-items: center; }
+.xgrade .ki { width: 28px; height: 28px; font-size: 12.5px; }
+.xgrade .t { font-weight: 600; font-size: 15px; }
+.xgrade .d { font-size: 13px; color: var(--muted); }
+.xgrade.wait { font-size: 14px; color: var(--muted); }
 .xlines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .xline { width: 100%; display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 8px; align-items: baseline; text-align: left; border: 1px solid transparent; background: var(--surface); color: var(--ink); border-radius: var(--radius-sm); padding: 6px 10px; font: inherit; font-size: 14px; letter-spacing: -.016em; cursor: pointer; }
 @media (hover: hover) { .xline:hover { border-color: var(--chip-line); } }
@@ -3169,7 +3175,10 @@ function go(ply) {
 
 /* ---------- review: trying moves on the board (explore) and Retry ----------
    Move any piece on the review board to leave the game and look at your own line with Stockfish
-   (three best lines, live). Retry puts you back before one of your mistakes to find a better move. */
+   (three best lines, live). Retry puts you back before one of your mistakes to find a better move.
+   Every move you try is graded like the game's moves (chess.com's analysis board does the same): the
+   position you're on is analysed live, the one before it first if you moved on too quickly, and the rest
+   of your line to depth 14 afterwards. A move gets its grade once both positions around it are known. */
 const B = { sel: null, targets: [] };          // the piece picked up on the review board
 const X = { on: false, mode: "", ply: 0, start: "", hist: [], idx: 0, fen: "", res: null, resFen: "", atok: 0, token: 0, retry: null, auto: [] };
 function xEnter(mode, ply) {
@@ -3179,6 +3188,7 @@ function xEnter(mode, ply) {
   Object.assign(X, { on: true, mode, ply, fig: null, start: g.fens[ply], hist: [], idx: 0, fen: g.fens[ply], res: null, resFen: "", token: X.token + 1,
     retry: mode === "retry" ? { i: ply, tries: 0, done: false, shown: false, checking: false, msg: null, hint: null, arrow: null } : null,
     play: mode === "play" ? { side: g.me || g.fens[ply].split(" ")[1], elo: store.get("playElo", 2000), over: null, thinking: false, saved: false } : null });
+  { const e0 = (evalsFor(g) || [])[ply], a = S.analyses[g.id]; if (e0) xPut(g.fens[ply], Object.assign({}, e0, { depth: (a && a.depth) || BROWSER_DEPTH, own: true })); }
   if (mode === "explore") xAnalyse();
   renderAnalysis(); renderMovesCurrent();
   if (mode === "play") playReply();   // Stockfish starts if it's its move
@@ -3193,7 +3203,7 @@ function xExit(quiet) {
 function renderMovesCurrent() { document.querySelectorAll("#moves .mv").forEach(b => b.setAttribute("aria-current", String(!X.on && +b.dataset.ply === S.ply))); }
 function xPlay(from, to, promo, quiet) {
   const c = new Chess(X.fen); const m = c.move({ from, to, promotion: promo || "q" }); if (!m) return null;
-  X.hist = X.hist.slice(0, X.idx); X.hist.push({ san: m.san, from: m.from, to: m.to, fen: c.fen(), color: m.color, promotion: m.promotion || "" });
+  X.hist = X.hist.slice(0, X.idx); X.hist.push({ san: m.san, from: m.from, to: m.to, fen: c.fen(), color: m.color, promotion: m.promotion || "", captured: m.captured || "", flags: m.flags });
   X.idx = X.hist.length; X.fen = c.fen(); if (!quiet) sound.play(m.san);
   return m;
 }
@@ -3202,16 +3212,78 @@ function xGo(idx) {
   X.idx = Math.max(0, Math.min(X.hist.length, idx)); X.fen = X.idx ? X.hist[X.idx - 1].fen : X.start;
   B.sel = null; B.targets = []; xAnalyse(); renderAnalysis();
 }
-function xAnalyse() {
+async function xAnalyse() {
   const fen = X.fen, t = ++X.atok; X.res = null;
   if (!engine.ready || X.mode !== "explore") return;
-  if (new Chess(fen).game_over()) return;
+  const f0 = X.idx > 1 ? X.hist[X.idx - 2].fen : X.idx === 1 ? X.start : null;
+  if (f0 && !xDeep(xEv(f0))) {     // you moved on before Stockfish knew the last position well enough to grade your move
+    const r = await engine.analyse(f0, BROWSER_DEPTH, { lane: "live", multipv: 2 });
+    if (t !== X.atok || !X.on) return;
+    xKeep(f0, r); renderExplore(true);
+  }
+  if (new Chess(fen).game_over()) { xFill(t); return; }
   let last = 0;
-  const show = r => { if (!r || t !== X.atok || !X.on) return; X.res = r; X.resFen = fen; const now = Date.now(); if (now - last > 180 || r.final) { last = now; renderExplore(true); } };
-  engine.analyse(fen, 22, { lane: "live", multipv: 3, onInfo: show }).then(r => { if (r) { r.final = true; show(r); } });
+  const show = r => { if (!r || t !== X.atok || !X.on) return; xKeep(fen, r); X.res = r; X.resFen = fen; const now = Date.now(); if (now - last > 180 || r.final) { last = now; renderExplore(true); } };
+  engine.analyse(fen, 22, { lane: "live", multipv: 3, onInfo: show }).then(r => { if (r) { r.final = true; show(r); if (t === X.atok && X.on) xFill(t); } });
+}
+// What Stockfish knows about each position you've explored, by FEN: { ...eval, depth, own }. own = from a search
+// of that position (or the game's review); otherwise it comes from the line that led there in the parent's search.
+const XEV = new Map(), XOVER = new Map();
+const xRank = e => (e.own && e.depth >= BROWSER_DEPTH ? 100 : 0) + e.depth;
+function xPut(fen, e) { if (XEV.size > 4000) XEV.clear(); const o = XEV.get(fen); if (!o || xRank(e) >= xRank(o)) XEV.set(fen, e); }
+function xDeep(e) { return !!e && e.depth >= BROWSER_DEPTH; }
+function xEv(fen) {
+  if (XEV.has(fen)) return XEV.get(fen);
+  if (!XOVER.has(fen)) { const c = new Chess(fen); XOVER.set(fen, c.in_checkmate() ? (c.turn() === "w" ? -1 : 1) : c.game_over() ? 0 : null); }
+  const o = XOVER.get(fen); if (o == null) return null;
+  const e = o ? { num: 10 * o, mated: true, best: null, depth: 99, own: true } : { num: 0, cp: 0, best: null, draw: true, depth: 99, own: true };
+  XEV.set(fen, e); return e;
+}
+function xKeep(fen, r) {
+  if (!r || !r.score || !r.depth) return;
+  const e = toEval(fen, r); e.depth = r.depth; e.own = true; xPut(fen, e);
+  const sign = fen.split(" ")[1] === "w" ? 1 : -1;
+  for (const l of r.lines || []) {          // each line's first move: the position after it, with the reply as its best move
+    if (!l || !l.pv || !l.pv[0] || l.depth < 2) continue;
+    const c = new Chess(fen), u = l.pv[0];
+    if (!c.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] || "q" }) || c.game_over()) continue;
+    const ce = lineEval(sign, l.score); ce.best = l.pv[1] || null; ce.depth = l.depth - 1; ce.own = false; xPut(c.fen(), ce);
+  }
+}
+// Once the position you're on is done: the rest of your line, so every move in it gets a grade.
+async function xFill(t) {
+  const tried = new Set();
+  for (;;) {
+    if (t !== X.atok || !X.on || X.mode !== "explore" || !engine.ready) return;
+    const f = [X.start].concat(X.hist.map(h => h.fen)).find(x => !tried.has(x) && !xDeep(xEv(x)));
+    if (!f) return;
+    tried.add(f);
+    const r = await engine.analyse(f, BROWSER_DEPTH, { lane: "live", multipv: 2 });
+    if (!r || t !== X.atok || !X.on) return;
+    xKeep(f, r); renderExplore(true);
+  }
+}
+const xNo = fen => { const p = fen.split(" "); return p[5] + (p[1] === "w" ? ". " : "… "); };
+// The grade of the k-th move of your line (1-based), or null while Stockfish is still on it. Uses the game's
+// own grading (computeGrade) on a three-position stand-in: the move before, the position before, after.
+function xGrade(k) {
+  const h = X.hist[k - 1], g = S.sel; if (!h || !g) return null;
+  const f0 = k > 1 ? X.hist[k - 2].fen : X.start, a = xEv(f0), b = xEv(h.fen);
+  if (!xDeep(a) || !xDeep(b) || !a.best) return null;
+  const fp = k > 2 ? X.hist[k - 3].fen : k === 2 ? X.start : X.ply > 0 ? g.fens[X.ply - 1] : null;
+  const mp = k > 1 ? X.hist[k - 2] : X.ply > 0 ? g.moves[X.ply - 1] : null;
+  const pe = !mp ? null : k === 1 ? (evalsFor(g) || [])[X.ply - 1] || null : xEv(fp), p = pe && (k === 1 || xDeep(pe)) ? pe : null;
+  if (h.gk && h.gk.a === a && h.gk.b === b && h.gk.p === p) return h.gk.r;
+  const moves = mp ? [mp, h] : [h], fens = mp ? [fp, f0, h.fen] : [f0, h.fen];
+  const gl = { id: "\u0000explore", start: fens[0].split(" ")[1], fens, moves, _moves: moves, bookPly: k === 1 && mp && X.ply - 1 < bookPlies(g) ? 1 : 0 };
+  let r = null;
+  try { r = computeGrade(gl, mp ? [p, a, b] : [a, b], mp ? 1 : 0); } catch (e) { r = null; }
+  if (r && b.mated && (r.cls === "excellent" || r.cls === "good")) r.cls = "best";   // any mate is as good as Stockfish's
+  h.gk = { a, b, p, r }; return r;
 }
 function exploreEval() {
   if (X.res && X.resFen === X.fen && X.res.score) return toEval(X.fen, X.res);
+  if (X.mode === "explore") { const c = xEv(X.fen); if (c) return c; }
   if (X.idx === 0) { const ev = evalsFor(S.sel) || []; return ev[X.ply] || null; }
   const c = new Chess(X.fen);
   if (c.in_checkmate()) return { num: c.turn() === "w" ? -10 : 10, mated: true };
@@ -3226,7 +3298,8 @@ function renderExplore(liveOnly) {
   if (X.retry && X.retry.arrow) arrows.push(X.retry.arrow);
   const fig = X.fig && X.fig.idx === X.idx ? X.fig : null;
   if (fig) { arrows.length = 0; arrows.push(...fig.arrows); }
-  renderBoard(X.fen, last, arrows, null, { sel: B.sel, targets: B.targets, hint: X.retry ? X.retry.hint : null });
+  const cur = X.mode === "explore" && X.idx ? xGrade(X.idx) : null;
+  renderBoard(X.fen, last, arrows, cur && !fig ? { sq: X.hist[X.idx - 1].to, cls: cur.cls } : null, { sel: B.sel, targets: B.targets, hint: X.retry ? X.retry.hint : null });
   $("evalbar").classList.toggle("off", X.mode === "play");
   paintEvalBar("", X.mode === "play" ? null : exploreEval(), S.flip);
   if (X.mode === "retry") { $("xpanel").hidden = true; $("insight").hidden = false; if (!liveOnly) renderRetry(); return; }
@@ -3239,11 +3312,21 @@ function renderExplore(liveOnly) {
     const c = new Chess(X.start); const parts = [];
     X.hist.forEach((h, k) => {
       const n = c.fen().split(" ")[5], white = c.turn() === "w"; c.move(h.san);
-      const lbl = esc(h.san);
+      const gk = xGrade(k + 1), lbl = (gk ? kIcon(gk.cls) : "") + esc(h.san);
       parts.push((white ? '<span class="n">' + n + '.</span> ' : (k === 0 ? '<span class="n">' + n + '…</span> ' : "")) + '<span class="xm' + (k + 1 === X.idx ? " cur" : "") + '" data-xi="' + (k + 1) + '" role="button" tabindex="0">' + lbl + '</span>');
     });
     mv = '<div class="xmoves">' + parts.join(" ") + '</div>';
   } else mv = '<div class="xmoves" style="color:var(--muted)">Move a piece to try your own line.</div>';
+  let verdict = "", said = "";
+  if (X.idx && !fig) {
+    const h = X.hist[X.idx - 1], f0 = X.idx > 1 ? X.hist[X.idx - 2].fen : X.start, no = xNo(f0) + h.san;
+    if (cur) {
+      const a = xEv(f0), better = !["best", "great", "brilliant", "forced"].includes(cur.cls) && a.best ? xNo(f0) + uciToSan(f0, a.best) : "";
+      said = no + " is " + CLS[cur.cls].say;
+      verdict = '<div class="xgrade">' + kIcon(cur.cls) + '<div><div class="t">' + esc(said) + '</div><div class="d">' +
+        esc(sideName(cur.side) + "'s win chance " + pct(cur.epBefore) + " → " + pct(cur.epAfter) + (better ? " · " + better + " was best" : "")) + '</div></div></div>';
+    } else if (engine.ready) verdict = '<div class="xgrade wait">Checking ' + esc(no) + '…</div>';
+  }
   let lines = "";
   const c0 = new Chess(X.fen);
   if (c0.game_over()) lines = '<div class="xdepth">' + (c0.in_checkmate() ? "Checkmate." : "Draw.") + '</div>';
@@ -3258,9 +3341,9 @@ function renderExplore(liveOnly) {
   } else lines = '<div class="xdepth">Stockfish is thinking…</div>';
   const title = fig ? upFirst(fig.kind) + ' <span>on the board</span>' : 'Your analysis <span>from ' + esc(from) + '</span>';
   { const top = X.res && X.resFen === X.fen && X.res.lines.length ? X.res.lines[0] : null, sign = X.fen.split(" ")[1] === "w" ? 1 : -1;
-    coach.set("review", { cls: fig ? (fig.arrows[0] && /best/.test(fig.arrows[0].color) ? "best" : "blunder") : "", glyph: fig ? "!" : "⌕", title: fig ? upFirst(fig.kind) + " on the board" : "Your analysis from " + from,
+    coach.set("review", { cls: fig ? (fig.arrows[0] && /best/.test(fig.arrows[0].color) ? "best" : "blunder") : cur ? cur.cls : "", glyph: fig ? "!" : cur ? CLS[cur.cls].glyph : "⌕", title: fig ? upFirst(fig.kind) + " on the board" : said ? upFirst(said) : "Your analysis from " + from,
       brief: c0.game_over() ? (c0.in_checkmate() ? "Checkmate." : "Draw.") : top ? fmtEval(lineEval(sign, top.score)) + " · " + lineSan(X.fen, top.pv.slice(0, 6)) : X.hist.length ? "Stockfish is thinking…" : "Move a piece to try your own line." }); }
-  p.innerHTML = '<div class="xhead"><div class="t">' + title + '</div><button class="btn small" type="button" data-x="back">Back to the game</button></div>' + mv + lines +
+  p.innerHTML = '<div class="xhead"><div class="t">' + title + '</div><button class="btn small" type="button" data-x="back">Back to the game</button></div>' + verdict + mv + lines +
     '<div class="xbtns"><button class="btn small" type="button" data-x="prev"' + (X.idx ? "" : " disabled") + '>← Back</button><button class="btn small" type="button" data-x="next"' + (X.idx < X.hist.length ? "" : " disabled") + '>Forward →</button></div>';
 }
 // Retry: back to the position before one of your mistakes. Find a move that keeps (nearly) all of your chances.
@@ -3655,6 +3738,7 @@ BOARD_API.board = {
   }
 };
 wireBoard("board");
+if (/[?&]debug\b/.test(location.search)) window.__rx = { S, X, xGrade, go, BOARD_API, engine };   // for tests
 document.addEventListener("keydown", e => {
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName)) return;
   if (view !== "review" || e.metaKey || e.ctrlKey || e.altKey) return;
