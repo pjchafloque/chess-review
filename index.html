@@ -941,10 +941,20 @@ html, button, .btn { touch-action: manipulation; }
   .tabbar a svg { width: 24px; height: 24px; display: block; transition: transform .18s; }
   .tabbar a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tabbar a[aria-current="page"] { color: var(--link); }
-  .tabbar a:active svg { transform: scale(.86); }
+  /* The selection is a lens moved by tabLens (script): at rest the quiet gray pill (.lrest), while it moves
+     or is held clear glass (.lglass). The script animates transform and opacity only, so the browser can run
+     the motion off the main thread while a tab draws (2026-11-24). */
+  .tabbar { touch-action: none; }
   .tabpill {
-    position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px) / 4); border-radius: 999px;
-    background: color-mix(in srgb, var(--ink) 9%, transparent); transform: translateX(calc(var(--ti, 0) * 100%)); transition: transform .45s cubic-bezier(.3, 1.35, .5, 1);
+    position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px) / 4); border-radius: 999px; pointer-events: none;
+    transform: translateX(calc(var(--ti, 0) * 100%)); will-change: transform;
+  }
+  .tabpill i { position: absolute; inset: 0; border-radius: inherit; will-change: opacity; }
+  .tabpill .lrest { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+  .tabpill .lglass {
+    opacity: 0; background: color-mix(in srgb, var(--surface) 38%, transparent);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .16), 0 1px 3px rgba(0, 0, 0, .08), inset 0 0 0 .5px color-mix(in srgb, var(--ink) 14%, transparent),
+      inset 0 1.5px 1px rgba(255, 255, 255, .7), inset 0 -2px 5px color-mix(in srgb, var(--ink) 6%, transparent);
   }
   .tabmusic {
     display: grid; place-items: center; position: fixed; z-index: 45; right: max(14px, env(safe-area-inset-right, 0px)); bottom: var(--tab-b);
@@ -978,7 +988,7 @@ html, button, .btn { touch-action: manipulation; }
 </header>
 <!-- Phones: the sections as an iOS-style floating tab bar, with the music switch in its own circle beside it (2026-11-24). -->
 <nav class="tabbar" id="tabbar" aria-label="Sections">
-  <span class="tabpill" aria-hidden="true"></span>
+  <span class="tabpill" aria-hidden="true"><i class="lrest"></i><i class="lglass"></i></span>
   <a href="#review" data-view="review" aria-label="Game review" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M3.5 7a3.5 3.5 0 0 1 3.5-3.5h5V12H3.5zM12 12h8.5v5a3.5 3.5 0 0 1-3.5 3.5h-5z" fill="currentColor" stroke="none"/></svg><span>Review</span></a>
   <a href="#puzzles" data-view="trainer"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.6 7.6h4.6a2.4 2.4 0 1 1 3.8 0h4.6v4.6a2.4 2.4 0 1 1 0 3.8v4.6H3.6z"/></svg><span>Puzzles</span></a>
   <a href="#openings" data-view="openings"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 6.6C10 5 7 4.4 3.5 4.9v13.3c3.5-.5 6.5.1 8.5 1.7 2-1.6 5-2.2 8.5-1.7V4.9C17 4.4 14 5 12 6.6z"/><path d="M12 6.6v13.3"/></svg><span>Openings</span></a>
@@ -3839,6 +3849,119 @@ document.addEventListener("click", e => {
   if (coach.isOpen() && e.target.closest("#insight button, #xpanel button, #xpanel [data-xi], #tprompt button, #oprompt button")) requestAnimationFrame(() => coach.open(false));
 }, true);
 window.addEventListener("resize", () => coach.fit());
+
+/* Phones: the tab bar's selection moves like the iOS 26 glass lens in Instagram's tab bar (2026-11-24).
+   Pressing the bar lifts it into clear glass; it slides to the new tab on a spring, stretches with its speed,
+   magnifies the icons it passes over, and settles back into the gray pill. It can also be dragged along the
+   bar; letting go opens the nearest tab. Reduce Motion: it jumps.
+   A tap's whole motion is worked out ahead (the spring stepped at 120 Hz) and played as Web Animations of
+   transform and opacity, which the browser runs off the main thread, so the lens keeps moving while a tab
+   draws (the first Openings visit blocks the page for a moment). Only a drag is stepped frame by frame. */
+const tabLens = (() => {
+  const bar = $("tabbar"), pill = bar.querySelector(".tabpill"), rest = pill.querySelector(".lrest"), glass = pill.querySelector(".lglass");
+  const links = [...bar.querySelectorAll("a")], still = matchMedia("(prefers-reduced-motion: reduce)"), DT = 1 / 120;
+  let idx = 0, ready = false, pressed = false, drag = null, swallow = 0, base = { x: 0, v: 0, l: 0, lv: 0 }, run = null;
+  const slot = () => (bar.clientWidth - 10) / 4;
+  function look(f) {
+    const w = slot() || 1, L = Math.min(1.2, Math.max(0, f.l)), st = Math.min(Math.abs(f.v) / 3000, .3);
+    return {
+      pill: `translateX(${f.x.toFixed(2)}px) scale(${(1 + .1 * L + st).toFixed(3)}, ${(1 + .16 * L - .3 * st).toFixed(3)})`,
+      glass: Math.min(1, L),
+      links: links.map((a, i) => `scale(${(1 + .14 * L * Math.max(0, 1 - Math.abs(i * w - f.x) / w)).toFixed(3)})`),
+    };
+  }
+  function paint(f) {
+    const k = look(f);
+    pill.style.transform = k.pill; rest.style.opacity = (1 - k.glass).toFixed(3); glass.style.opacity = k.glass.toFixed(3);
+    links.forEach((a, i) => { a.style.transform = f.l > .01 ? k.links[i] : ""; });
+  }
+  // Where the lens is now: the frame of the running animation, or where it last stopped.
+  function state() {
+    if (!run) return base;
+    const ms = run.anims[0].currentTime ?? performance.now() - run.t0;
+    return run.frames[Math.min(run.frames.length - 1, Math.max(0, Math.floor(ms / 1000 / DT)))];
+  }
+  function stop() {
+    const s = state();
+    if (run) run.anims.forEach(a => a.cancel());
+    run = null; base = s; paint(s);
+  }
+  // Step the springs from state s toward x = target; up(t, x) says whether the lens is lifted (1) or not (0).
+  function simulate(s, target, up, held) {
+    let { x, v, l, lv } = s;
+    const out = [{ x, v, l, lv }];
+    for (let n = 1; n < 2 / DT; n++) {
+      const u = up(n * DT, x);
+      v += (170 * (target - x) - 2 * .7 * Math.sqrt(170) * v) * DT; x += v * DT;        // position: a slightly bouncy spring
+      lv += (420 * (u - l) - 2 * .85 * Math.sqrt(420) * lv) * DT; l += lv * DT;         // lift: a firmer one
+      out.push({ x, v, l, lv });
+      if (Math.abs(target - x) < .25 && Math.abs(v) < 4 && Math.abs(u - l) < .004 && Math.abs(lv) < .04 && (held || !u)) { out.push({ x: target, v: 0, l: u, lv: 0 }); break; }
+    }
+    return out;
+  }
+  function play(frames) {
+    stop();
+    const every = 2, pick = frames.map((f, i) => [f, i]).filter(([, i]) => i % every === 0 || i === frames.length - 1);
+    const duration = (frames.length - 1) * DT * 1000, looks = pick.map(([f, i]) => [look(f), i / (frames.length - 1)]);
+    const opt = { duration, easing: "linear", fill: "forwards" };
+    const kf = fn => looks.map(([k, offset]) => Object.assign(fn(k), { offset }));
+    const me = { frames, t0: performance.now(), anims: [
+      pill.animate(kf(k => ({ transform: k.pill })), opt),
+      rest.animate(kf(k => ({ opacity: 1 - k.glass })), opt),
+      glass.animate(kf(k => ({ opacity: k.glass })), opt),
+      ...links.map((a, i) => a.animate(kf(k => ({ transform: k.links[i] })), opt)),
+    ] };
+    run = me;
+    me.anims[0].finished.then(() => { if (run === me) { base = frames[frames.length - 1]; run = null; paint(base); me.anims.forEach(a => a.cancel()); } }, () => {});
+  }
+  const settle = hold => { const target = idx * slot(); play(simulate(state(), target, (t, x) => t < hold || Math.abs(target - x) > slot() * .15 ? 1 : 0)); };
+  function jump() { stop(); base = { x: idx * slot(), v: 0, l: 0, lv: 0 }; paint(base); }
+  function to(i) {
+    if (i < 0 || (ready && i === idx)) return;
+    idx = i; bar.style.setProperty("--ti", i);
+    if (!ready || still.matches || !bar.offsetWidth) { ready = true; jump(); return; }
+    if (!drag) settle(.24);
+  }
+  // Dragging: the lens follows the finger on a stiff spring, stepped every frame.
+  function follow(t) {
+    if (!drag) return;
+    const dt = Math.min(.034, drag.last ? (t - drag.last) / 1000 : .016);
+    drag.last = t;
+    let { x, v, l, lv } = base;
+    v += (600 * (drag.target - x) - 2 * .9 * Math.sqrt(600) * v) * dt; x += v * dt;
+    lv += (420 * (1 - l) - 2 * .85 * Math.sqrt(420) * lv) * dt; l += lv * dt;
+    base = { x, v, l, lv }; paint(base);
+    drag.raf = requestAnimationFrame(follow);
+  }
+  bar.addEventListener("pointerdown", e => {
+    if (still.matches || e.button > 0 || !bar.offsetWidth) return;
+    const left = bar.getBoundingClientRect().left, start = e.clientX;
+    pressed = true;
+    play(simulate(state(), idx * slot(), () => 1, true));      // lift where it is
+    const move = ev => {
+      if (!drag && Math.abs(ev.clientX - start) < 8) return;
+      const w = slot();
+      if (!drag) { stop(); drag = { last: 0, raf: requestAnimationFrame(follow) }; }
+      drag.target = Math.max(0, Math.min(3 * w, ev.clientX - left - 5 - w / 2));
+    };
+    const end = ev => {
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); window.removeEventListener("pointercancel", end);
+      pressed = false;
+      if (drag) {
+        cancelAnimationFrame(drag.raf);
+        const i = Math.max(0, Math.min(3, Math.round(drag.target / slot())));
+        drag = null; swallow = performance.now();             // the click after a drag isn't a tap
+        if (ev.type === "pointerup" && i !== idx) { location.hash = links[i].hash; return; }
+      }
+      settle(0);   // a tap on another tab follows with to() from where this leaves the lens
+    };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", end); window.addEventListener("pointercancel", end);
+  });
+  bar.addEventListener("click", e => { if (performance.now() - swallow < 400) e.preventDefault(); }, true);
+  window.addEventListener("resize", () => { if (ready && !drag) jump(); });
+  return { to, index: v => ["review", "trainer", "openings", "insights"].indexOf(v === "puzzles" ? "trainer" : ["trainer", "openings", "insights"].includes(v) ? v : "review") };
+})();
+
 function showView(v) {
   view = v === "trainer" || v === "puzzles" ? "trainer" : v === "openings" || v === "insights" ? v : "review";   // #trainer is the old address of #puzzles
   document.body.classList.remove("sheet"); coach.open(false); closePromo(null, true);
@@ -3848,14 +3971,20 @@ function showView(v) {
   $("viewTitle").textContent = { trainer: "Puzzles", openings: "Openings", review: "Game Review", insights: "Insights" }[view];
   $("viewTag").textContent = { trainer: "The moves you missed in your games.", openings: "Learn the lines your opponents actually play.", review: "Every move of your games, graded.", insights: "What keeps costing you games." }[view];
   document.querySelectorAll(".tabs a, .tabbar a").forEach(a => a.setAttribute("aria-current", a.dataset.view === view ? "page" : "false"));
-  $("tabbar").style.setProperty("--ti", ["review", "trainer", "openings", "insights"].indexOf(view));
+  tabLens.to(["review", "trainer", "openings", "insights"].indexOf(view));
   if (view === "review" && S.reviewStale) { S.reviewStale = false; renderReview(); }
   if (view === "trainer") trainerRefresh();
   if (view === "openings") openingsRefresh();
   if (view === "insights") renderInsights();
   coach.paint();
 }
-window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
+// The lens starts moving first; the tab is drawn after the next paint, so its animation is already running
+// when a slow tab (Openings the first time) holds up the page.
+window.addEventListener("hashchange", () => {
+  const v = location.hash.slice(1);
+  tabLens.to(tabLens.index(v));
+  requestAnimationFrame(() => setTimeout(() => showView(location.hash.slice(1)), 0));
+});
 
 /* ---------- puzzles ----------
    A puzzle is a position from your games where exactly one move wins (Lichess's rules, worked out by the
