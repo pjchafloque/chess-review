@@ -904,6 +904,57 @@ button.orow { cursor: pointer; } button.orow:disabled { cursor: default; color: 
 @media (max-width: 699px) { .icard { padding: 18px 18px 20px; } .istat .hero { font-size: 48px; } }
 /* No double-tap zoom on phones: fast taps on the move buttons stay taps (2026-11-24). Pinch zoom still works. */
 html, button, .btn { touch-action: manipulation; }
+
+/* Phones: a native-style tab bar (2026-11-24). The sections move from the top bar to a floating glass
+   tab bar at the bottom, like iOS 26 apps, with the music switch in its own circle beside it. The top bar
+   is left as a backdrop for the status bar only. The view's buttons (Games and the move arrows, the
+   puzzle buttons) float in the same glass just above the tab bar, and the coach strip above them. */
+.tabbar, .tabmusic { display: none; }
+@media (max-width: 699px) {
+  :root { --nav-h: env(safe-area-inset-top, 0px); --tab-h: 58px; --tab-b: max(10px, calc(env(safe-area-inset-bottom, 0px) - 12px)); --dock: calc(var(--tab-h) + var(--tab-b) + 8px); }
+  .subnav { border-bottom: 0; }
+  .subnav-in { display: none; }
+  .tabbar, .tabmusic, .controls, .tactions {
+    background: color-mix(in srgb, var(--surface) 78%, transparent); border: 0;
+    -webkit-backdrop-filter: blur(26px) saturate(190%); backdrop-filter: blur(26px) saturate(190%);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, .14), 0 1px 4px rgba(0, 0, 0, .06), inset 0 0 0 .5px color-mix(in srgb, var(--ink) 12%, transparent), inset 0 1px 0 rgba(255, 255, 255, .3);
+  }
+  .tabbar {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; z-index: 45; padding: 5px;
+    left: max(14px, env(safe-area-inset-left, 0px)); right: calc(max(14px, env(safe-area-inset-right, 0px)) + var(--tab-h) + 8px); bottom: var(--tab-b); height: var(--tab-h); border-radius: 999px;
+  }
+  .tabbar a {
+    position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; border-radius: 999px;
+    color: var(--ink); font-size: 10px; font-weight: 600; line-height: 1.2; letter-spacing: 0; text-decoration: none; -webkit-tap-highlight-color: transparent; transition: color .2s;
+  }
+  .tabbar a svg { width: 24px; height: 24px; display: block; transition: transform .18s; }
+  .tabbar a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabbar a[aria-current="page"] { color: var(--link); }
+  .tabbar a:active svg { transform: scale(.86); }
+  .tabpill {
+    position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px) / 4); border-radius: 999px;
+    background: color-mix(in srgb, var(--ink) 9%, transparent); transform: translateX(calc(var(--ti, 0) * 100%)); transition: transform .45s cubic-bezier(.3, 1.35, .5, 1);
+  }
+  .tabmusic {
+    display: grid; place-items: center; position: fixed; z-index: 45; right: max(14px, env(safe-area-inset-right, 0px)); bottom: var(--tab-b);
+    width: var(--tab-h); height: var(--tab-h); padding: 0; border-radius: 50%; color: var(--muted); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .tabmusic svg { width: 22px; height: 22px; display: block; transition: transform .18s; }
+  .tabmusic[aria-pressed="true"] { color: var(--link); }
+  .tabmusic:active svg { transform: scale(.86); }
+  /* The view's buttons: a glass capsule just above the tab bar. */
+  .controls, .tactions {
+    left: max(14px, env(safe-area-inset-left, 0px)); right: max(14px, env(safe-area-inset-right, 0px)); bottom: var(--dock); padding: 6px; border-radius: 28px;
+  }
+  body { padding-bottom: calc(var(--dock) + var(--bar-h) + var(--strip-h) + 26px); }
+  .coachbar { bottom: calc(var(--dock) + var(--bar-h) + 8px); }
+  .cbstart:not([hidden]) { bottom: calc(var(--dock) + var(--bar-h) + 8px + (var(--strip-h) - 38px) / 2); }
+  #insight, #xpanel, #tprompt, #oprompt {
+    bottom: calc(var(--dock) + var(--bar-h) + var(--strip-h) + 14px);
+    max-height: calc(100vh - var(--nav-h) - var(--dock) - var(--bar-h) - var(--strip-h) - 30px); max-height: calc(100dvh - var(--nav-h) - var(--dock) - var(--bar-h) - var(--strip-h) - 30px);
+  }
+}
+@media (max-width: 699px) and (prefers-reduced-motion: reduce) { .tabpill, .tabbar a, .tabbar a svg, .tabmusic svg { transition: none; } }
 </style>
 
 <div class="loadbar on boot" id="loadbar" role="progressbar" aria-label="Loading your games" aria-hidden="false"></div>
@@ -914,6 +965,15 @@ html, button, .btn { touch-action: manipulation; }
     <button class="musicbtn" id="bMusic" type="button" aria-pressed="false" aria-label="Background music"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17.5V5.2l10-2v12.3"/><circle cx="6.5" cy="17.5" r="2.6" fill="currentColor"/><circle cx="16.5" cy="15.5" r="2.6" fill="currentColor"/></svg></button>
   </div>
 </header>
+<!-- Phones: the sections as an iOS-style floating tab bar, with the music switch in its own circle beside it (2026-11-24). -->
+<nav class="tabbar" id="tabbar" aria-label="Sections">
+  <span class="tabpill" aria-hidden="true"></span>
+  <a href="#review" data-view="review" aria-label="Game review" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M3.5 7a3.5 3.5 0 0 1 3.5-3.5h5V12H3.5zM12 12h8.5v5a3.5 3.5 0 0 1-3.5 3.5h-5z" fill="currentColor" stroke="none"/></svg><span>Review</span></a>
+  <a href="#puzzles" data-view="trainer"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.6 7.6h4.6a2.4 2.4 0 1 1 3.8 0h4.6v4.6a2.4 2.4 0 1 1 0 3.8v4.6H3.6z"/></svg><span>Puzzles</span></a>
+  <a href="#openings" data-view="openings"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 6.6C10 5 7 4.4 3.5 4.9v13.3c3.5-.5 6.5.1 8.5 1.7 2-1.6 5-2.2 8.5-1.7V4.9C17 4.4 14 5 12 6.6z"/><path d="M12 6.6v13.3"/></svg><span>Openings</span></a>
+  <a href="#insights" data-view="insights"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 19.5v-6M10 19.5V9M15 19.5v-4M20 19.5v-14"/></svg><span>Insights</span></a>
+</nav>
+<button class="tabmusic" id="bMusic2" type="button" aria-pressed="false" aria-label="Background music"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17.5V5.2l10-2v12.3"/><circle cx="6.5" cy="17.5" r="2.6" fill="currentColor"/><circle cx="16.5" cy="15.5" r="2.6" fill="currentColor"/></svg></button>
 <div class="app">
   <div class="top">
     <div class="brand">
@@ -1413,15 +1473,16 @@ const music = {
     this.label();
   },
   label() {
-    const b = document.getElementById("bMusic"); if (!b) return;
-    b.setAttribute("aria-pressed", String(this.on));
-    b.title = (this.on ? "Music on (" : "Music off (") + this.tracks[this.idx].title + "). Piano: Salamander Grand Piano by Alexander Holm, CC BY 3.0.";
+    for (const b of document.querySelectorAll("#bMusic, #bMusic2")) {   // the top bar's, and the phone's beside the tab bar
+      b.setAttribute("aria-pressed", String(this.on));
+      b.title = (this.on ? "Music on (" : "Music off (") + this.tracks[this.idx].title + "). Piano: Salamander Grand Piano by Alexander Holm, CC BY 3.0.";
+    }
   }
 };
 // The first tap or key press anywhere starts the music (if it's on).
 {
   const kick = e => {
-    if (e.target && e.target.closest && e.target.closest("#bMusic")) return;
+    if (e.target && e.target.closest && e.target.closest("#bMusic, #bMusic2")) return;
     for (const t of ["pointerup", "touchend", "keydown"]) document.removeEventListener(t, kick, true);
     if (music.on && !music.started && !document.hidden) music.play();
   };
@@ -3613,7 +3674,7 @@ $("graph").addEventListener("click", () => requestAnimationFrame(() => intoView(
 $("bStart").onclick = () => go(0); $("bPrev").onclick = () => go(S.ply - 1);
 $("bNext").onclick = () => go(S.ply + 1); $("bEnd").onclick = () => go(1e9);
 $("bSound").onclick = () => sound.toggle(); sound.label();
-$("bMusic").onclick = () => music.toggle(); music.label();
+$("bMusic").onclick = $("bMusic2").onclick = () => music.toggle(); music.label();
 
 // Graph: click a spot to jump there; hover to see the move and the eval.
 const graphPly = (e, el) => { const rect = el.getBoundingClientRect(); return Math.max(0, Math.min(S.sel.moves.length, Math.round((e.clientX - rect.left) / rect.width * S.sel.moves.length))); };
@@ -3775,7 +3836,8 @@ function showView(v) {
   document.body.dataset.view = view;
   $("viewTitle").textContent = { trainer: "Puzzles", openings: "Openings", review: "Game Review", insights: "Insights" }[view];
   $("viewTag").textContent = { trainer: "The moves you missed in your games.", openings: "Learn the lines your opponents actually play.", review: "Every move of your games, graded.", insights: "What keeps costing you games." }[view];
-  document.querySelectorAll(".tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === view ? "page" : "false"));
+  document.querySelectorAll(".tabs a, .tabbar a").forEach(a => a.setAttribute("aria-current", a.dataset.view === view ? "page" : "false"));
+  $("tabbar").style.setProperty("--ti", ["review", "trainer", "openings", "insights"].indexOf(view));
   if (view === "review" && S.reviewStale) { S.reviewStale = false; renderReview(); }
   if (view === "trainer") trainerRefresh();
   if (view === "openings") openingsRefresh();
@@ -4203,14 +4265,30 @@ $("tReset").onclick = () => {
    of 1, 3 or 5 minutes (as many as you can; a wrong move loses that puzzle and the next one comes up).
    Kept: lrange [lo, hi], lmode (0 = practice, else seconds), lhist (practice: [id, rating, first try 1/0,
    tenths of a second, date]), lruns ({ d date, t seconds, lo, hi, s solved, n tried }), all synced; and
-   lseen (ids already shown on this device, so new puzzles come first). */
+   lseen (ids already shown on this device, so new puzzles come first).
+   Ratings on chess.com's scale (2026-11-24, user's request): Lichess numbers run higher than chess.com's,
+   about 400 points near chess.com 1000, about 200 at 1600 and close to even by 2200 (rapid; axiomchess.com's
+   2026 table: chess.com 1200 = Lichess 1539, 1400 = 1675, 1600 = 1791). Nobody publishes a table for puzzle
+   ratings, so the same curve converts them. The range, the labels and the records use chess.com's numbers;
+   the files and lhist keep Lichess's. Runs saved before this have no sc: "c" and are listed as Lichess ranges. */
 const LB_LOW = 400, LB_HIGH = 2900, LMODES = [0, 60, 180, 300];
+const LCC = [[500, 100], [1400, 1000], [1539, 1200], [1675, 1400], [1791, 1600], [2200, 2200]];   // [Lichess, chess.com]
+const LC_LOW = 100, LC_HIGH = 2900;   // range picker: the lowest choice also takes everything below it, the highest everything above
+function lScale(r, from, to) {
+  const k = LCC;
+  if (r <= k[0][from]) return Math.max(LC_LOW, k[0][to] + r - k[0][from]);
+  if (r >= k[k.length - 1][from]) return k[k.length - 1][to] + r - k[k.length - 1][from];
+  let i = 1; while (r > k[i][from]) i++;
+  return k[i - 1][to] + (r - k[i - 1][from]) * (k[i][to] - k[i - 1][to]) / (k[i][from] - k[i - 1][from]);
+}
+const lCc = r => Math.round(lScale(r, 0, 1)), lLi = c => lScale(c, 1, 0);   // Lichess -> chess.com, and back
+const lCcRuns = runs => (runs || store.get("lruns", [])).filter(x => x.sc === "c");
 const L = { lo: 1200, hi: 1400, mode: 0, bandP: {}, pool: null, poolKey: "", loadTok: 0, p: null, fen: "", intro: false, sel: null, targets: [], hint: null,
   status: "loading", step: 1, tries: 0, hinted: false, last: null, arrow: null, msg: null, token: 0, t0: 0, took: 0, figView: null, back: [], at: -1,
   run: null, lastRun: null, tick: null, err: "", clockTxt: "", panelSig: "", stale: false };
 (() => {
   const r = store.get("lrange", null), m = store.get("lmode", 0);
-  if (Array.isArray(r) && r[0] >= LB_LOW && r[1] <= LB_HIGH + 100 && r[0] < r[1] && r[0] % 100 === 0 && r[1] % 100 === 0) { L.lo = r[0]; L.hi = r[1]; }
+  if (Array.isArray(r) && r[0] >= LC_LOW && r[1] <= LC_HIGH + 100 && r[0] < r[1] && r[0] % 100 === 0 && r[1] % 100 === 0) { L.lo = r[0]; L.hi = r[1]; }
   L.mode = LMODES.includes(m) ? m : 0;
 })();
 const lSeen = {
@@ -4224,7 +4302,7 @@ const lSeen = {
   }
 };
 const lBandOf = r => Math.min(LB_HIGH, Math.max(LB_LOW, Math.floor(r / 100) * 100));
-const lInRange = (r, lo, hi) => { const b = lBandOf(r); return b >= lo && b < hi; };
+const lInRange = (r, lo, hi) => { const c = lCc(r); return (lo <= LC_LOW || c >= lo) && (hi > LC_HIGH || c < hi); };   // r: Lichess; lo, hi: chess.com
 const lRunning = () => !!(L.run && !L.run.over);
 const lDur = t => t === 60 ? "1 minute" : t / 60 + " minutes", lDurS = t => t / 60 + " min";
 const lClock = (s, up) => { s = Math.max(0, up ? Math.floor(s) : Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
@@ -4240,8 +4318,9 @@ function lBand(b) {
   return L.bandP[b];
 }
 async function lLoadPool(lo, hi) {
-  const bands = []; for (let b = lo; b < hi; b += 100) bands.push(b);
-  return (await Promise.all(bands.map(lBand))).flat();
+  const from = lo <= LC_LOW ? LB_LOW : lBandOf(lLi(lo)), to = hi > LC_HIGH ? LB_HIGH : lBandOf(lLi(hi));
+  const bands = []; for (let b = from; b <= to; b += 100) bands.push(b);
+  return (await Promise.all(bands.map(lBand))).flat().filter(p => lInRange(p.r, lo, hi));
 }
 function lShuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function lPick(not) {
@@ -4283,14 +4362,14 @@ function lWhyHtml(p) {
   else s = first + (p.themes.includes("equality") ? " is the move that holds" : " is the move") + (p.moves.length > 2 ? ". The line: <b>" + esc(lineSan(p.fen1, p.moves.slice(1))) + "</b>" : "") + ".";
   if (B && B.why) s += " " + B.why;
   const th = lThemes(p);
-  return '<div class="why"><span class="why-h">Why</span>' + s + '<div class="lthemes">' + (th ? "Lichess themes: " + esc(th) + " · " : "") +
+  return '<div class="why"><span class="why-h">Why</span>' + s + '<div class="lthemes">' + "Lichess rates it " + p.r + " · " + (th ? "Lichess themes: " + esc(th) + " · " : "") +
     '<a href="https://lichess.org/training/' + encodeURIComponent(p.id) + '" target="_blank" rel="noopener">Open on Lichess</a></div></div>';
 }
 function lRecord(p, ok) {
   if (p.done) return; p.done = true;
   const h = store.get("lhist", []); h.push([p.id, p.r, ok ? 1 : 0, Math.round(L.took * 10), Date.now()]); store.set("lhist", h.slice(-3000));
 }
-function lBest(t, lo, hi, runs) { let b = 0; for (const x of runs || store.get("lruns", [])) if (x.t === t && x.lo === lo && x.hi === hi && x.s > b) b = x.s; return b; }
+function lBest(t, lo, hi, runs) { let b = 0; for (const x of lCcRuns(runs)) if (x.t === t && x.lo === lo && x.hi === hi && x.s > b) b = x.s; return b; }
 
 // Show puzzle p: the position before your opponent's move, then that move (after 0.8 s; 0.25 s in a run).
 function lStart(p) {
@@ -4416,7 +4495,7 @@ function lRunEnd(stopped) {
   if (!stopped) {
     const runs = store.get("lruns", []);
     r.prevBest = lBest(r.t, r.lo, r.hi, runs); r.record = r.solved > r.prevBest;
-    runs.push({ d: Date.now(), t: r.t, lo: r.lo, hi: r.hi, s: r.solved, n: r.solved + r.missed });
+    runs.push({ d: Date.now(), t: r.t, lo: r.lo, hi: r.hi, sc: "c", s: r.solved, n: r.solved + r.missed });
     store.set("lruns", runs.slice(-400));
   }
   if (r.items.length) L.lastRun = r;
@@ -4448,11 +4527,12 @@ function lPanel() {
   if (sig === L.panelSig) return; L.panelSig = sig;
   const opts = (from, to, sel) => { let h = ""; for (let v = from; v <= to; v += 100) h += '<option value="' + v + '"' + (v === sel ? " selected" : "") + ">" + v + "</option>"; return h; };
   const dis = running ? " disabled" : "";
-  $("lpanel").innerHTML = '<div class="lrange"><span class="section-label">Puzzle rating</span><select id="lLo" aria-label="Lowest puzzle rating"' + dis + ">" + opts(LB_LOW, LB_HIGH, L.lo) +
-    '</select><span>to</span><select id="lHi" aria-label="Highest puzzle rating"' + dis + ">" + opts(LB_LOW + 100, LB_HIGH + 100, L.hi) + "</select></div>" +
+  $("lpanel").innerHTML = '<div class="lrange"><span class="section-label">Puzzle rating</span><select id="lLo" aria-label="Lowest puzzle rating"' + dis + ">" + opts(LC_LOW, LC_HIGH, L.lo) +
+    '</select><span>to</span><select id="lHi" aria-label="Highest puzzle rating"' + dis + ">" + opts(LC_LOW + 100, LC_HIGH + 100, L.hi) + "</select></div>" +
     '<div class="filters" role="group" aria-label="How to play">' + LMODES.map(m => '<button type="button" data-lmode="' + m + '" aria-pressed="' + (m === L.mode) + '"' + (running && m !== L.mode ? " disabled" : "") + ">" + (m ? lDurS(m) : "Practice") + "</button>").join("") + "</div>" +
     '<div class="omuted">' + (L.mode ? "Solve as many as you can in " + lDur(L.mode) + ". Your best for each clock and rating range is kept." : "One at a time, with Hint and Show solution. The clock shows how long each one takes.") +
-    ' From the <a href="https://database.lichess.org/#puzzles" target="_blank" rel="noopener">Lichess puzzle database</a>: a fresh 1,000 for every 100 rating points each month.</div>';
+    ' From the <a href="https://database.lichess.org/#puzzles" target="_blank" rel="noopener">Lichess puzzle database</a>: a fresh 1,000 for every 100 Lichess rating points each month.' +
+    ' Ratings here are on chess.com’s scale. Lichess’s numbers run higher, so ' + L.lo + ' here is about ' + Math.round(lLi(L.lo) / 10) * 10 + ' on Lichess.</div>';
 }
 function lButtons(off) {
   const B = { tHint: "Hint", tShow: "Show solution", tPrev: "Previous", tNext: "Next puzzle" };
@@ -4468,7 +4548,7 @@ function lButtons(off) {
 function lStats() {
   const rng = L.lo + "–" + L.hi;
   if (L.mode) {
-    const runs = store.get("lruns", []).filter(x => x.lo === L.lo && x.hi === L.hi);
+    const runs = lCcRuns().filter(x => x.lo === L.lo && x.hi === L.hi);
     $("tstats").innerHTML = LMODES.slice(1).map(t => { const b = lBest(t, L.lo, L.hi, runs); return "<div><b>" + (b || "–") + "</b>best in " + lDurS(t) + "</div>"; }).join("") +
       "<div><b>" + runs.length + "</b>" + (runs.length === 1 ? "run" : "runs") + " at " + rng + "</div>";
     return;
@@ -4483,8 +4563,8 @@ function lStats() {
 }
 function lRunChips(r) {
   if (!r || !r.items.length) return "";
-  return '<div class="lrun">' + r.items.map((it, k) => '<button type="button" class="lpz' + (it.ok ? "" : " no") + '" data-lrun="' + k + '" title="' + (it.ok ? "Solved" : "Missed") + ", rated " + it.p.r + ': try it again">' +
-    '<i aria-hidden="true"></i><span class="sr">' + (it.ok ? "Solved" : "Missed") + ", rated </span>" + it.p.r + "</button>").join("") + '</div><div class="omuted">Tap a puzzle to try it again without the clock.</div>';
+  return '<div class="lrun">' + r.items.map((it, k) => '<button type="button" class="lpz' + (it.ok ? "" : " no") + '" data-lrun="' + k + '" title="' + (it.ok ? "Solved" : "Missed") + ", rated " + lCc(it.p.r) + ': try it again">' +
+    '<i aria-hidden="true"></i><span class="sr">' + (it.ok ? "Solved" : "Missed") + ", rated </span>" + lCc(it.p.r) + "</button>").join("") + '</div><div class="omuted">Tap a puzzle to try it again without the clock.</div>';
 }
 function lRecords() {
   const el = $("lrecords"), runs = store.get("lruns", []), last = L.lastRun && L.lastRun !== L.run ? L.lastRun : null;   // the card shows the run that just ended
@@ -4493,7 +4573,7 @@ function lRecords() {
   const when = d => new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   el.innerHTML = (last ? '<div class="section-label">Your last run · ' + lDurS(last.t) + " · " + last.lo + "–" + last.hi + "</div>" + lRunChips(last) : "") +
     (runs.length ? '<div class="section-label">Recent runs</div><ul class="lruns">' + runs.slice(-8).reverse().map(x =>
-      "<li><span>" + esc(when(x.d)) + "</span><span>" + lDurS(x.t) + " · " + x.lo + "–" + x.hi + "</span><b>" + x.s + "</b><span>of " + x.n + "</span></li>").join("") + "</ul>" : "");
+      "<li><span>" + esc(when(x.d)) + "</span><span>" + lDurS(x.t) + " · " + (x.sc === "c" ? "" : "Lichess ") + x.lo + "–" + x.hi + "</span><b>" + x.s + "</b><span>of " + x.n + "</span></li>").join("") + "</ul>" : "");
 }
 function lCard() {
   const p = L.p, run = L.run, rng = L.lo + "–" + L.hi;
@@ -4517,12 +4597,12 @@ function lCard() {
     const left = lLeft(), low = left <= 10;
     return '<div class="lclockrow"><span class="lclock' + (low ? " low" : "") + '" id="lclock" role="timer">' + lClock(left) + '</span><span class="lscore"><b>' + run.solved + "</b> solved · <b>" + run.missed + "</b> missed</span></div>" +
       '<div class="lbar' + (low ? " low" : "") + '" id="lbar"><i style="width:' + (100 * Math.max(0, left) / run.t).toFixed(1) + '%"></i></div>' +
-      '<div class="eyebrow">Puzzle ' + (run.items.length + 1) + " · rated " + p.r + '</div><p class="ask">' + esc(L.intro ? "Get ready…" : lAsk(p)) + "</p>";
+      '<div class="eyebrow">Puzzle ' + (run.items.length + 1) + " · rated " + lCc(p.r) + '</div><p class="ask">' + esc(L.intro ? "Get ready…" : lAsk(p)) + "</p>";
   }
   if (!p) return card("Lichess puzzles", "Loading puzzles rated " + rng + "…");
   const ask = L.intro ? "Your opponent is about to move…" : L.status === "solved" ? "Solved" : L.status === "shown" ? "Solution" : lAsk(p);
   const sub = (L.status === "solving" || L.status === "wrong") && !L.intro && lMyMoves(p) > 1 ? '<div class="ctx">This one takes ' + lMyMoves(p) + " moves. Your opponent’s replies are played for you." + (L.step > 1 ? " Move " + ((L.step + 1) >> 1) + " of " + lMyMoves(p) + "." : "") + "</div>" : "";
-  return '<div class="eyebrow lhead"><span>Lichess puzzle · rated ' + p.r + '</span><span class="lwatch" id="lclock" title="Time on this puzzle">' + (L.status === "solved" || L.status === "shown" ? "" : lClock(lWatch(), true)) + "</span></div>" +
+  return '<div class="eyebrow lhead"><span>Lichess puzzle · rated ' + lCc(p.r) + '</span><span class="lwatch" id="lclock" title="Time on this puzzle">' + (L.status === "solved" || L.status === "shown" ? "" : lClock(lWatch(), true)) + "</span></div>" +
     '<p class="ask">' + esc(ask) + "</p>" + sub + (L.msg ? '<div class="feedback ' + L.msg.kind + '">' + L.msg.html + "</div>" : "");
 }
 function lCoach() {
@@ -4535,11 +4615,11 @@ function lCoach() {
   else if (L.mode && !run) { const b = lBest(L.mode, L.lo, L.hi); d = { cls: "great", glyph: "?", title: "Timed run · " + lDurS(L.mode), brief: "Rated " + rng + " · " + (b ? "your best here is " + b : "no runs here yet") + ". Tap Start." }; }
   else if (run && run.over) d = { cls: run.record ? "best" : "book", glyph: run.record ? SVG.check : SVG.arrow, title: run.stopped ? "Run stopped" : (run.record ? "New record: " : "") + run.solved + " solved",
     brief: run.stopped ? "Not saved." : run.solved + " of " + (run.solved + run.missed) + " right" + (Math.max(run.prevBest, run.solved) ? " · best here " + Math.max(run.prevBest, run.solved) : "") };
-  else if (lRunning()) d = { cls: "great", glyph: "?", title: lClock(lLeft()) + " · " + run.solved + " solved", brief: "Puzzle " + (run.items.length + 1) + " · rated " + p.r + " · " + (L.intro ? "get ready" : lAsk(p)) };
+  else if (lRunning()) d = { cls: "great", glyph: "?", title: lClock(lLeft()) + " · " + run.solved + " solved", brief: "Puzzle " + (run.items.length + 1) + " · rated " + lCc(p.r) + " · " + (L.intro ? "get ready" : lAsk(p)) };
   else {
     const k = L.msg ? L.msg.kind : "";
     d = { cls: L.status === "solved" ? "best" : k === "bad" ? "blunder" : L.status === "shown" ? "book" : "great", glyph: L.status === "solved" ? SVG.check : k === "bad" ? SVG.x : L.status === "shown" ? SVG.arrow : "?",
-      title: L.status === "solved" ? "Solved in " + lSecs(L.took) : L.status === "shown" ? "Solution" : "Rated " + p.r + " · " + (L.intro ? "Your opponent is about to move…" : lAsk(p)),
+      title: L.status === "solved" ? "Solved in " + lSecs(L.took) : L.status === "shown" ? "Solution" : "Rated " + lCc(p.r) + " · " + (L.intro ? "Your opponent is about to move…" : lAsk(p)),
       brief: L.msg ? plainText(L.msg.html) : lClock(lWatch(), true) };
   }
   coach.set("trainer", d);
@@ -4582,7 +4662,7 @@ async function lichessRefresh() {
 $("lpanel").addEventListener("change", e => {
   if (e.target.id !== "lLo" && e.target.id !== "lHi") return;
   let lo = +$("lLo").value, hi = +$("lHi").value;
-  if (lo >= hi) { if (e.target.id === "lLo") hi = Math.min(LB_HIGH + 100, lo + 200); else lo = Math.max(LB_LOW, hi - 200); }
+  if (lo >= hi) { if (e.target.id === "lLo") hi = Math.min(LC_HIGH + 100, lo + 200); else lo = Math.max(LC_LOW, hi - 200); }
   if (lo >= hi) lo = hi - 100;
   L.lo = lo; L.hi = hi; store.set("lrange", [lo, hi]);
   ++L.token; lTickOff(); Object.assign(L, { p: null, back: [], at: -1, run: null, msg: null, figView: null });
