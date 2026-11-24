@@ -912,7 +912,14 @@ html, button, .btn { touch-action: manipulation; }
 .tabbar, .tabmusic { display: none; }
 @media (max-width: 699px) {
   :root { --nav-h: env(safe-area-inset-top, 0px); --tab-h: 58px; --tab-b: max(10px, calc(env(safe-area-inset-bottom, 0px) - 12px)); --dock: calc(var(--tab-h) + var(--tab-b) + 8px); }
-  .subnav { border-bottom: 0; }
+  /* Status bar backdrop: fixed and solid. iOS 26 blurs the top of the page (status bar and a strip below it)
+     unless an opaque fixed element sits at the top edge, in which case it uses that element's color instead.
+     A see-through, blurred bar doesn't count, so this one is plain page color (2026-11-24). */
+  .subnav {
+    position: fixed; top: 0; left: 0; right: 0; height: max(env(safe-area-inset-top, 0px), 1px);
+    background: var(--bg); border-bottom: 0; -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  body { padding-top: env(safe-area-inset-top, 0px); }
   .subnav-in { display: none; }
   .tabbar, .tabmusic, .controls, .tactions {
     background: color-mix(in srgb, var(--surface) 78%, transparent); border: 0;
