@@ -1,5 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- Security policy: scripts only from this site; the page may only talk to this site, chess.com and GitHub
+     (sync and the site's data), so nothing injected could send your sync token anywhere else. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.chess.com https://api.github.com https://gist.githubusercontent.com https://raw.githubusercontent.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <style>[hidden]{display:none!important}body{margin:0}</style>
 <title>PChess</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -169,6 +172,8 @@ a { color: var(--link); text-decoration: none; }
 .engine .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c-inacc); }
 .engine[data-state="ready"] .dot { background: var(--c-best); }
 .engine[data-state="error"] .dot { background: var(--c-blunder); }
+.creditslink { font-size: 14px; letter-spacing: -.016em; color: var(--link); text-decoration: none; }
+.creditslink:hover { text-decoration: underline; }
 
 /* Dialogs */
 .syncdlg { max-width: 480px; width: calc(100% - 32px); border: 0; border-radius: var(--radius); background: var(--surface); color: var(--ink); padding: 28px; }
@@ -921,6 +926,7 @@ html, button, .btn { touch-action: manipulation; }
       <div class="engine" id="engine" data-state="loading">
         <span class="dot"></span><span id="engineText">Stockfish loading…</span>
       </div>
+      <a class="creditslink" href="https://github.com/pjchafloque/chess-review/blob/main/CREDITS.md" target="_blank" rel="noopener" title="Stockfish, chess.js, the chess pieces, the music and the other work this site uses">Credits</a>
     </div>
     </div>
   </div>
@@ -1107,18 +1113,11 @@ html, button, .btn { touch-action: manipulation; }
 </button>
 <button class="btn primary cbstart" id="cbStart" type="button" hidden>Start review</button>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-<script>if (!window.Chess) document.write('<script src="https://cdn.jsdelivr.net/npm/chess.js@0.10.3/chess.min.js"><\/script>');</script>
+<script src="scripts/vendor/chess.js"></script><!-- chess.js 0.10.3 (BSD-2-Clause), served from this site rather than a CDN -->
 <script>
 (function () {
 "use strict";
 
-// Fallback engine (Stockfish 10, asm.js) for browsers that can't run the WebAssembly one in engine/.
-const SF_URLS = [
-  "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js",
-  "https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.js",
-  "https://unpkg.com/stockfish.js@10.0.2/stockfish.js"
-];
 const EXAMPLE_PGN = `[Event "Paris Opera"]
 [Site "Paris FRA"]
 [Date "1858.11.02"]
@@ -1534,7 +1533,7 @@ function buildGame(entry) {
     id: entry.id, example: !!entry.example, me, res, white, black, nply: g.tokens.length,
     start: h.FEN ? h.FEN.split(" ")[1] : "w",
     whiteElo: h.WhiteElo, blackElo: h.BlackElo, date, sortKey: date.replace(/\./g, "") + time.replace(/:/g, ""),
-    opening: openingName(h), tc: timeControl(h.TimeControl), tclass: timeClass(h.TimeControl), link: h.Link || ""
+    opening: openingName(h), tc: timeControl(h.TimeControl), tclass: timeClass(h.TimeControl), link: /^https:\/\//i.test(h.Link || "") ? h.Link : ""
   }, h.FEN ? { bookPly: 0, bookName: "", bookNames: [] } : bookInfo(g.tokens));
 }
 
@@ -1655,8 +1654,8 @@ function importText(text) {
 
 /* ---------- engine ----------
    Stockfish 19 Lite (stockfish.js 19.0.1 by Nathan Rugg for Chess.com, GPLv3) is served from this site
-   in engine/: single-threaded WebAssembly, so it runs on GitHub Pages without special headers. Stockfish 10
-   from a CDN is only the fallback for browsers that can't run it.
+   in engine/: single-threaded WebAssembly, so it runs on GitHub Pages without special headers. There's no
+   CDN fallback any more (2026-11-24): code from other sites could have read the sync token.
    One search runs at a time, in three lanes: "live" (exploring the board, Retry: the newest request wins
    and stops the one before), "user" (trainer checks and other things you're waiting on) and "bg" (reviewing
    a game in the background, which steps aside and starts that position again when you need the engine). */
@@ -1667,12 +1666,7 @@ const engine = {
   send(c) { this.impl && this.impl.postMessage(c); },
   async init() {
     try { this.impl = await startLocalWorker(ENGINE_LOCAL, l => this.onLine(l)); this.name = "Stockfish 19"; this.v = 2; }
-    catch (e) {
-      for (const url of SF_URLS) { try { this.impl = await tryWorker(url, l => this.onLine(l)); break; } catch (e2) { /* next */ } }
-      if (!this.impl) { try { this.impl = await tryMainThread(SF_URLS[0], l => this.onLine(l)); } catch (e3) {} }
-      if (!this.impl) throw new Error("no engine");
-      this.name = "Stockfish 10"; this.v = 1;
-    }
+    catch (e) { throw new Error("no engine"); }
     this.send("setoption name Hash value 32");
     await new Promise(res => { this.readyCb = res; this.send("isready"); });
     this.ready = true; this.next();
@@ -1745,35 +1739,6 @@ function startLocalWorker(url, onLine) {
   });
 }
 function lineOf(e) { return typeof e === "string" ? e : (e && typeof e.data === "string" ? e.data : ""); }
-function tryWorker(url, onLine) {
-  return new Promise((resolve, reject) => {
-    let w;
-    try {
-      const blob = new Blob(["importScripts(" + JSON.stringify(url) + ");"], { type: "application/javascript" });
-      w = new Worker(URL.createObjectURL(blob));
-    } catch (e) { reject(e); return; }
-    const t = setTimeout(() => { try { w.terminate(); } catch (e) {} reject(new Error("timeout")); }, 25000);
-    w.onmessage = e => {
-      const l = lineOf(e);
-      if (l.startsWith("uciok")) { clearTimeout(t); w.onmessage = ev => onLine(lineOf(ev)); resolve(w); }
-    };
-    w.onerror = e => { clearTimeout(t); try { w.terminate(); } catch (x) {} reject(e); };
-    w.postMessage("uci");
-  });
-}
-function tryMainThread(url, onLine) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script"); s.src = url;
-    s.onload = () => {
-      if (typeof window.STOCKFISH !== "function") { reject(new Error("no STOCKFISH")); return; }
-      const sf = window.STOCKFISH();
-      const t = setTimeout(() => reject(new Error("timeout")), 20000);
-      sf.onmessage = e => { const l = lineOf(e); if (l.startsWith("uciok")) { clearTimeout(t); sf.onmessage = ev => onLine(lineOf(ev)); resolve(sf); } };
-      sf.postMessage("uci");
-    };
-    s.onerror = reject; document.head.appendChild(s);
-  });
-}
 
 /* ---------- evaluation maths ---------- */
 // Every stored eval is from White's side. num = pawns, capped at ±10 (mate counts as 10).
@@ -3565,7 +3530,7 @@ async function updateFromChessCom(quiet, auto) {
     const mine = S.games.filter(g => !g.example);
     const newest = mine.reduce((m, g) => g.sortKey > m ? g.sortKey : m, "");
     const fromKey = newest ? newest.slice(0, 6) : "";
-    const todo = archives.filter(url => { const m = url.match(/(\d{4})\/(\d{2})$/); return m && (m[1] + m[2]) >= fromKey; });
+    const todo = archives.filter(url => { const m = typeof url === "string" && url.startsWith("https://api.chess.com/") && url.match(/(\d{4})\/(\d{2})$/); return m && (m[1] + m[2]) >= fromKey; });
     const pgns = [];
     for (let i = 0; i < todo.length; i++) {
       note.textContent = "Downloading month " + (i + 1) + " of " + todo.length + "…";

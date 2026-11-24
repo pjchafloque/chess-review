@@ -3,6 +3,8 @@
 Personal chess.com game review: https://pjchafloque.github.io/chess-review/
 
 - `index.html` is the whole site.
+- Credits and licenses for everything the site uses (Stockfish, chess.js, the chess pieces, the music,
+  Lichess data and ideas) are in `CREDITS.md`; the page links to it.
 - `.github/workflows/update.yml` runs every 3 hours. It downloads new chess.com games for `chaflox`,
   reviews them with Stockfish 19 at depth 18, two best lines per position (`scripts/update.py`), and
   saves them in `data/`.

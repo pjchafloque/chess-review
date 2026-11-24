@@ -9,8 +9,10 @@ on:
         description: "Minutes each machine keeps reviewing (raise it to redo many games in one run, max 330)"
         default: "45"
 
+# Only the save job writes to the repo; the 20 download and review machines (which run a downloaded
+# Stockfish binary) can only read it.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: update-games
@@ -108,6 +110,8 @@ jobs:
     needs: [fetch, review]
     if: always() && needs.fetch.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
