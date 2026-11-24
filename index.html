@@ -911,15 +911,19 @@ html, button, .btn { touch-action: manipulation; }
    puzzle buttons) float in the same glass just above the tab bar, and the coach strip above them. */
 .tabbar, .tabmusic { display: none; }
 @media (max-width: 699px) {
-  :root { --nav-h: env(safe-area-inset-top, 0px); --tab-h: 58px; --tab-b: max(10px, calc(env(safe-area-inset-bottom, 0px) - 12px)); --dock: calc(var(--tab-h) + var(--tab-b) + 8px); }
+  :root { --nav-h: calc(env(safe-area-inset-top, 0px) + 12px); --tab-h: 58px; --tab-b: max(10px, calc(env(safe-area-inset-bottom, 0px) - 12px)); --dock: calc(var(--tab-h) + var(--tab-b) + 8px); }
   /* Status bar backdrop: fixed and solid. iOS 26 blurs the top of the page (status bar and a strip below it)
      unless an opaque fixed element sits at the top edge, in which case it uses that element's color instead.
-     A see-through, blurred bar doesn't count, so this one is plain page color (2026-11-24). */
+     WebKit's rules (LocalFrameView::fixedContainerEdges): it hit-tests 4px below the top of the fixed-position
+     area, skips boxes 10px tall or less, and gives up on anything with backdrop-filter. So the bar is plain page
+     color and 12px taller than the safe area (in Safari and iOS 26 Home Screen apps the safe area is often 0,
+     because the page starts below the status bar) (2026-11-24). */
   .subnav {
-    position: fixed; top: 0; left: 0; right: 0; height: max(env(safe-area-inset-top, 0px), 1px);
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
     background: var(--bg); border-bottom: 0; -webkit-backdrop-filter: none; backdrop-filter: none;
   }
-  body { padding-top: env(safe-area-inset-top, 0px); }
+  body { padding-top: var(--nav-h); }
+  .sheethead { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .subnav-in { display: none; }
   .tabbar, .tabmusic, .controls, .tactions {
     background: color-mix(in srgb, var(--surface) 78%, transparent); border: 0;
