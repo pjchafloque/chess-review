@@ -897,6 +897,8 @@ button.orow { cursor: pointer; } button.orow:disabled { cursor: default; color: 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .itip { position: fixed; z-index: 95; pointer-events: none; max-width: 280px; padding: 6px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; line-height: 1.35; letter-spacing: -.01em; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
 @media (max-width: 699px) { .icard { padding: 18px 18px 20px; } .istat .hero { font-size: 48px; } }
+/* No double-tap zoom on phones: fast taps on the move buttons stay taps (2026-11-24). Pinch zoom still works. */
+html, button, .btn { touch-action: manipulation; }
 </style>
 
 <div class="loadbar on boot" id="loadbar" role="progressbar" aria-label="Loading your games" aria-hidden="false"></div>
