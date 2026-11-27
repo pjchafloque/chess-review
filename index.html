@@ -253,9 +253,10 @@ a { color: var(--link); text-decoration: none; }
 .boardcol { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .boardwrap { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 12px; }
 .evalbar { position: relative; border-radius: 999px; overflow: hidden; background: var(--graph-black); border: 1px solid var(--chip-line); }
-.evalfill { position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: var(--graph-white); transition: height .6s cubic-bezier(.22,.61,.36,1); }
+.evalfill { position: absolute; left: 0; right: 0; bottom: 0; height: var(--wp, 50%); background: var(--graph-white); transition: height .6s cubic-bezier(.22,.61,.36,1); }
 .evalbar.flip .evalfill { top: 0; bottom: auto; }
-.evalbar span { position: absolute; left: 0; right: 0; font-size: 8px; text-align: center; font-weight: 600; letter-spacing: 0; writing-mode: vertical-rl; transform: rotate(180deg); padding: 6px 0; transition: color .3s ease; }
+.evalbar span { position: absolute; top: 0; left: 0; right: 0; font-size: 8px; text-align: center; font-weight: 600; letter-spacing: 0; writing-mode: vertical-rl; transform: rotate(180deg); padding: 6px 0; transition: color .3s ease; }
+.evalbar.near span { top: auto; bottom: 0; }
 .board {
   position: relative; width: 100%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
   border-radius: var(--radius-sm); overflow: hidden; container-type: inline-size; user-select: none; -webkit-user-select: none;
@@ -976,6 +977,27 @@ html, button, .btn { touch-action: manipulation; }
   }
 }
 @media (max-width: 699px) and (prefers-reduced-motion: reduce) { .tabpill, .tabbar a, .tabbar a svg, .tabmusic svg { transition: none; } }
+
+/* Phones: edge-to-edge boards and the eval bar across the top, like chess.com (2026-11-27).
+   Every board (Game review, Puzzles, Openings) is as wide as the screen: its box steps out of the page's
+   8px side margins, with square corners. The eval bar lies on its side right above the board, 14px tall:
+   the end by the player at the bottom of the board is on the left, and the number sits on the side that's ahead.
+   The red and green move flashes are drawn just inside the board's edge, since its sides touch the screen edges. */
+@media (max-width: 699px) {
+  :root { --ebar: 14px; }
+  .review .boardwrap, .trainer > .tboardwrap { margin-left: calc(-1 * max(8px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(8px, env(safe-area-inset-right, 0px))); }
+  .boardwrap { grid-template-columns: minmax(0, 1fr); gap: 0; scroll-margin-top: calc(var(--nav-h) + 12px); }
+  .boardwrap .board { scroll-margin-top: calc(var(--nav-h) + 12px + var(--ebar)); }
+  .board, .board.flash-bad, .board.flash-good { border-radius: 0; box-shadow: none; }
+  .board::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; box-shadow: inset 0 0 0 3px transparent; transition: box-shadow .25s ease; }
+  .board.flash-bad::after { box-shadow: inset 0 0 0 3px var(--c-blunder); }
+  .board.flash-good::after { box-shadow: inset 0 0 0 3px var(--c-best); }
+  .evalbar { height: var(--ebar); border: 0; border-top: 1px solid var(--chip-line); border-radius: 0; }   /* the hairline marks the bar's edge where its color meets the page (black on black in dark mode) */
+  .evalfill, .evalbar.flip .evalfill { top: 0; bottom: 0; left: 0; right: auto; width: var(--wp, 50%); height: auto; transition-property: width; }
+  .evalbar.flip .evalfill { left: auto; right: 0; }
+  .evalbar span, .evalbar.near span { top: 0; bottom: 0; left: auto; right: 0; padding: 0 8px; font-size: 10px; line-height: calc(var(--ebar) - 1px); writing-mode: horizontal-tb; transform: none; font-variant-numeric: tabular-nums; }
+  .evalbar.near span { left: 0; right: auto; }
+}
 </style>
 
 <div class="loadbar on boot" id="loadbar" role="progressbar" aria-label="Loading your games" aria-hidden="false"></div>
@@ -1858,12 +1880,12 @@ function barPct(e) {
 }
 // Draws an eval bar: prefix "" is Game review's, "o" is the Openings one.
 function paintEvalBar(pre, e, flip) {
-  const wp = barPct(e);
-  $(pre + "evalfill").style.height = wp + "%";
-  $(pre + "evalbar").classList.toggle("flip", !!flip);
+  const wp = barPct(e), bar = $(pre + "evalbar");
+  $(pre + "evalfill").style.setProperty("--wp", wp + "%");   // the CSS turns it into a height, or a width where the bar lies across the board (phones)
+  bar.classList.toggle("flip", !!flip);
   const et = $(pre + "evaltxt"); et.textContent = e ? fmtEval(e) : "";
-  const whiteAhead = wp >= 50; const atBottom = whiteAhead !== !!flip;
-  et.style.top = atBottom ? "auto" : "0"; et.style.bottom = atBottom ? "0" : "auto";
+  // The number sits on the side that's ahead: "near" is the end by the player at the bottom of the board (the bottom of the bar, or its left end on phones).
+  const whiteAhead = wp >= 50; bar.classList.toggle("near", whiteAhead !== !!flip);
   et.style.color = whiteAhead ? "#1d1d1f" : "#f5f5f7";
 }
 function winPct(num) { const cp = num * 100; return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1); }
@@ -3676,7 +3698,9 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && document.b
 $("moves").addEventListener("click", e => { const b = e.target.closest(".mv[data-ply]"); if (b) go(+b.dataset.ply); });
 // Phones and tablets (where the board isn't pinned): bring the board back into view when a button further down changes it.
 function intoView(id, instant) {
-  const b = $(id); if (!b || !b.offsetWidth) return;
+  let b = $(id); if (!b || !b.offsetWidth) return;
+  // Phones: the eval bar lies across the top of the board, so the two come into view together.
+  const bar = b.previousElementSibling; if (bar && bar.matches(".evalbar") && bar.getBoundingClientRect().bottom <= b.getBoundingClientRect().top + 1) b = b.parentElement;
   const r = b.getBoundingClientRect(), navB = document.querySelector(".subnav").getBoundingClientRect().bottom;
   // On phones the coach strip and the bottom bar float over the page: the board should end above them.
   let low = innerHeight;
