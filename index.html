@@ -998,6 +998,101 @@ html, button, .btn { touch-action: manipulation; }
   .evalbar span, .evalbar.near span { top: 0; bottom: 0; left: auto; right: 0; padding: 0 8px; font-size: 10px; line-height: calc(var(--ebar) - 1px); writing-mode: horizontal-tb; transform: none; font-variant-numeric: tabular-nums; }
   .evalbar.near span { left: 0; right: auto; }
 }
+
+/* Phones: Game review and the games sheet (2026-11-27, the user's request from his iPhone).
+   Game review: the move buttons sit right under the board where the tip line was (no sound button), Games is a
+   button at the top right, and the Credits link is gone (bigger screens keep it). A graded move's verdict no
+   longer sits in the coach strip: tapping the grade badge on the board opens its card as a popup in the middle
+   of the screen (body.coach-pop). The strip stays for a game's summary (Start review) and while Retry, your own
+   analysis or Play it out runs, since their buttons live in it.
+   Games sheet: Bullet, Blitz and Rapid tiles with icons (no Daily); the result chips moved into a Filter sheet
+   with more filters; the top of the sheet stays put and only the list scrolls, with a bar to drag along it. */
+.fbtn, .fclear, .gscrub, .fico, .cpx { display: none; }
+@media (max-width: 699px) {
+  .tryhint, #bSound, .creditslink { display: none; }
+  #viewReview .review { position: relative; }
+  #viewReview .boardcol { gap: 10px; }
+  #viewReview .controls {
+    position: static; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0;
+    background: none; border: 0; border-radius: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  #viewReview .controls .btn { width: auto; height: 46px; border-radius: 14px; }
+  #viewReview .controls .btn svg { width: 22px; height: 22px; }
+  #viewReview .controls .btn.gamesbtn { position: absolute; top: 4px; right: 8px; z-index: 2; height: 34px; padding: 0 14px 0 11px; gap: 6px; border-radius: 999px; font-size: 15px; }
+  #viewReview .controls .btn.gamesbtn svg { width: 18px; height: 18px; }
+  #viewReview .game-head h2 { padding-right: 100px; overflow-wrap: anywhere; }   /* long usernames break instead of running under the button */
+
+  /* The move's card as a popup, a little above the middle of the space between the top bar and the tab bar. */
+  body.coach-pop #insight {
+    top: calc(50% + (var(--nav-h) - var(--dock)) / 2); bottom: auto; left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+    max-height: calc(100vh - var(--nav-h) - var(--dock) - 40px); max-height: calc(100dvh - var(--nav-h) - var(--dock) - 40px);
+    border-radius: 22px; padding: 18px 18px 16px; transform: translateY(-50%) scale(.94);
+    transition: transform .26s cubic-bezier(.32, .72, 0, 1), opacity .18s, visibility 0s linear .26s;
+  }
+  body.coach-pop.coach-open #insight { transform: translateY(-50%); transition: transform .26s cubic-bezier(.32, .72, 0, 1), opacity .18s; }
+  body.coach-snap #insight { transition: none !important; }
+  body.coach-pop #insight .txt { padding-right: 30px; }
+  body.coach-pop #insight .cpx { display: grid; place-items: center; position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: var(--chip); color: var(--muted); }
+  body.coach-pop #insight .cpx svg { width: 14px; height: 14px; display: block; }
+  /* The grade badge is what opens it: a finger-sized target around the small disc. */
+  body.coach-pop #board .badge { cursor: pointer; }
+  body.coach-pop #board .badge::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; }
+
+  /* Games sheet: only the list scrolls. */
+  .library { gap: 10px; overflow: hidden; padding-bottom: 0; }
+  .library .import { padding: 12px 14px; gap: 6px; }
+  .library .import h2 { display: none; }
+  .library .import .btn { padding: 9px 18px; font-size: 16px; }
+  .library .import .note { font-size: 13px; min-height: 0; }
+  .library .import .note:empty { display: none; }
+  #formats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  #formats button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; padding: 7px 2px 6px; border-radius: 14px; }
+  #formats button[hidden], #formats button[data-t="daily"] { display: none; }
+  #formats .fl { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
+  #formats .fn { font-size: 13px; color: var(--muted); }
+  #formats button[aria-pressed="true"] .fn { color: var(--ink); }
+  .fico { display: block; width: 18px; height: 18px; flex: none; }
+  .fl-x { display: none; }
+  #results button[data-f] { display: none; }
+  #results .fbtn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 11px; font-weight: 600; }
+  #results .fbtn svg { width: 17px; height: 17px; display: block; }
+  #results .fbtn.on { border-color: var(--focus); box-shadow: inset 0 0 0 1px var(--focus); }
+  .fbadge { min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 600; line-height: 19px; text-align: center; }
+  .fbadge[hidden] { display: none; }
+  #results .fclear:not([hidden]) { display: inline-flex; border-color: transparent; background: none; color: var(--link); padding: 6px 4px; }
+  .glist { flex: 1 1 0; min-height: 0; position: relative; display: flex; flex-direction: column; margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .glist .games { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .glist .games::-webkit-scrollbar { display: none; }
+  .glist .game { padding-right: 30px; }
+  /* The bar: a thin track with a thumb; held, the thumb turns blue and a bubble says where you are. */
+  .gscrub { display: block; position: absolute; top: 10px; bottom: 10px; right: 0; width: 30px; z-index: 2; touch-action: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+  .gscrub[hidden] { display: none; }
+  .gscrub::before { content: ""; position: absolute; top: 0; bottom: 0; right: 10px; width: 3px; border-radius: 2px; background: var(--line); }
+  .gthumb { position: absolute; top: 0; right: 8px; width: 7px; height: 44px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 32%, transparent); transition: width .15s, right .15s, background-color .15s; }
+  .gscrub.on .gthumb { right: 6px; width: 11px; background: var(--accent); }
+  .gbubble { position: absolute; top: 0; right: 28px; padding: 6px 12px; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 600; line-height: 1.25; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; }
+  .gscrub.on .gbubble { opacity: 1; }
+}
+@media (max-width: 699px) and (prefers-reduced-motion: reduce) { .gthumb, .gbubble { transition: none; } }
+/* The Filter sheet (a dialog that rises from the bottom; only phones have its button). */
+.fdlg { width: 100%; max-width: 600px; max-height: min(86vh, 760px); max-height: min(86dvh, 760px); margin: auto auto 0; padding: 0; border: 0; border-radius: 22px 22px 0 0; overflow: hidden;
+  background: var(--surface); color: var(--ink); box-shadow: 0 -8px 40px rgba(0, 0, 0, .18); }
+.fdlg[open] { display: flex; flex-direction: column; animation: fdup .32s cubic-bezier(.32, .72, 0, 1); }
+.fdlg::backdrop { background: rgba(0, 0, 0, .32); }
+@keyframes fdup { from { transform: translateY(70px); opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .fdlg[open] { animation: none; } }
+.fdhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 18px 8px; }
+.fdhead h2 { margin: 0; font-family: var(--f-display); font-size: 22px; font-weight: 600; line-height: 1.18; letter-spacing: .01em; }
+.fdbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 6px 18px 16px; display: flex; flex-direction: column; gap: 18px; }
+.fsec .flab { font-size: 13px; font-weight: 600; letter-spacing: -.01em; color: var(--muted); margin: 0 0 8px; }
+.fsec .filters button { display: inline-flex; align-items: center; }
+.fsec .filters .ki { width: 17px; height: 17px; font-size: 9.5px; margin-right: 6px; }
+.fsec .fcn { color: var(--muted); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.fsec .filters button[aria-pressed="true"] .fcn { color: var(--ink); }
+.fsec select { width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--chip-line); border-radius: 12px; background: var(--surface); color: var(--ink); font-size: 16px; }
+.fsec .fwait { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.fdfoot { padding: 10px 18px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+.fdfoot .btn { width: 100%; }
 </style>
 
 <div class="loadbar on boot" id="loadbar" role="progressbar" aria-label="Loading your games" aria-hidden="false"></div>
@@ -1058,6 +1153,13 @@ html, button, .btn { touch-action: manipulation; }
     </div>
   </dialog>
 
+  <!-- Phones: the games list's filters, as a sheet from the Filter button (2026-11-27). -->
+  <dialog id="filterDlg" class="fdlg" aria-labelledby="fdlg-h">
+    <div class="fdhead"><h2 id="fdlg-h">Filter games</h2><button class="btn small" type="button" id="fdReset">Reset</button></div>
+    <div class="fdbody" id="fdBody"></div>
+    <div class="fdfoot"><button class="btn primary" type="button" id="fdShow">Show games</button></div>
+  </dialog>
+
   <main class="layout" id="viewReview">
     <aside class="library" id="library" aria-label="Your games">
       <div class="sheethead"><h2>Your games</h2><button class="btn small" id="sheetDone" type="button">Done</button></div>
@@ -1075,13 +1177,15 @@ html, button, .btn { touch-action: manipulation; }
         <button type="button" data-t="daily" aria-pressed="false">Daily</button>
       </div>
       <div class="filters" id="results" role="group" aria-label="Filter by result">
+        <button type="button" class="fbtn" id="filterBtn" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h8.6M17.4 7H20M4 17h2.6M11.4 17H20"/><circle cx="15" cy="7" r="2.4"/><circle cx="9" cy="17" r="2.4"/></svg><span>Filter</span><span class="fbadge" id="fbadge" hidden></span></button>
+        <button type="button" class="fclear" id="fclear" hidden>Clear</button>
         <button type="button" data-f="all" aria-pressed="true">All</button>
         <button type="button" data-f="W" aria-pressed="false">Wins</button>
         <button type="button" data-f="L" aria-pressed="false">Losses</button>
         <button type="button" data-f="D" aria-pressed="false">Draws</button>
         <span class="count" id="gcount"></span>
       </div>
-      <div class="panel"><ul class="games" id="games"></ul></div>
+      <div class="panel glist"><ul class="games" id="games"></ul><div class="gscrub" id="gscrub" aria-hidden="true"><i class="gthumb" id="gthumb"></i><span class="gbubble" id="gbubble"></span></div></div>
     </aside>
 
     <section class="panel review" id="review" aria-live="polite">
@@ -2707,17 +2811,204 @@ async function pump() {
 }
 
 /* ---------- rendering ---------- */
-function filtered() { return S.games.filter(g => (S.filter === "all" || g.res === S.filter) && (S.tfilter === "all" || g.tclass === S.tfilter)); }
+// Phones (2026-11-27): more filters for the games list, in a sheet from the Filter button. The result filter
+// (S.filter) is shared with bigger screens, where it keeps its chips; the rest (GF) only apply on a phone,
+// where their buttons are. They last until the page is closed, like the result chips.
+const PHONE = window.matchMedia("(max-width: 699px)");
+const GF0 = { color: "all", opp: "any", moves: [], acc: "any", end: "any", open: "", sort: "new" };
+const GF = Object.assign({}, GF0, { moves: [] });
+const END_KINDS = { checkmate: ["checkmate"], resignation: ["resignation"], time: ["time", "timeout-insufficient"], abandoned: ["abandoned"] };
+const oppElo = g => +(g.me === "w" ? g.blackElo : g.me === "b" ? g.whiteElo : 0) || 0;
+const myElo = g => +(g.me === "w" ? g.whiteElo : g.me === "b" ? g.blackElo : 0) || 0;
+// Your accuracy in a game (summarizing ~1000 games on every redraw was slow, so it's remembered per review).
+function gameAcc(g) {
+  if (!isDone(g)) return null;
+  const ev = S.analyses[g.id].evals;
+  if (g._accFor !== ev) { g._accFor = ev; g._acc = summarize(g, ev)[g.me || "w"].accuracy; }
+  return g._acc;
+}
+// skipMoves: everything but the Your moves filter (to count the games each of its chips would show).
+function filtered(skipMoves) {
+  const phone = PHONE.matches, tf = phone && S.tfilter === "daily" ? "all" : S.tfilter;   // phones have no Daily button
+  let list = S.games.filter(g => (S.filter === "all" || g.res === S.filter) && (tf === "all" || g.tclass === tf));
+  if (!phone) return list;
+  const f = GF;
+  if (f.color !== "all") list = list.filter(g => g.me === f.color);
+  if (f.opp !== "any") { const d = +f.opp; list = list.filter(g => { const o = oppElo(g), m = myElo(g); return o && m && (d ? o - m >= d : o > m); }); }
+  if (f.acc !== "any") list = list.filter(g => { const a = gameAcc(g); return a != null && (f.acc === "low" ? a < 70 : a >= +f.acc); });
+  if (f.end !== "any") list = list.filter(g => END_KINDS[f.end].includes(endedHow(g)));
+  if (f.open) { const fam = famIndex(); list = list.filter(g => fam.get(g.id) === f.open); }
+  if (f.moves.length && !skipMoves) list = list.filter(g => { const c = gradeCounts(g); return c && f.moves.some(k => c[GCOUNT.indexOf(k)] > 0); });
+  if (f.sort === "old") list = list.slice().reverse();
+  else if (f.sort === "opp") list = list.slice().sort((a, b) => oppElo(b) - oppElo(a));
+  else if (f.sort === "acc") list = list.slice().sort((a, b) => (gameAcc(a) ?? 101) - (gameAcc(b) ?? 101));
+  return list;
+}
+// Opening families, named as on Insights: the website's book name before the colon, else chess.com's name
+// matched to one of those families.
+let FAMI = { key: null, map: null };
+function famIndex() {
+  const key = (S.dv || 0) + ":" + S.games.length;
+  if (FAMI.key === key) return FAMI.map;
+  const fams = new Map(), map = new Map();
+  for (const g of S.games) { const a = S.analyses[g.id]; if (a && a.bookNames) { const f = famOf(bookNameAt(g, bookPlies(g))); if (f) fams.set(normName(f), f); } }
+  const keys = [...fams.keys()].sort((x, y) => y.length - x.length);
+  for (const g of S.games) {
+    let f = famOf(bookNameAt(g, bookPlies(g)));
+    if (!f) { const k = normName(g.opening), hit = keys.find(x => k.startsWith(x)); f = hit ? fams.get(hit) : g.opening; }
+    map.set(g.id, f || "Other openings");
+  }
+  FAMI = { key, map };
+  return map;
+}
+// Your Brilliant, Great, Miss, Blunder, Mistake and Inaccuracy moves in a game (the order of tactics.json's c),
+// for the Your moves filter. The website's updater counts them (scripts/tactics.js), since Brilliant and Great
+// need every game replayed on a board, too slow for a phone; games newer than its last run are counted here.
+const GCOUNT = ["brilliant", "great", "miss", "blunder", "mistake", "inacc"];
+const GC = { extra: {}, busy: false, left: 0, waiting: false };
+function gradeCounts(g) {
+  const t = INS.tac && INS.tac.games[g.id];
+  if (t && t.c) return t.c;
+  const x = GC.extra[g.id];
+  return x && x.ev === evalsFor(g) ? x.c : null;
+}
+function countMissing() {
+  if (GC.busy || !INS.tac) return;
+  const todo = S.games.filter(g => g.me && isDone(g) && !gradeCounts(g));
+  if (!todo.length) return;
+  GC.busy = true; GC.left = todo.length;
+  const step = () => {
+    const t0 = Date.now();
+    while (todo.length && Date.now() - t0 < 40) {
+      const g = todo.shift(), ev = evalsFor(g), c = GCOUNT.map(() => 0);
+      try {
+        replay(g);
+        for (let i = 0; i < g.nply; i++) {
+          if (moverAt(g, i) !== g.me || !ev[i] || !ev[i + 1]) continue;
+          const r = gradeAt(g, ev, i), k = r ? GCOUNT.indexOf(r.cls) : -1; if (k >= 0) c[k]++;
+        }
+      } catch (e) { /* counts as none */ }
+      GC.extra[g.id] = { ev, c };
+    }
+    GC.left = todo.length;
+    if (todo.length) setTimeout(step, 30);
+    else { GC.busy = false; if (GF.moves.length) renderList(); renderFilterDlg(); }
+  };
+  setTimeout(step, 30);
+}
+function needCounts() {
+  if (INS.tac) { countMissing(); return; }
+  if (GC.waiting) return;
+  GC.waiting = true;
+  loadTactics().then(() => { GC.waiting = false; countMissing(); if (GF.moves.length) renderList(); renderFilterDlg(); });
+}
+// chess.com-style format icons, drawn for this site: a bullet, a lightning bolt and a stopwatch (phones only, CSS).
+const FMT_ICON = {
+  bullet: '<svg class="fico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(45 12 12)"><path d="M9 21.2V10.6C9 6.6 10.4 3.7 12 2c1.6 1.7 3 4.6 3 8.6v10.6z" fill="#dca22e"/><path d="M8.6 18.2h6.8v3.3H8.6z" fill="#a8761a"/></g></svg>',
+  blitz: '<svg class="fico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.2 1.6 4.4 13.8h6.3L9.3 22.4l10.3-13h-6.5z" fill="#f2b81f"/></svg>',
+  rapid: '<svg class="fico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9.8" y="1.2" width="4.4" height="2.9" rx="1" fill="#6fa845"/><path d="m17.3 5 1.7-1.7 1.7 1.7-1.7 1.7z" fill="#6fa845"/><circle cx="12" cy="13.7" r="8.7" fill="#6fa845"/><circle cx="12" cy="13.7" r="6.4" fill="#fff"/><path d="M12 13.7V8.9" stroke="#3d7a28" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="13.7" r="1.5" fill="#3d7a28"/></svg>'
+};
 function renderFormatCounts() {
   const n = { all: S.games.length, bullet: 0, blitz: 0, rapid: 0, daily: 0 };
   for (const g of S.games) if (g.tclass in n) n[g.tclass]++;
   document.querySelectorAll("#formats button").forEach(b => {
-    const t = b.dataset.t; const label = t === "all" ? "All formats" : t[0].toUpperCase() + t.slice(1);
-    b.textContent = label + " " + n[t]; b.hidden = t !== "all" && !n[t] && S.tfilter !== t;
+    const t = b.dataset.t, label = t === "all" ? 'All<span class="fl-x"> formats</span>' : t[0].toUpperCase() + t.slice(1);
+    b.innerHTML = '<span class="fl">' + (FMT_ICON[t] || "") + label + '</span> <span class="fn">' + n[t] + '</span>';
+    b.hidden = t !== "all" && !n[t] && S.tfilter !== t;
   });
 }
+// The Filter button shows how many filters are on (the order counts too); Clear turns them all off.
+function gfActive() { return (S.filter !== "all") + (GF.color !== "all") + (GF.opp !== "any") + (GF.moves.length > 0) + (GF.acc !== "any") + (GF.end !== "any") + !!GF.open + (GF.sort !== "new"); }
+function renderFilterBtn() {
+  const n = gfActive();
+  $("fbadge").hidden = !n; $("fbadge").textContent = n ? String(n) : "";
+  $("filterBtn").classList.toggle("on", !!n); $("fclear").hidden = !n;
+  $("filterBtn").setAttribute("aria-label", n ? "Filter, " + n + " on" : "Filter");
+}
+const GF_SECTIONS = [
+  ["res", "Result", [["all", "All"], ["W", "Wins"], ["L", "Losses"], ["D", "Draws"]]],
+  ["color", "Your color", [["all", "Both"], ["w", "White"], ["b", "Black"]]],
+  ["opp", "Opponent", [["any", "Any rating"], ["0", "Rated higher"], ["100", "100+ higher"], ["200", "200+ higher"]]],
+  ["moves", "Your moves"],
+  ["acc", "Your accuracy", [["any", "Any"], ["90", "90+"], ["80", "80+"], ["low", "Under 70"]]],
+  ["end", "How it ended", [["any", "Any"], ["checkmate", "Checkmate"], ["resignation", "Resignation"], ["time", "On time"], ["abandoned", "Abandoned"]]],
+  ["open", "Opening"],
+  ["sort", "Order", [["new", "Newest first"], ["old", "Oldest first"], ["opp", "Strongest opponent"], ["acc", "Lowest accuracy"]]]
+];
+function renderFilterDlg() {
+  if (!$("filterDlg").open) return;
+  const cur = k => k === "res" ? S.filter : GF[k];
+  let h = "";
+  for (const [k, label, opts] of GF_SECTIONS) {
+    let body;
+    if (k === "moves") {
+      // Games with at least one of these moves of yours; each number counts the games it would show.
+      const base = filtered(true), n = [0, 0, 0, 0]; let pending = !INS.tac || GC.busy;
+      for (const g of base) { const c = gradeCounts(g); if (!c) continue; for (let j = 0; j < 4; j++) if (c[j]) n[j]++; }
+      body = '<div class="filters" data-k="moves">' + GCOUNT.slice(0, 4).map((m, j) => '<button type="button" data-v="' + m + '" aria-pressed="' + GF.moves.includes(m) + '">' + kIcon(m) + CLS[m].label + '<span class="fcn">' + (pending && !n[j] ? "…" : n[j]) + '</span></button>').join("") + '</div>' +
+        (pending ? '<p class="fwait">' + (INS.tac ? "Counting the moves in your newest games…" : "Loading your moves…") + '</p>' : "");
+    } else if (k === "open") {
+      const tf = S.tfilter === "daily" ? "all" : S.tfilter, fam = famIndex(), cnt = new Map();
+      for (const g of S.games) if ((tf === "all" || g.tclass === tf) && (GF.color === "all" || g.me === GF.color)) { const f = fam.get(g.id); cnt.set(f, (cnt.get(f) || 0) + 1); }
+      const rows = [...cnt].filter(([f, c]) => c >= 2 || f === GF.open).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      if (GF.open && !cnt.has(GF.open)) rows.unshift([GF.open, 0]);
+      body = '<select id="fdOpen" aria-label="Opening"><option value="">Any opening</option>' + rows.map(([f, c]) => '<option value="' + esc(f) + '"' + (f === GF.open ? " selected" : "") + '>' + esc(f) + ' (' + c + ')</option>').join("") + '</select>';
+    } else body = '<div class="filters" data-k="' + k + '">' + opts.map(([v, l]) => '<button type="button" data-v="' + v + '" aria-pressed="' + (cur(k) === v) + '">' + esc(l) + '</button>').join("") + '</div>';
+    h += '<div class="fsec"><div class="flab">' + label + '</div>' + body + '</div>';
+  }
+  const body = $("fdBody"), top = body.scrollTop;
+  body.innerHTML = h; body.scrollTop = top;
+  const n = filtered().length;
+  $("fdShow").textContent = n ? "Show " + fmtNum(n) + " game" + (n === 1 ? "" : "s") : "No games match";
+  $("fdReset").disabled = !gfActive();
+}
+// Phones: a bar along the right of the games list. Drag it (or tap it) to jump anywhere in the list; a bubble
+// beside it shows where you are (the month, or the rating or accuracy when the list is sorted by those).
+const scrub = (() => {
+  const ul = $("games"), bar = $("gscrub"), th = $("gthumb"), bub = $("gbubble");
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  let list = [], drag = null, raf = 0;
+  const size = () => {
+    const H = bar.clientHeight, sh = ul.scrollHeight, ch = ul.clientHeight, t = Math.min(H, Math.max(44, H * ch / Math.max(1, sh)));
+    return { t, room: Math.max(1, H - t), max: Math.max(1, sh - ch), short: sh <= ch + 2 };
+  };
+  function label(frac) {
+    const g = list[Math.round(frac * (list.length - 1))]; if (!g) return "";
+    if (GF.sort === "opp") return oppElo(g) ? "Rated " + oppElo(g) : "No rating";
+    if (GF.sort === "acc") { const a = gameAcc(g); return a == null ? "Not reviewed" : "Accuracy " + a.toFixed(0); }
+    const [y, m] = (g.date || "").split(".");
+    return m ? MON[+m - 1] + " " + y : g.date || "";
+  }
+  function paint() {
+    raf = 0;
+    if (!PHONE.matches || !document.body.classList.contains("sheet")) return;
+    const k = size(); bar.hidden = k.short || list.length < 2; if (bar.hidden) return;
+    const frac = Math.min(1, Math.max(0, ul.scrollTop / k.max)), y = k.room * frac;
+    th.style.height = k.t + "px"; th.style.transform = "translateY(" + y.toFixed(1) + "px)";
+    if (drag) { bub.textContent = label(frac); bub.style.transform = "translateY(" + (y + k.t / 2).toFixed(1) + "px) translateY(-50%)"; }
+  }
+  const soon = () => { if (!raf) raf = requestAnimationFrame(paint); };
+  function follow(e) {
+    const k = size(), y = Math.max(0, Math.min(k.room, e.clientY - bar.getBoundingClientRect().top - drag.off));
+    ul.scrollTop = y / k.room * k.max; paint();
+  }
+  bar.addEventListener("pointerdown", e => {
+    const k = size(), y = e.clientY - bar.getBoundingClientRect().top, at = k.room * Math.min(1, ul.scrollTop / k.max);
+    drag = { id: e.pointerId, off: y >= at - 8 && y <= at + k.t + 8 ? Math.max(0, Math.min(k.t, y - at)) : k.t / 2 };   // on the thumb: keep hold of it; elsewhere: jump there
+    try { bar.setPointerCapture(e.pointerId); } catch (x) {}
+    bar.classList.add("on"); e.preventDefault(); follow(e);
+  });
+  bar.addEventListener("pointermove", e => { if (drag && e.pointerId === drag.id) follow(e); });
+  const end = e => { if (!drag || e.pointerId !== drag.id) return; drag = null; bar.classList.remove("on"); };
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(t => bar.addEventListener(t, end));
+  ul.addEventListener("scroll", soon, { passive: true });
+  window.addEventListener("resize", soon);
+  return { set(l) { list = l; soon(); }, paint: soon };
+})();
 function renderList() {
-  const ul = $("games"); const list = filtered(); renderFormatCounts();
+  if (PHONE.matches && S.tfilter === "daily") { S.tfilter = "all"; store.set("tfilter", "all"); syncFormatButtons(); }   // phones have no Daily button
+  const ul = $("games"); const list = filtered(); renderFormatCounts(); renderFilterBtn(); scrub.set(list);
+  if (PHONE.matches && GF.moves.length) needCounts();
   const fresh = new Set(store.get("fresh", []));
   $("gcount").textContent = list.length + " / " + S.games.length;
   if (!S.games.length) { ul.innerHTML = '<li class="empty">No games yet. Press “Update from chess.com” above.</li>'; return; }
@@ -2728,9 +3019,7 @@ function renderList() {
     const resTxt = { W: "W", L: "L", D: "½", X: "·" }[g.res];
     let acc = "";
     if (isDone(g)) {
-      const ev = S.analyses[g.id].evals; // summarizing ~1000 games on every redraw was slow, so remember it per review
-      if (g._accFor !== ev) { g._accFor = ev; g._acc = summarize(g, ev)[g.me || "w"].accuracy; }
-      const a = g._acc;
+      const a = gameAcc(g);
       acc = '<b title="Your accuracy in this game">' + (a == null ? "–" : a.toFixed(0)) + '</b>';
     } else if (S.job && S.job.id === g.id) acc = "analyzing";
     const sub = [g.date, g.tc].filter(Boolean).join(" · ");
@@ -2874,7 +3163,7 @@ function renderCoach(g, ev, ply, r) {
   const i = ply - 1, mv = g.moves[i], num = moveNo(g, i), who = whoMoved(g, i);
   if (!r) {
     ins.innerHTML = '<span class="ico">…</span><div class="txt"><div class="ttl">' + esc(num + " " + mv.san) + '</div><div class="det">' + esc(who) + ' · waiting for the engine</div></div>';
-    coach.set("review", { glyph: "…", title: num + " " + mv.san, brief: "Waiting for the engine…" });
+    coach.set("review", { glyph: "…", title: num + " " + mv.san, brief: "Waiting for the engine…", quiet: true });
     return;
   }
   const c = CLS[r.cls], det = [esc(who)];
@@ -2887,8 +3176,10 @@ function renderCoach(g, ev, ply, r) {
   const said = coachSay(g, ev, i, r), acts = coachActs(g, ev, i, r);
   S.coachFigs = said.figs || [];
   ins.innerHTML = '<span class="ico ' + r.cls + '">' + c.glyph + '</span><div class="txt"><div class="ttl">' + esc(num + " " + mv.san) + ' is ' + c.say + '</div><div class="det">' + det.join(" · ") + '</div>' +
-    (said.html ? '<div class="say">' + said.html + '</div>' : "") + '</div>' + (acts ? '<div class="acts">' + acts + '</div>' : "");
-  coach.set("review", { cls: r.cls, glyph: c.glyph, title: num + " " + mv.san + " is " + c.say, brief: said.brief || (r.cls === "book" ? bookNameAt(g, ply) || "Known opening theory." : "") });
+    (said.html ? '<div class="say">' + said.html + '</div>' : "") + '</div>' + (acts ? '<div class="acts">' + acts + '</div>' : "") +
+    '<button type="button" class="cpx" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>';
+  // quiet: on phones this verdict stays out of the coach strip; the grade badge on the board opens the card (coach.badge).
+  coach.set("review", { cls: r.cls, glyph: c.glyph, title: num + " " + mv.san + " is " + c.say, brief: said.brief || (r.cls === "book" ? bookNameAt(g, ply) || "Known opening theory." : ""), quiet: true });
 }
 const EXPLAINED = ["inacc", "mistake", "blunder", "miss", "great", "brilliant"];
 // { html, brief, figs }: plain sentences for the quiet grades, the explanation engine for the rest.
@@ -3182,6 +3473,7 @@ function wireBoard(el) {
   const board = $(el);
   board.addEventListener("click", e => {
     if (Date.now() - DRAG.lastDrop < 400 || e.target.closest(".promo")) return;
+    if (el === "board" && e.target.closest(".badge") && coach.badge()) return;   // phones: the grade badge opens the move's card
     const s = e.target.closest(".sq[data-sq]"); if (s) boardTap(el, s.dataset.sq);
   });
   board.addEventListener("pointerdown", e => {
@@ -3682,29 +3974,55 @@ function gamesSheet(open) {
   if (open) {
     // Bring the current game into view only when it's hidden (under the title bar or below the screen).
     const cur = document.querySelector('#games .game[aria-current="true"]');
-    if (cur) { // measured against the sheet, which is still sliding up (transformed) at this point
+    if (cur && PHONE.matches) {   // phones: only the list scrolls (both boxes are mid-slide, so compare them)
+      const ul = $("games"), U = ul.getBoundingClientRect(), r = cur.getBoundingClientRect();
+      if (r.top < U.top || r.bottom > U.bottom) ul.scrollTop += r.top - U.top - (U.height - r.height) / 2;
+    } else if (cur) { // measured against the sheet, which is still sliding up (transformed) at this point
       const lib = $("library"), L = lib.getBoundingClientRect(), r = cur.getBoundingClientRect();
       const head = document.querySelector(".sheethead").getBoundingClientRect().bottom - L.top;
       if (r.top - L.top < head || r.bottom - L.top > lib.clientHeight) cur.scrollIntoView({ block: "center" });
     }
     $("sheetDone").focus({ preventScroll: true });
+    scrub.paint();
   } else if ($("library").contains(document.activeElement)) $("gamesBtn").focus({ preventScroll: true });
 }
 $("gamesBtn").onclick = () => gamesSheet(true);
 $("sheetDone").onclick = () => gamesSheet(false);
 // The sheet's title bar gets its hairline once the list scrolls under it (like an iOS navigation bar).
 $("library").addEventListener("scroll", () => $("library").classList.toggle("scrolled", $("library").scrollTop > 2), { passive: true });
-document.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("sheet")) { gamesSheet(false); e.stopImmediatePropagation(); } }, true);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("sheet") && !$("filterDlg").open) { gamesSheet(false); e.stopImmediatePropagation(); } }, true);
+// Phones: the Filter sheet. Every tap filters the list right away; Show (or a tap outside) closes the sheet.
+function gfChanged() { renderList(); $("games").scrollTop = 0; renderFilterDlg(); }
+function gfReset() { Object.assign(GF, GF0, { moves: [] }); S.filter = "all"; syncResultButtons(); gfChanged(); }
+function syncResultButtons() { document.querySelectorAll("#results button[data-f]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.f === S.filter))); }
+$("filterBtn").addEventListener("click", () => { const d = $("filterDlg"); if (!d.open) d.showModal(); renderFilterDlg(); $("fdBody").scrollTop = 0; needCounts(); });
+$("fclear").addEventListener("click", gfReset);
+$("fdReset").addEventListener("click", gfReset);
+$("fdShow").addEventListener("click", () => $("filterDlg").close());
+$("filterDlg").addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // a tap on the dimmed page around it
+$("fdBody").addEventListener("click", e => {
+  const b = e.target.closest("button[data-v]"), grp = b && b.closest("[data-k]"); if (!grp) return;
+  const k = grp.dataset.k, v = b.dataset.v;
+  if (k === "res") { S.filter = v; syncResultButtons(); }
+  else if (k === "moves") { const i = GF.moves.indexOf(v); if (i >= 0) GF.moves.splice(i, 1); else GF.moves.push(v); needCounts(); }
+  else GF[k] = v;
+  gfChanged();
+});
+$("fdBody").addEventListener("change", e => { if (e.target.id === "fdOpen") { GF.open = e.target.value; gfChanged(); } });
+PHONE.addEventListener("change", () => { if (!PHONE.matches && $("filterDlg").open) $("filterDlg").close(); renderList(); coach.paint(); });
 $("moves").addEventListener("click", e => { const b = e.target.closest(".mv[data-ply]"); if (b) go(+b.dataset.ply); });
 // Phones and tablets (where the board isn't pinned): bring the board back into view when a button further down changes it.
 function intoView(id, instant) {
   let b = $(id); if (!b || !b.offsetWidth) return;
   // Phones: the eval bar lies across the top of the board, so the two come into view together.
   const bar = b.previousElementSibling; if (bar && bar.matches(".evalbar") && bar.getBoundingClientRect().bottom <= b.getBoundingClientRect().top + 1) b = b.parentElement;
-  const r = b.getBoundingClientRect(), navB = document.querySelector(".subnav").getBoundingClientRect().bottom;
-  // On phones the coach strip and the bottom bar float over the page: the board should end above them.
+  let r = b.getBoundingClientRect(); const navB = document.querySelector(".subnav").getBoundingClientRect().bottom;
+  // Game review on phones: the move buttons sit right under the board, so they come into view with it.
+  const ctl = id === "board" && document.querySelector("#viewReview .controls");
+  if (ctl && ctl.offsetHeight && getComputedStyle(ctl).position !== "fixed") { const c = ctl.getBoundingClientRect(); if (c.top >= r.bottom - 1 && c.top - r.bottom < 40) r = { top: r.top, bottom: c.bottom }; }
+  // On phones the coach strip, the bottom bar and the tab bar float over the page: the board should end above them.
   let low = innerHeight;
-  for (const el of [$("coachbar"), document.querySelector({ review: "#viewReview .controls", trainer: "#viewTrainer .tactions", openings: "#viewOpenings .tactions" }[view])]) {
+  for (const el of [$("coachbar"), $("tabbar"), document.querySelector({ review: "#viewReview .controls", trainer: "#viewTrainer .tactions", openings: "#viewOpenings .tactions" }[view])]) {
     if (el && !el.hidden && el.offsetHeight && getComputedStyle(el).position === "fixed") low = Math.min(low, el.getBoundingClientRect().top);
   }
   const behavior = instant || reduceMotion.matches ? "auto" : "smooth";
@@ -3840,6 +4158,12 @@ const coach = {
   set(v, d) { this.data[v] = d; if (v === view) this.paint(); },
   paint() {
     const d = this.data[view], bar = $("coachbar");
+    // Game review on phones (2026-11-27): a graded move ("quiet") gets no strip. Its card opens as a popup in
+    // the middle of the screen when the grade badge on the board is tapped (body.coach-pop, coach.badge).
+    const pop = !!(d && d.quiet) && this.mq.matches, cl = document.body.classList;
+    if (cl.contains("coach-pop") && !pop) { cl.add("coach-snap"); requestAnimationFrame(() => requestAnimationFrame(() => cl.remove("coach-snap"))); }   // the popup leaves at once instead of sliding to the strip's place
+    cl.toggle("coach-pop", pop);
+    if (pop) { bar.hidden = true; $("cbStart").hidden = true; this.fit(); return; }
     if (!d) { bar.hidden = true; $("cbStart").hidden = true; this.open(false); return; }
     bar.hidden = false;
     $("cbIco").className = "ki" + (d.cls ? " " + d.cls : ""); $("cbIco").innerHTML = d.glyph || "";
@@ -3855,11 +4179,18 @@ const coach = {
     if (on) { this.fit(); const card = this.card(); if (card) card.scrollTop = 0; }
   },
   card() { return view === "review" ? (X.on && X.mode === "explore" ? $("xpanel") : $("insight")) : view === "trainer" ? $("tprompt") : view === "openings" ? $("oprompt") : null; },
+  // The grade badge on the Game review board was tapped: open that move's card (phones; false = not handled).
+  badge() {
+    if (!this.mq.matches || view !== "review" || X.on || !document.body.classList.contains("coach-pop")) return false;
+    this.open(true); return true;
+  },
   // Where the strip and the sheet sit depends on the height of the view's bottom bar (and of the strip).
+  // Game review's buttons sit under the board on phones (not floating), so its bar counts as 0.
   fit() {
     if (!this.mq.matches) return;
     const b = document.querySelector({ review: "#viewReview .controls", trainer: "#viewTrainer .tactions", openings: "#viewOpenings .tactions" }[view]);
-    if (b && b.offsetHeight) document.documentElement.style.setProperty("--bar-h", b.offsetHeight + "px");
+    if (b && getComputedStyle(b).position !== "fixed") document.documentElement.style.setProperty("--bar-h", "0px");
+    else if (b && b.offsetHeight) document.documentElement.style.setProperty("--bar-h", b.offsetHeight + "px");
     const s = $("coachbar"); if (!s.hidden && s.offsetHeight) document.documentElement.style.setProperty("--strip-h", s.offsetHeight + "px");
   }
 };
@@ -3870,7 +4201,9 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && coach.isOp
 // A button inside the open sheet usually changes the board (Retry, Best line, a pattern word, Hint...):
 // close the sheet so the board shows.
 document.addEventListener("click", e => {
-  if (coach.isOpen() && e.target.closest("#insight button, #xpanel button, #xpanel [data-xi], #tprompt button, #oprompt button")) requestAnimationFrame(() => coach.open(false));
+  if (!coach.isOpen() || !e.target.closest("#insight button, #xpanel button, #xpanel [data-xi], #tprompt button, #oprompt button")) return;
+  if (document.body.classList.contains("coach-pop")) coach.open(false);   // the move popup closes before its button changes the card
+  else requestAnimationFrame(() => coach.open(false));
 }, true);
 window.addEventListener("resize", () => coach.fit());
 

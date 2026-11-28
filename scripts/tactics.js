@@ -12,13 +12,19 @@
 //   "const PIECE_VAL" ... "async function refutationFor"                   (line helpers)
 // If one of those comments is renamed in index.html, rename it here too.
 //
+// It also counts the grades of all his moves in each game (c: Brilliant, Great, Miss, Blunder, Mistake,
+// Inaccuracy, the order of COUNTED below and of GCOUNT in index.html), for the games list's filters on phones
+// ("games with my Brilliants"). Brilliant and Great need the board replayed, too slow to do for every game on
+// a phone (version 2, 2026-11-27).
+//
 // Input: data/games.json, data/analysis.json. Output: data/tactics.json. Only games whose review changed
 // since the last run are redone (a fingerprint per game), so a scheduled run takes a few seconds.
 // Usage: node scripts/tactics.js        (CHESS_USER defaults to chaflox)
 "use strict";
 const fs = require("fs"), path = require("path"), vm = require("vm");
 const ROOT = path.join(__dirname, "..");
-const VERSION = 1;
+const VERSION = 2;
+const COUNTED = ["brilliant", "great", "miss", "blunder", "mistake", "inacc"];
 const USER = (process.env.CHESS_USER || "chaflox").toLowerCase();
 const { Chess } = require("./vendor/chess.js");
 
@@ -78,18 +84,20 @@ function main() {
     Object.assign(g, { id: e.id, me, start: h.FEN ? h.FEN.split(" ")[1] : "w", nply: g.tokens.length, white: h.White || "White", black: h.Black || "Black" });
     const ev = a.e.map(x.expandEval);
     ctx.S.analyses[e.id] = { v: a.v, depth: a.d, evals: ev, pv: a.p || null, ref: a.r || null, book: a.b != null ? a.b : null, bookNames: a.bn || null };
-    const m = [];
+    const m = [], c = COUNTED.map(() => 0);
     for (let i = 0; i < Math.min(g.nply, g._moves.length); i++) {
       if (x.moverAt(g, i) !== me || !ev[i] || !ev[i + 1]) continue;
+      let r;
+      try { r = x.gradeAt(g, ev, i); } catch (err) { errors++; if (errors <= 3) console.error("error", e.id, i, err.message); continue; }
+      const k = r ? COUNTED.indexOf(r.cls) : -1; if (k >= 0) c[k]++;
       if (x.epFor(ev[i], me) - x.epFor(ev[i + 1], me) < x.GRADE_INACC) continue;
       try {
-        const r = x.gradeAt(g, ev, i);
         const o = x.explainMove(g, i, r, ev, a.r && a.r[i], a.p && a.p[i]);
         const [missed, allowed] = x.moveTactics(o);
         m.push([i, missed || 0, allowed || 0]); moves++;
       } catch (err) { errors++; if (errors <= 3) console.error("error", e.id, i, err.message); }
     }
-    out.games[e.id] = { f: fp, m };
+    out.games[e.id] = { f: fp, m, c };
     delete ctx.S.analyses[e.id];
     done++;
   }
